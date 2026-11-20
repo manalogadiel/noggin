@@ -1,13 +1,11 @@
 export const DEFAULT_LESSON_WORD_LIMIT = 120;
 
-const WORD_REGEX = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;
+const WORD_REGEX =
+  /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
 
-const ABBREVIATIONS = new Set([
-  "al",
-  "approx",
+const NON_TERMINAL_ABBREVIATIONS = new Set([
   "dr",
   "eq",
-  "etc",
   "fig",
   "jr",
   "mr",
@@ -19,6 +17,8 @@ const ABBREVIATIONS = new Set([
   "st",
   "vs",
 ]);
+
+const SENTENCE_CAPABLE_ABBREVIATIONS = new Set(["al", "approx", "etc"]);
 
 export function countWords(text: string): number {
   const matches = text.match(WORD_REGEX);
@@ -37,7 +37,28 @@ interface Segment {
   wordCount: number;
 }
 
-function isAbbreviationBoundary(text: string, punctuationStart: number, punctuation: string): boolean {
+function nextNonWhitespaceChar(text: string, fromIndex: number): string {
+  let index = fromIndex;
+  while (index < text.length) {
+    const codePoint = text.codePointAt(index);
+    if (codePoint === undefined) {
+      return "";
+    }
+    const char = String.fromCodePoint(codePoint);
+    if (!/\s/u.test(char)) {
+      return char;
+    }
+    index += char.length;
+  }
+  return "";
+}
+
+function isAbbreviationBoundary(
+  text: string,
+  punctuationStart: number,
+  punctuation: string,
+  matchEnd: number,
+): boolean {
   if (!punctuation.startsWith(".") || punctuation.length > 1) {
     return false;
   }
@@ -48,8 +69,18 @@ function isAbbreviationBoundary(text: string, punctuationStart: number, punctuat
   }
 
   const wordMatch = /([\p{L}]+)\.$/u.exec(beforeDot);
-  if (wordMatch && ABBREVIATIONS.has(wordMatch[1].toLowerCase())) {
+  if (!wordMatch) {
+    return false;
+  }
+
+  const word = wordMatch[1].toLowerCase();
+  if (NON_TERMINAL_ABBREVIATIONS.has(word)) {
     return true;
+  }
+
+  if (SENTENCE_CAPABLE_ABBREVIATIONS.has(word)) {
+    const nextChar = nextNonWhitespaceChar(text, matchEnd);
+    return nextChar !== "" && !/^\p{Lu}$/u.test(nextChar);
   }
 
   return false;
@@ -67,11 +98,27 @@ function splitLongSegmentByWords(text: string, maxWords: number): string[] {
 
     if (wordsInChunk === maxWords) {
       let splitEnd = match.index + match[0].length;
-      while (splitEnd < text.length && !/[\p{L}\p{N}\s]/u.test(text[splitEnd])) {
-        splitEnd += 1;
+      while (splitEnd < text.length) {
+        const codePoint = text.codePointAt(splitEnd);
+        if (codePoint === undefined) {
+          break;
+        }
+        const char = String.fromCodePoint(codePoint);
+        if (/[\p{L}\p{M}\p{N}\s]/u.test(char)) {
+          break;
+        }
+        splitEnd += char.length;
       }
-      while (splitEnd < text.length && /\s/.test(text[splitEnd])) {
-        splitEnd += 1;
+      while (splitEnd < text.length) {
+        const codePoint = text.codePointAt(splitEnd);
+        if (codePoint === undefined) {
+          break;
+        }
+        const char = String.fromCodePoint(codePoint);
+        if (!/\s/u.test(char)) {
+          break;
+        }
+        splitEnd += char.length;
       }
       parts.push(text.slice(chunkStart, splitEnd));
       chunkStart = splitEnd;
@@ -99,11 +146,11 @@ function segmentSentences(text: string): Segment[] {
   let match: RegExpExecArray | null;
 
   while ((match = boundaryRegex.exec(text)) !== null) {
-    if (isAbbreviationBoundary(text, match.index, match[1])) {
+    const sentenceEnd = match.index + match[0].length;
+    if (isAbbreviationBoundary(text, match.index, match[1], sentenceEnd)) {
       continue;
     }
 
-    const sentenceEnd = match.index + match[0].length;
     let spaceEnd = sentenceEnd;
     while (spaceEnd < text.length && /\s/.test(text[spaceEnd])) {
       spaceEnd += 1;

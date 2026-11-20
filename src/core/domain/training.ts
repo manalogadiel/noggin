@@ -22,20 +22,44 @@ export const DEFAULT_GROWTH_THRESHOLDS: Required<GrowthStageThresholds> = {
   geniusTopicMasteryRatio: 0.8,
 };
 
-function toTimestamp(value: Date | string): number {
-  return value instanceof Date ? value.getTime() : new Date(value).getTime();
+interface ParsedTimestamp {
+  ms: number;
+  subMsNanos: number;
+}
+
+function parseTimestamp(value: Date | string): ParsedTimestamp {
+  if (value instanceof Date) {
+    return { ms: value.getTime(), subMsNanos: 0 };
+  }
+
+  const ms = new Date(value).getTime();
+  const fractionMatch = /\.(\d+)(?:Z|[+-]\d{2}:?\d{2})?$/i.exec(value.trim());
+  if (!fractionMatch) {
+    return { ms, subMsNanos: 0 };
+  }
+
+  const padded = fractionMatch[1].padEnd(9, "0").slice(0, 9);
+  const subMsNanos = Number.parseInt(padded.slice(3, 9), 10);
+  return { ms, subMsNanos: Number.isNaN(subMsNanos) ? 0 : subMsNanos };
+}
+
+function compareTimestamps(a: ParsedTimestamp, b: ParsedTimestamp): number {
+  if (a.ms !== b.ms) {
+    return a.ms - b.ms;
+  }
+  return a.subMsNanos - b.subMsNanos;
 }
 
 export function trainingMeter(attempts: ReadonlyArray<QuestionAttempt>): number {
   const latestByQuestion = new Map<
     string,
-    { timestamp: number; correct: boolean }
+    { timestamp: ParsedTimestamp; correct: boolean }
   >();
 
   for (const attempt of attempts) {
-    const timestamp = toTimestamp(attempt.attemptedAt);
+    const timestamp = parseTimestamp(attempt.attemptedAt);
     const existing = latestByQuestion.get(attempt.questionId);
-    if (!existing || timestamp >= existing.timestamp) {
+    if (!existing || compareTimestamps(timestamp, existing.timestamp) >= 0) {
       latestByQuestion.set(attempt.questionId, {
         timestamp,
         correct: attempt.correct,
