@@ -75,9 +75,10 @@ class Client {
       return { ok: true, data: (result ? JSON.parse(result) : undefined) as T };
     }
     // Auth and PostgREST error bodies can echo fixture contents.
-    const code = response.headers.get("content-type")?.includes("application/json")
-      ? (JSON.parse(result) as { code?: string }).code
+    const error = response.headers.get("content-type")?.includes("application/json")
+      ? (JSON.parse(result) as { error_code?: unknown; code?: unknown } | null)
       : undefined;
+    const code = [error?.error_code, error?.code].find((value) => typeof value === "string");
     return { ok: false, status: response.status, code };
   }
 
