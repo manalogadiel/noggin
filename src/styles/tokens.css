@@ -1,0 +1,14 @@
+:root {
+  --noggin-bg: #ffffff;
+  --noggin-fg: #171717;
+  --noggin-surface: #f7f7f8;
+  --noggin-muted: #6b7280;
+  --noggin-border: #e5e7eb;
+  --noggin-primary: #2563eb;
+  --noggin-primary-fg: #ffffff;
+  --noggin-accent: #f59e0b;
+  --noggin-success: #16a34a;
+  --noggin-warning: #d97706;
+  --noggin-danger: #dc2626;
+  --noggin-radius: 0.75rem;
+}
