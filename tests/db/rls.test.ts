@@ -214,4 +214,31 @@ describe("row and column access", () => {
     expectNoRows(await client.rows("app_config", query, "DELETE"), "Client deletes app config");
     expect(exactlyOne(await db.admin.rows("app_config", query), "Read unchanged config")).toMatchObject({ value });
   });
+
+  it("rejects lesson bodies longer than 2000 characters", async () => {
+    const db = localDb();
+    const { subject, topic } = await db.tcpTopic();
+    const user = await db.createUser();
+    const owner = await db.signIn(user);
+    const nog = await createNog(db, user.id, subject.id);
+
+    const oversized = await owner.rows("lessons", {}, "POST", {
+      ...lessonInput(nog.id, topic.id),
+      body: "a".repeat(2001),
+      word_count: 1,
+    });
+    if (oversized.ok) throw new Error("Oversized lesson body unexpectedly succeeded");
+    expect(oversized.status).toBe(400);
+    expect(oversized.code).toBe("23514");
+
+    const stored = success(await db.admin.rows<Row>("lessons", { nog_id: eq(nog.id), select: "id" }), "Verify rejected lesson was not stored");
+    expect(stored).toEqual([]);
+
+    const atLimit = exactlyOne(await owner.rows<Row>("lessons", {}, "POST", {
+      ...lessonInput(nog.id, topic.id),
+      body: "a".repeat(2000),
+      word_count: 1,
+    }), "Insert lesson at 2000-char limit");
+    expect(Boolean(atLimit.id)).toBe(true);
+  });
 });

@@ -181,4 +181,25 @@ describe("consume_usage_quota", () => {
     expect(results.find(({ allowed }) => !allowed)).toEqual({ allowed: false, used: cap, cap });
     expect(await usageAmounts(db, user.id)).toEqual([cap - 1, 1]);
   });
+
+  it("keeps the daily quota window fixed when profiles.timezone changes", async () => {
+    const db = localDb();
+    const user = await db.createUser();
+    const client = await db.signIn(user);
+    const cap = await listenerCap(db, user.id);
+
+    const allowed = exactlyOne(await db.admin.rpc<QuotaResult[]>("consume_usage_quota", quotaArgs(user.id, cap)), "Consume full daily cap");
+    expect(allowed).toEqual({ allowed: true, used: cap, cap });
+
+    for (const timezone of ["Pacific/Honolulu", "Pacific/Kiritimati", "Invalid/Zone"]) {
+      const updated = exactlyOne(await client.rows<{ timezone: string }>("profiles", {
+        id: eq(user.id), select: "timezone",
+      }, "PATCH", { timezone }), `Update profile timezone to ${timezone}`);
+      expect(updated).toEqual({ timezone });
+
+      const denied = exactlyOne(await db.admin.rpc<QuotaResult[]>("consume_usage_quota", quotaArgs(user.id, 1)), `Check quota after timezone ${timezone}`);
+      expect(denied).toEqual({ allowed: false, used: cap, cap });
+    }
+    expect(await usageAmounts(db, user.id)).toEqual([cap]);
+  });
 });

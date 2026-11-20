@@ -344,7 +344,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_tz text;
+  c_quota_tz constant text := 'Asia/Manila';
   v_cap int;
   v_day_start timestamptz;
   v_day_end timestamptz;
@@ -360,10 +360,8 @@ begin
 
   perform pg_advisory_xact_lock(hashtext(p_user_id::text || ':' || p_kind));
 
-  select
-    coalesce(nullif(btrim(p.timezone), ''), 'Asia/Manila'),
-    (pl.caps ->> p_kind)::int
-  into v_tz, v_cap
+  select (pl.caps ->> p_kind)::int
+  into v_cap
   from public.profiles p
   join public.plans pl on pl.code = p.plan_code
   where p.id = p_user_id;
@@ -372,8 +370,8 @@ begin
     raise exception 'quota cap not found for user % and kind %', p_user_id, p_kind;
   end if;
 
-  v_day_start := ((now() at time zone v_tz)::date::timestamp) at time zone v_tz;
-  v_day_end := (((now() at time zone v_tz)::date + 1)::timestamp) at time zone v_tz;
+  v_day_start := ((now() at time zone c_quota_tz)::date::timestamp) at time zone c_quota_tz;
+  v_day_end := (((now() at time zone c_quota_tz)::date + 1)::timestamp) at time zone c_quota_tz;
 
   select coalesce(sum(ue.amount), 0)::int
   into v_used

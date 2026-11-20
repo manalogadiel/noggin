@@ -96,7 +96,7 @@ create table public.lessons (
   id uuid primary key default gen_random_uuid(),
   nog_id uuid not null references public.nogs (id) on delete cascade,
   topic_id uuid not null references public.topics (id),
-  body text not null,
+  body text not null check (char_length(body) between 1 and 2000),
   word_count int not null check (word_count between 1 and 120),
   kind text not null default 'lesson'
     check (kind in ('lesson', 'follow_up_answer')),
@@ -310,7 +310,6 @@ grant insert (nog_id, topic_id, body, word_count, kind, parent_lesson_id, idempo
 grant select on public.thought_cards to authenticated;
 grant select on public.nog_messages to authenticated;
 grant select on public.check_attempts to authenticated;
-grant select on public.topic_mastery to authenticated;
 
 grant all on all tables in schema public to service_role;
 grant usage, select on all sequences in schema public to service_role;
