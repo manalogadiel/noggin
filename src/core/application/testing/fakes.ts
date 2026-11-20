@@ -459,7 +459,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
 
       const targetNog = nogStore.find((n) => n.id === input.nogId);
       if (targetNog) {
-        targetNog.stage = recomputeStageForNog(input.nogId);
+        targetNog.stage = input.stage ?? recomputeStageForNog(input.nogId);
       }
 
       return recorded;
@@ -486,7 +486,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       key: CheckReservationKey,
       work: () => Promise<T>,
     ): Promise<T> {
-      const queueKey = `${key.nogId}:${key.topicId}:${key.notebookFingerprint}`;
+      const queueKey = key.nogId;
       const previous = reservationQueues.get(queueKey) ?? Promise.resolve();
       let release!: () => void;
       const current = new Promise<void>((resolve) => {

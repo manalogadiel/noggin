@@ -16,6 +16,7 @@ import {
   filterGroundedOperations,
   matchesReplayPage,
   MAX_FOLLOW_UP_QUESTIONS,
+  withThreadDigestLock,
 } from "./teach-lesson";
 
 export const MAX_FOLLOW_UPS_PER_LESSON = 2;
@@ -306,35 +307,40 @@ export async function answerFollowUp(
     existingCards,
   );
 
-  const issuedQuestions = deps.notebook.countIssuedQuestions
-    ? await deps.notebook.countIssuedQuestions(input.nogId, rootLesson.id)
-    : maxFollowUps;
-  const savedAnswers = await deps.notebook.countFollowUps(
-    input.nogId,
-    rootLesson.id,
-  );
-  const remainingQuestionBudget = Math.max(
-    0,
-    Math.min(maxFollowUps - issuedQuestions, maxFollowUps - savedAnswers),
-  );
-  const followUpQuestions = rawDigest.followUpQuestions.slice(
-    0,
-    Math.min(MAX_FOLLOW_UP_QUESTIONS, remainingQuestionBudget),
-  );
-  const sanitizedDigest: ListenerDigest = {
-    ...rawDigest,
-    followUpQuestions,
-    operations: groundedOperations,
-  };
+  const { sanitizedDigest, applied } = await withThreadDigestLock(
+    `${input.nogId}:${rootLesson.id}`,
+    async () => {
+      const issuedQuestions = deps.notebook.countIssuedQuestions
+        ? await deps.notebook.countIssuedQuestions(input.nogId, rootLesson.id)
+        : maxFollowUps;
+      const savedAnswers = await deps.notebook.countFollowUps(
+        input.nogId,
+        rootLesson.id,
+      );
+      const remainingQuestionBudget = Math.max(
+        0,
+        Math.min(maxFollowUps - issuedQuestions, maxFollowUps - savedAnswers),
+      );
+      const followUpQuestions = rawDigest.followUpQuestions
+        .filter((question) => question.trim().length > 0)
+        .slice(0, Math.min(MAX_FOLLOW_UP_QUESTIONS, remainingQuestionBudget));
+      const digestToSave: ListenerDigest = {
+        ...rawDigest,
+        followUpQuestions,
+        operations: groundedOperations,
+      };
 
-  const applied = await deps.notebook.applyDigest({
-    nogId: input.nogId,
-    lessonId: page.id,
-    idempotencyKey: page.idempotencyKey,
-    operations: groundedOperations,
-    messages: buildDigestMessages(sanitizedDigest),
-    digest: sanitizedDigest,
-  });
+      const digestResult = await deps.notebook.applyDigest({
+        nogId: input.nogId,
+        lessonId: page.id,
+        idempotencyKey: page.idempotencyKey,
+        operations: groundedOperations,
+        messages: buildDigestMessages(digestToSave),
+        digest: digestToSave,
+      });
+      return { sanitizedDigest: digestToSave, applied: digestResult };
+    },
+  );
 
   if (!applied.applied) {
     const saved =

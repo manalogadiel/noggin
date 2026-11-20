@@ -23,8 +23,13 @@ export interface TeachLessonDeps {
   nogs: Pick<NogRepository, "findOwned">;
   notebook: Pick<
     NotebookRepository,
-    "savePage" | "applyDigest" | "findPageByIdempotencyKey" | "findSavedDigest"
-  >;
+    | "savePage"
+    | "applyDigest"
+    | "findPageByIdempotencyKey"
+    | "findSavedDigest"
+    | "countIssuedQuestions"
+  > &
+    Partial<Pick<NotebookRepository, "countFollowUps">>;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   usage: UsageRepository;
   listener: NogListener;
@@ -96,6 +101,50 @@ export function filterGroundedOperations(
       operation.quote.trim().length > 0 && pageBody.includes(operation.quote)
     );
   });
+}
+
+const threadDigestLocks = new Map<string, Promise<void>>();
+
+export async function withThreadDigestLock<T>(
+  key: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const previous = threadDigestLocks.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = previous.then(() => current);
+  threadDigestLocks.set(key, chained);
+
+  await previous;
+  try {
+    return await work();
+  } finally {
+    release();
+    if (threadDigestLocks.get(key) === chained) {
+      threadDigestLocks.delete(key);
+    }
+  }
+}
+
+export async function computeRootQuestionBudget(
+  notebook: Pick<NotebookRepository, "countIssuedQuestions"> &
+    Partial<Pick<NotebookRepository, "countFollowUps">>,
+  nogId: string,
+  rootLessonId: string,
+  maxQuestions: number = MAX_FOLLOW_UP_QUESTIONS,
+): Promise<number> {
+  const issuedQuestions = notebook.countIssuedQuestions
+    ? await notebook.countIssuedQuestions(nogId, rootLessonId)
+    : 0;
+  const savedFollowUps = notebook.countFollowUps
+    ? await notebook.countFollowUps(nogId, rootLessonId)
+    : 0;
+  return Math.max(
+    0,
+    Math.min(maxQuestions - issuedQuestions, maxQuestions - savedFollowUps),
+  );
 }
 
 export function buildDigestMessages(
@@ -236,24 +285,34 @@ export async function teachLesson(
     page.body,
     existingCards,
   );
-  const followUpQuestions = rawDigest.followUpQuestions.slice(
-    0,
-    MAX_FOLLOW_UP_QUESTIONS,
+  const { sanitizedDigest, applied } = await withThreadDigestLock(
+    `${input.nogId}:${page.id}`,
+    async () => {
+      const remainingQuestionBudget = await computeRootQuestionBudget(
+        deps.notebook,
+        input.nogId,
+        page.id,
+        MAX_FOLLOW_UP_QUESTIONS,
+      );
+      const followUpQuestions = rawDigest.followUpQuestions
+        .filter((question) => question.trim().length > 0)
+        .slice(0, remainingQuestionBudget);
+      const digestToSave: ListenerDigest = {
+        ...rawDigest,
+        followUpQuestions,
+        operations: groundedOperations,
+      };
+      const digestResult = await deps.notebook.applyDigest({
+        nogId: input.nogId,
+        lessonId: page.id,
+        idempotencyKey: page.idempotencyKey,
+        operations: groundedOperations,
+        messages: buildDigestMessages(digestToSave),
+        digest: digestToSave,
+      });
+      return { sanitizedDigest: digestToSave, applied: digestResult };
+    },
   );
-  const sanitizedDigest: ListenerDigest = {
-    ...rawDigest,
-    followUpQuestions,
-    operations: groundedOperations,
-  };
-
-  const applied = await deps.notebook.applyDigest({
-    nogId: input.nogId,
-    lessonId: page.id,
-    idempotencyKey: page.idempotencyKey,
-    operations: groundedOperations,
-    messages: buildDigestMessages(sanitizedDigest),
-    digest: sanitizedDigest,
-  });
 
   if (!applied.applied) {
     const saved =

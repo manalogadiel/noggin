@@ -31,28 +31,26 @@ export const MAX_CHECK_CONTEXT_WORDS = 1500;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const checkLocks = new Map<string, Promise<void>>();
-const nogRecordLocks = new Map<string, Promise<void>>();
 
 async function withLock<T>(
-  store: Map<string, Promise<void>>,
   key: string,
   work: () => Promise<T>,
 ): Promise<T> {
-  const previous = store.get(key) ?? Promise.resolve();
+  const previous = checkLocks.get(key) ?? Promise.resolve();
   let release!: () => void;
   const current = new Promise<void>((resolve) => {
     release = resolve;
   });
   const chained = previous.then(() => current);
-  store.set(key, chained);
+  checkLocks.set(key, chained);
 
   await previous;
   try {
     return await work();
   } finally {
     release();
-    if (store.get(key) === chained) {
-      store.delete(key);
+    if (checkLocks.get(key) === chained) {
+      checkLocks.delete(key);
     }
   }
 }
@@ -252,15 +250,15 @@ export async function runQuickCheck(
     return { status: "not_found" };
   }
 
-  const allPages = await deps.notebook.listPages(input.nogId, input.topicId);
-  if (allPages.length === 0) {
-    return { status: "not_taught" };
-  }
-
-  const contextPages = selectContextPages(allPages);
-  const fingerprint = computeNotebookFingerprint(allPages);
-
   const runReserved = async (): Promise<RunQuickCheckResult> => {
+    const allPages = await deps.notebook.listPages(input.nogId, input.topicId);
+    if (allPages.length === 0) {
+      return { status: "not_taught" };
+    }
+
+    const contextPages = selectContextPages(allPages);
+    const fingerprint = computeNotebookFingerprint(allPages);
+
     const previousAttempts = await deps.attempts.findLatest(
       input.nogId,
       input.topicId,
@@ -378,39 +376,37 @@ export async function runQuickCheck(
 
     const cardUpdates = buildCardCheckUpdates(activeCards, attemptDrafts, now);
 
-    const recorded = await withLock(nogRecordLocks, input.nogId, async () => {
-      const nowIso = deps.clock.now().toISOString();
-      const priorNogAttempts = deps.attempts.listByNog
-        ? await deps.attempts.listByNog(input.nogId)
-        : previousAttempts;
-      const combinedAttempts = [
-        ...priorNogAttempts.map((attempt) => ({
-          questionId: attempt.questionId,
-          topicId: attempt.topicId ?? input.topicId,
-          attemptedAt: attempt.createdAt,
-          correct: attempt.correct,
-        })),
-        ...attemptDrafts.map((draft) => ({
-          questionId: draft.questionId,
-          topicId: input.topicId,
-          attemptedAt: nowIso,
-          correct: draft.correct,
-        })),
-      ];
-      const nextStage = computeNogStageFromAttempts(
-        combinedAttempts,
-        new Map([[input.topicId, questions.length]]),
-      );
-
-      return deps.attempts.recordCheck({
-        nogId: input.nogId,
+    const nowIso = deps.clock.now().toISOString();
+    const priorNogAttempts = deps.attempts.listByNog
+      ? await deps.attempts.listByNog(input.nogId)
+      : previousAttempts;
+    const combinedAttempts = [
+      ...priorNogAttempts.map((attempt) => ({
+        questionId: attempt.questionId,
+        topicId: attempt.topicId ?? input.topicId,
+        attemptedAt: attempt.createdAt,
+        correct: attempt.correct,
+      })),
+      ...attemptDrafts.map((draft) => ({
+        questionId: draft.questionId,
         topicId: input.topicId,
-        attempts: attemptDrafts,
-        cardUpdates,
-        topicQuestionCount: questions.length,
-        stage: nextStage,
-        model: answerResult.model,
-      });
+        attemptedAt: nowIso,
+        correct: draft.correct,
+      })),
+    ];
+    const nextStage = computeNogStageFromAttempts(
+      combinedAttempts,
+      new Map([[input.topicId, questions.length]]),
+    );
+
+    const recorded = await deps.attempts.recordCheck({
+      nogId: input.nogId,
+      topicId: input.topicId,
+      attempts: attemptDrafts,
+      cardUpdates,
+      topicQuestionCount: questions.length,
+      stage: nextStage,
+      model: answerResult.model,
     });
 
     return { status: "ok", reused: false, attempts: recorded };
@@ -418,18 +414,10 @@ export async function runQuickCheck(
 
   if (deps.attempts.withCheckReservation) {
     return deps.attempts.withCheckReservation(
-      {
-        nogId: input.nogId,
-        topicId: input.topicId,
-        notebookFingerprint: fingerprint,
-      },
+      { nogId: input.nogId },
       runReserved,
     );
   }
 
-  return withLock(
-    checkLocks,
-    `${input.nogId}:${input.topicId}:${fingerprint}`,
-    runReserved,
-  );
+  return withLock(input.nogId, runReserved);
 }

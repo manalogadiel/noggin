@@ -13,9 +13,11 @@ import type {
 import { EntitlementService } from "../services/entitlement";
 import {
   buildDigestMessages,
+  computeRootQuestionBudget,
   filterGroundedOperations,
   matchesReplayPage,
   MAX_FOLLOW_UP_QUESTIONS,
+  withThreadDigestLock,
 } from "./teach-lesson";
 
 export interface ReviseLessonDeps {
@@ -26,9 +28,11 @@ export interface ReviseLessonDeps {
     | "findPage"
     | "findPageByIdempotencyKey"
     | "findSavedDigest"
+    | "countIssuedQuestions"
     | "savePage"
     | "applyDigest"
-  >;
+  > &
+    Partial<Pick<NotebookRepository, "countFollowUps">>;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   usage: UsageRepository;
   listener: NogListener;
@@ -165,24 +169,34 @@ export async function reviseLesson(
     page.body,
     existingCards,
   );
-  const followUpQuestions = rawDigest.followUpQuestions.slice(
-    0,
-    MAX_FOLLOW_UP_QUESTIONS,
+  const { sanitizedDigest, applied } = await withThreadDigestLock(
+    `${input.nogId}:${page.id}`,
+    async () => {
+      const remainingQuestionBudget = await computeRootQuestionBudget(
+        deps.notebook,
+        input.nogId,
+        page.id,
+        MAX_FOLLOW_UP_QUESTIONS,
+      );
+      const followUpQuestions = rawDigest.followUpQuestions
+        .filter((question) => question.trim().length > 0)
+        .slice(0, remainingQuestionBudget);
+      const digestToSave: ListenerDigest = {
+        ...rawDigest,
+        followUpQuestions,
+        operations: groundedOperations,
+      };
+      const digestResult = await deps.notebook.applyDigest({
+        nogId: input.nogId,
+        lessonId: page.id,
+        idempotencyKey: page.idempotencyKey,
+        operations: groundedOperations,
+        messages: buildDigestMessages(digestToSave),
+        digest: digestToSave,
+      });
+      return { sanitizedDigest: digestToSave, applied: digestResult };
+    },
   );
-  const sanitizedDigest: ListenerDigest = {
-    ...rawDigest,
-    followUpQuestions,
-    operations: groundedOperations,
-  };
-
-  const applied = await deps.notebook.applyDigest({
-    nogId: input.nogId,
-    lessonId: page.id,
-    idempotencyKey: page.idempotencyKey,
-    operations: groundedOperations,
-    messages: buildDigestMessages(sanitizedDigest),
-    digest: sanitizedDigest,
-  });
 
   if (!applied.applied) {
     const saved =

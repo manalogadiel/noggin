@@ -241,8 +241,6 @@ export interface RecordCheckInput {
 
 export interface CheckReservationKey {
   nogId: string;
-  topicId: string;
-  notebookFingerprint: string;
 }
 
 export interface OwnedCheckAttempt {
