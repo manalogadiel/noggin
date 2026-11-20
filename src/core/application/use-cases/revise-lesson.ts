@@ -20,7 +20,10 @@ import {
 export interface ReviseLessonDeps {
   currentUser: CurrentUser;
   nogs: Pick<NogRepository, "findOwned">;
-  notebook: Pick<NotebookRepository, "findPage" | "savePage" | "applyDigest">;
+  notebook: Pick<
+    NotebookRepository,
+    "findPage" | "findPageByIdempotencyKey" | "savePage" | "applyDigest"
+  >;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   usage: UsageRepository;
   listener: NogListener;
@@ -83,15 +86,24 @@ export async function reviseLesson(
     return { status: "tired_for_today" };
   }
 
-  const page = await deps.notebook.savePage({
-    nogId: input.nogId,
-    topicId: original.topicId,
-    body: input.body,
-    wordCount,
-    kind: "lesson",
-    parentLessonId: original.id,
-    idempotencyKey: input.idempotencyKey,
-  });
+  const existingPage = deps.notebook.findPageByIdempotencyKey
+    ? await deps.notebook.findPageByIdempotencyKey(
+        input.nogId,
+        input.idempotencyKey,
+      )
+    : null;
+
+  const page =
+    existingPage ??
+    (await deps.notebook.savePage({
+      nogId: input.nogId,
+      topicId: original.topicId,
+      body: input.body,
+      wordCount,
+      kind: "lesson",
+      parentLessonId: original.id,
+      idempotencyKey: input.idempotencyKey,
+    }));
 
   const existingCards = await deps.thoughtCards.listByTopic(
     input.nogId,
@@ -113,6 +125,7 @@ export async function reviseLesson(
   const groundedOperations = filterGroundedOperations(
     rawDigest.operations,
     page.body,
+    existingCards,
   );
   const followUpQuestions = rawDigest.followUpQuestions.slice(
     0,

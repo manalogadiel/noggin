@@ -1,6 +1,5 @@
 import type { ConceptCheck } from "../domain/quiz";
 import type { ThoughtCardStatus } from "../domain/thought-card";
-import type { GrowthStage } from "../domain/training";
 
 export type NogStageSlug = "hatchling" | "sprout" | "scholar" | "genius";
 
@@ -80,6 +79,10 @@ export interface LessonPage extends NewPageInput {
   updatedAt: string;
 }
 
+export type SaveFollowUpPageResult =
+  | { status: "saved" | "existing"; page: LessonPage }
+  | { status: "limit_reached" };
+
 export type DigestOperation =
   | {
       type: "create";
@@ -126,6 +129,7 @@ export interface ApplyDigestResult {
 export interface OwnedMessage {
   id: string;
   nogId: string;
+  lessonId?: string | null;
   role: "nog" | "student";
   kind: "reply" | "question" | "answer" | "reaction";
   body: string;
@@ -134,8 +138,16 @@ export interface OwnedMessage {
 export interface NotebookRepository {
   savePage(input: NewPageInput): Promise<LessonPage>;
   findPage(nogId: string, lessonId: string): Promise<LessonPage | null>;
+  findPageByIdempotencyKey?(
+    nogId: string,
+    idempotencyKey: string,
+  ): Promise<LessonPage | null>;
+  saveFollowUpPage?(
+    input: NewPageInput & { parentLessonId: string; maxFollowUps: number },
+  ): Promise<SaveFollowUpPageResult>;
   listPages(nogId: string, topicId: string): Promise<LessonPage[]>;
   countFollowUps(nogId: string, rootLessonId: string): Promise<number>;
+  countIssuedQuestions?(nogId: string, rootLessonId: string): Promise<number>;
   applyDigest(input: ApplyDigestInput): Promise<ApplyDigestResult>;
   findOwnedMessage(
     userId: string,
@@ -162,10 +174,13 @@ export interface ThoughtCardRepository {
   listByNog?(nogId: string): Promise<ThoughtCardRecord[]>;
 }
 
-export interface QuestionRecord {
+export interface AnswerQuestionPrompt {
   id: string;
-  topicId: string;
   prompt: string;
+}
+
+export interface QuestionRecord extends AnswerQuestionPrompt {
+  topicId: string;
   referenceAnswer: string;
   sourceExcerpt: string;
   keyConcepts: string[];
@@ -190,15 +205,25 @@ export interface CheckAttemptDraft {
 export interface CheckAttemptRecord extends CheckAttemptDraft {
   id: string;
   nogId: string;
+  topicId?: string;
   createdAt: string;
+}
+
+export interface CardCheckUpdate {
+  cardId: string;
+  strength: number;
+  status: ThoughtCardStatus;
+  intervalDays: number;
+  nextReviewAt: string;
 }
 
 export interface RecordCheckInput {
   nogId: string;
   topicId: string;
   attempts: CheckAttemptDraft[];
+  cardUpdates?: CardCheckUpdate[];
   model?: string;
-  stage?: GrowthStage;
+  stage?: NogStageSlug;
 }
 
 export interface OwnedCheckAttempt {
@@ -254,7 +279,7 @@ export interface AnswerInput {
   topicId: string;
   pages: LessonPage[];
   cards: ThoughtCardRecord[];
-  questions: QuestionRecord[];
+  questions: AnswerQuestionPrompt[];
 }
 
 export interface BrainAnswerItem {

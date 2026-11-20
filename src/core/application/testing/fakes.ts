@@ -23,6 +23,7 @@ import type {
   QuestionRecord,
   QuotaResult,
   RecordCheckInput,
+  SaveFollowUpPageResult,
   SpeechToText,
   SynthesizedAudio,
   TextToSpeech,
@@ -134,6 +135,13 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
 
   const notebook: NotebookRepository = {
     async savePage(input: NewPageInput) {
+      const existing = pageStore.find(
+        (p) =>
+          p.nogId === input.nogId && p.idempotencyKey === input.idempotencyKey,
+      );
+      if (existing) {
+        return existing;
+      }
       const nowIso = clock.now().toISOString();
       const page: LessonPage = {
         ...input,
@@ -150,6 +158,50 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         pageStore.find((p) => p.nogId === nogId && p.id === lessonId) ?? null
       );
     },
+    async findPageByIdempotencyKey(nogId: string, idempotencyKey: string) {
+      return (
+        pageStore.find(
+          (p) => p.nogId === nogId && p.idempotencyKey === idempotencyKey,
+        ) ?? null
+      );
+    },
+    async saveFollowUpPage(
+      input: NewPageInput & { parentLessonId: string; maxFollowUps: number },
+    ): Promise<SaveFollowUpPageResult> {
+      const existing = pageStore.find(
+        (p) =>
+          p.nogId === input.nogId && p.idempotencyKey === input.idempotencyKey,
+      );
+      if (existing) {
+        return { status: "existing", page: existing };
+      }
+
+      const currentCount = pageStore.filter(
+        (p) =>
+          p.nogId === input.nogId &&
+          p.parentLessonId === input.parentLessonId &&
+          p.kind === "follow_up_answer",
+      ).length;
+      if (currentCount >= input.maxFollowUps) {
+        return { status: "limit_reached" };
+      }
+
+      const nowIso = clock.now().toISOString();
+      const page: LessonPage = {
+        nogId: input.nogId,
+        topicId: input.topicId,
+        body: input.body,
+        wordCount: input.wordCount,
+        kind: "follow_up_answer",
+        parentLessonId: input.parentLessonId,
+        idempotencyKey: input.idempotencyKey,
+        id: nextId("page"),
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      pageStore.push(page);
+      return { status: "saved", page };
+    },
     async listPages(nogId: string, topicId: string) {
       return pageStore.filter((p) => p.nogId === nogId && p.topicId === topicId);
     },
@@ -159,6 +211,26 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
           p.nogId === nogId &&
           p.parentLessonId === rootLessonId &&
           p.kind === "follow_up_answer",
+      ).length;
+    },
+    async countIssuedQuestions(nogId: string, rootLessonId: string) {
+      const threadIds = new Set<string>([rootLessonId]);
+      for (const page of pageStore) {
+        if (
+          page.nogId === nogId &&
+          page.parentLessonId === rootLessonId &&
+          page.kind === "follow_up_answer"
+        ) {
+          threadIds.add(page.id);
+        }
+      }
+      return messageStore.filter(
+        (m) =>
+          m.nogId === nogId &&
+          m.kind === "question" &&
+          m.lessonId !== undefined &&
+          m.lessonId !== null &&
+          threadIds.has(m.lessonId),
       ).length;
     },
     async applyDigest(input: ApplyDigestInput): Promise<ApplyDigestResult> {
@@ -191,7 +263,10 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
           cardIds.push(card.id);
         } else if (op.type === "update") {
           const existing = cardStore.find(
-            (c) => c.id === op.cardId && c.nogId === input.nogId,
+            (c) =>
+              c.id === op.cardId &&
+              c.nogId === input.nogId &&
+              c.topicId === topicId,
           );
           if (existing) {
             if (op.label !== undefined) existing.label = op.label;
@@ -202,7 +277,10 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
           }
         } else if (op.type === "conflict") {
           const existing = cardStore.find(
-            (c) => c.id === op.cardId && c.nogId === input.nogId,
+            (c) =>
+              c.id === op.cardId &&
+              c.nogId === input.nogId &&
+              c.topicId === topicId,
           );
           if (existing) {
             existing.status = "confused";
@@ -216,6 +294,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         messageStore.push({
           id: nextId("msg"),
           nogId: input.nogId,
+          lessonId: input.lessonId,
           role: msg.role,
           kind: msg.kind,
           body: msg.body,
@@ -276,9 +355,32 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         ...draft,
         id: nextId("attempt"),
         nogId: input.nogId,
+        topicId: input.topicId,
         createdAt: nowIso,
       }));
       attemptStore.push(...recorded);
+
+      if (input.cardUpdates) {
+        for (const update of input.cardUpdates) {
+          const card = cardStore.find(
+            (c) => c.id === update.cardId && c.nogId === input.nogId,
+          );
+          if (card) {
+            card.strength = update.strength;
+            card.status = update.status;
+            card.intervalDays = update.intervalDays;
+            card.nextReviewAt = update.nextReviewAt;
+          }
+        }
+      }
+
+      if (input.stage) {
+        const targetNog = nogStore.find((n) => n.id === input.nogId);
+        if (targetNog) {
+          targetNog.stage = input.stage;
+        }
+      }
+
       return recorded;
     },
     async findOwned(
@@ -333,11 +435,18 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   };
 
   const brain: NogBrain = {
-    async answer({ questions: asked }): Promise<BrainAnswerResult> {
+    async answer({ pages, cards, questions: asked }): Promise<BrainAnswerResult> {
+      const cardNotes = cards.map((card) => `${card.label}: ${card.paraphrase}`);
+      const pageNotes = pages.map((page) => page.body.trim()).filter(Boolean);
+      const summary =
+        cardNotes.length > 0
+          ? cardNotes.join(" ")
+          : pageNotes.join(" ") || "I am not sure yet.";
+
       return {
         answers: asked.map((q) => ({
           questionId: q.id,
-          nogAnswer: q.referenceAnswer,
+          nogAnswer: summary,
         })),
         model: "in-memory-fake",
       };
@@ -345,17 +454,29 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   };
 
   const grader: AnswerGrader = {
-    async grade({ questions: asked }): Promise<GraderResult> {
+    async grade({ pages, questions: asked, answers }): Promise<GraderResult> {
+      const answerMap = new Map(
+        answers.map((entry) => [entry.questionId, entry.nogAnswer.toLowerCase()]),
+      );
+      const pageText = pages.map((p) => p.body.toLowerCase()).join(" ");
+
       return {
-        grades: asked.map((q) => ({
-          questionId: q.id,
-          concepts: q.keyConcepts.map((concept) => ({
-            concept,
-            inAnswer: true,
-            inPages: true,
-            consistentWithReference: true,
-          })),
-        })),
+        grades: asked.map((q) => {
+          const answerText = answerMap.get(q.id) ?? "";
+          const referenceText = `${q.referenceAnswer} ${q.sourceExcerpt}`.toLowerCase();
+          return {
+            questionId: q.id,
+            concepts: q.keyConcepts.map((concept) => {
+              const needle = concept.toLowerCase();
+              return {
+                concept,
+                inAnswer: answerText.includes(needle),
+                inPages: pageText.includes(needle),
+                consistentWithReference: referenceText.includes(needle),
+              };
+            }),
+          };
+        }),
       };
     },
   };

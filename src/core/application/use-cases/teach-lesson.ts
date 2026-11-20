@@ -9,6 +9,7 @@ import type {
   NogListener,
   NogRepository,
   NotebookRepository,
+  ThoughtCardRecord,
   ThoughtCardRepository,
   UsageRepository,
 } from "../ports";
@@ -19,7 +20,10 @@ export const MAX_FOLLOW_UP_QUESTIONS = 2;
 export interface TeachLessonDeps {
   currentUser: CurrentUser;
   nogs: Pick<NogRepository, "findOwned">;
-  notebook: Pick<NotebookRepository, "savePage" | "applyDigest">;
+  notebook: Pick<
+    NotebookRepository,
+    "savePage" | "applyDigest" | "findPageByIdempotencyKey"
+  >;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   usage: UsageRepository;
   listener: NogListener;
@@ -50,16 +54,25 @@ export type TeachLessonResult =
 export function filterGroundedOperations(
   operations: ReadonlyArray<DigestOperation>,
   pageBody: string,
+  existingTopicCards: ReadonlyArray<Pick<ThoughtCardRecord, "id">> = [],
 ): DigestOperation[] {
+  const validTopicCardIds = new Set(existingTopicCards.map((card) => card.id));
+
   return operations.filter((operation) => {
     if (operation.type === "create") {
       return (
         operation.quote.trim().length > 0 && pageBody.includes(operation.quote)
       );
     }
+
+    if (!validTopicCardIds.has(operation.cardId)) {
+      return false;
+    }
+
     if (operation.quote === undefined) {
       return true;
     }
+
     return (
       operation.quote.trim().length > 0 && pageBody.includes(operation.quote)
     );
@@ -123,15 +136,24 @@ export async function teachLesson(
     return { status: "tired_for_today" };
   }
 
-  const page = await deps.notebook.savePage({
-    nogId: input.nogId,
-    topicId: input.topicId,
-    body: input.body,
-    wordCount,
-    kind: "lesson",
-    parentLessonId: null,
-    idempotencyKey: input.idempotencyKey,
-  });
+  const existingPage = deps.notebook.findPageByIdempotencyKey
+    ? await deps.notebook.findPageByIdempotencyKey(
+        input.nogId,
+        input.idempotencyKey,
+      )
+    : null;
+
+  const page =
+    existingPage ??
+    (await deps.notebook.savePage({
+      nogId: input.nogId,
+      topicId: input.topicId,
+      body: input.body,
+      wordCount,
+      kind: "lesson",
+      parentLessonId: null,
+      idempotencyKey: input.idempotencyKey,
+    }));
 
   const existingCards = await deps.thoughtCards.listByTopic(
     input.nogId,
@@ -153,6 +175,7 @@ export async function teachLesson(
   const groundedOperations = filterGroundedOperations(
     rawDigest.operations,
     page.body,
+    existingCards,
   );
   const followUpQuestions = rawDigest.followUpQuestions.slice(
     0,
