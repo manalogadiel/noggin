@@ -81,7 +81,8 @@ export interface LessonPage extends NewPageInput {
 
 export type SaveFollowUpPageResult =
   | { status: "saved" | "existing"; page: LessonPage }
-  | { status: "limit_reached" };
+  | { status: "limit_reached" }
+  | { status: "conflict" };
 
 export type DigestOperation =
   | {
@@ -119,10 +120,17 @@ export interface ApplyDigestInput {
   idempotencyKey: string;
   operations: DigestOperation[];
   messages: DigestMessageInput[];
+  digest?: ListenerDigest;
 }
 
 export interface ApplyDigestResult {
   applied: boolean;
+  cardIds: string[];
+  savedDigest?: ListenerDigest;
+}
+
+export interface SavedDigestRecord {
+  digest: ListenerDigest;
   cardIds: string[];
 }
 
@@ -137,14 +145,18 @@ export interface OwnedMessage {
 
 export interface NotebookRepository {
   savePage(input: NewPageInput): Promise<LessonPage>;
+  saveFollowUpPage(
+    input: NewPageInput & { parentLessonId: string; maxFollowUps: number },
+  ): Promise<SaveFollowUpPageResult>;
   findPage(nogId: string, lessonId: string): Promise<LessonPage | null>;
   findPageByIdempotencyKey?(
     nogId: string,
     idempotencyKey: string,
   ): Promise<LessonPage | null>;
-  saveFollowUpPage?(
-    input: NewPageInput & { parentLessonId: string; maxFollowUps: number },
-  ): Promise<SaveFollowUpPageResult>;
+  findSavedDigest?(
+    nogId: string,
+    idempotencyKey: string,
+  ): Promise<SavedDigestRecord | null>;
   listPages(nogId: string, topicId: string): Promise<LessonPage[]>;
   countFollowUps(nogId: string, rootLessonId: string): Promise<number>;
   countIssuedQuestions?(nogId: string, rootLessonId: string): Promise<number>;
@@ -222,8 +234,15 @@ export interface RecordCheckInput {
   topicId: string;
   attempts: CheckAttemptDraft[];
   cardUpdates?: CardCheckUpdate[];
+  topicQuestionCount?: number;
   model?: string;
   stage?: NogStageSlug;
+}
+
+export interface CheckReservationKey {
+  nogId: string;
+  topicId: string;
+  notebookFingerprint: string;
 }
 
 export interface OwnedCheckAttempt {
@@ -240,6 +259,10 @@ export interface AttemptRepository {
     attemptId: string,
   ): Promise<OwnedCheckAttempt | null>;
   listByNog?(nogId: string): Promise<CheckAttemptRecord[]>;
+  withCheckReservation?<T>(
+    key: CheckReservationKey,
+    work: () => Promise<T>,
+  ): Promise<T>;
 }
 
 export interface QuotaResult {

@@ -14,6 +14,7 @@ import { EntitlementService } from "../services/entitlement";
 import {
   buildDigestMessages,
   filterGroundedOperations,
+  matchesReplayPage,
   MAX_FOLLOW_UP_QUESTIONS,
 } from "./teach-lesson";
 
@@ -22,7 +23,11 @@ export interface ReviseLessonDeps {
   nogs: Pick<NogRepository, "findOwned">;
   notebook: Pick<
     NotebookRepository,
-    "findPage" | "findPageByIdempotencyKey" | "savePage" | "applyDigest"
+    | "findPage"
+    | "findPageByIdempotencyKey"
+    | "findSavedDigest"
+    | "savePage"
+    | "applyDigest"
   >;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   usage: UsageRepository;
@@ -43,6 +48,7 @@ export type ReviseLessonResult =
   | { status: "not_found" }
   | { status: "empty" }
   | { status: "overload"; wordCount: number; limit: number }
+  | { status: "idempotency_conflict" }
   | { status: "tired_for_today" }
   | { status: "brain_fog"; page: LessonPage }
   | {
@@ -80,11 +86,12 @@ export async function reviseLesson(
     return { status: "overload", wordCount, limit };
   }
 
-  const entitlement = new EntitlementService(deps.usage);
-  const quota = await entitlement.consume(user.id, "listener", 1);
-  if (!quota.allowed) {
-    return { status: "tired_for_today" };
-  }
+  const expectedReplay = {
+    topicId: original.topicId,
+    kind: "lesson" as const,
+    parentLessonId: original.id,
+    body: input.body,
+  };
 
   const existingPage = deps.notebook.findPageByIdempotencyKey
     ? await deps.notebook.findPageByIdempotencyKey(
@@ -92,6 +99,33 @@ export async function reviseLesson(
         input.idempotencyKey,
       )
     : null;
+
+  if (existingPage) {
+    if (!matchesReplayPage(existingPage, expectedReplay)) {
+      return { status: "idempotency_conflict" };
+    }
+    const savedDigest = deps.notebook.findSavedDigest
+      ? await deps.notebook.findSavedDigest(input.nogId, input.idempotencyKey)
+      : null;
+    if (savedDigest) {
+      return {
+        status: "ok",
+        page: existingPage,
+        digest: savedDigest.digest,
+        applied: {
+          applied: false,
+          cardIds: savedDigest.cardIds,
+          savedDigest: savedDigest.digest,
+        },
+      };
+    }
+  }
+
+  const entitlement = new EntitlementService(deps.usage);
+  const quota = await entitlement.consume(user.id, "listener", 1);
+  if (!quota.allowed) {
+    return { status: "tired_for_today" };
+  }
 
   const page =
     existingPage ??
@@ -104,6 +138,10 @@ export async function reviseLesson(
       parentLessonId: original.id,
       idempotencyKey: input.idempotencyKey,
     }));
+
+  if (!matchesReplayPage(page, expectedReplay)) {
+    return { status: "idempotency_conflict" };
+  }
 
   const existingCards = await deps.thoughtCards.listByTopic(
     input.nogId,
@@ -143,7 +181,40 @@ export async function reviseLesson(
     idempotencyKey: page.idempotencyKey,
     operations: groundedOperations,
     messages: buildDigestMessages(sanitizedDigest),
+    digest: sanitizedDigest,
   });
+
+  if (!applied.applied) {
+    const saved =
+      applied.savedDigest ??
+      (deps.notebook.findSavedDigest
+        ? (
+            await deps.notebook.findSavedDigest(
+              input.nogId,
+              page.idempotencyKey,
+            )
+          )?.digest
+        : undefined);
+    if (saved) {
+      return {
+        status: "ok",
+        page,
+        digest: saved,
+        applied,
+      };
+    }
+    return {
+      status: "ok",
+      page,
+      digest: {
+        reply: "",
+        mood: sanitizedDigest.mood,
+        followUpQuestions: [],
+        operations: [],
+      },
+      applied,
+    };
+  }
 
   return {
     status: "ok",

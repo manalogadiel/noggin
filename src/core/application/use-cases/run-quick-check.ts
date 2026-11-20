@@ -30,6 +30,33 @@ export const MAX_CHECK_CONTEXT_WORDS = 1500;
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+const checkLocks = new Map<string, Promise<void>>();
+const nogRecordLocks = new Map<string, Promise<void>>();
+
+async function withLock<T>(
+  store: Map<string, Promise<void>>,
+  key: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const previous = store.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = previous.then(() => current);
+  store.set(key, chained);
+
+  await previous;
+  try {
+    return await work();
+  } finally {
+    release();
+    if (store.get(key) === chained) {
+      store.delete(key);
+    }
+  }
+}
+
 export interface RunQuickCheckDeps {
   currentUser: CurrentUser;
   clock: Clock;
@@ -37,7 +64,10 @@ export interface RunQuickCheckDeps {
   notebook: Pick<NotebookRepository, "listPages">;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   questions: QuestionBank;
-  attempts: Pick<AttemptRepository, "findLatest" | "recordCheck" | "listByNog">;
+  attempts: Pick<
+    AttemptRepository,
+    "findLatest" | "recordCheck" | "listByNog" | "withCheckReservation"
+  >;
   usage: UsageRepository;
   brain: NogBrain;
   grader: AnswerGrader;
@@ -97,6 +127,48 @@ export function selectContextPages(
   }
 
   return selected.reverse();
+}
+
+export function computeNogStageFromAttempts(
+  allAttempts: ReadonlyArray<{
+    questionId: string;
+    topicId?: string;
+    attemptedAt: string;
+    correct: boolean;
+  }>,
+  topicQuestionCounts: ReadonlyMap<string, number> = new Map(),
+): NogStageSlug {
+  const masteredCount = trainingMeter(allAttempts);
+  const byTopic = new Map<
+    string,
+    Array<{ questionId: string; attemptedAt: string; correct: boolean }>
+  >();
+
+  for (const attempt of allAttempts) {
+    const topicKey = attempt.topicId ?? "__default__";
+    const list = byTopic.get(topicKey) ?? [];
+    list.push({
+      questionId: attempt.questionId,
+      attemptedAt: attempt.attemptedAt,
+      correct: attempt.correct,
+    });
+    byTopic.set(topicKey, list);
+  }
+
+  const topicMasteryRatios: number[] = [];
+  for (const [topicKey, topicAttempts] of byTopic.entries()) {
+    const distinctQuestions = new Set(topicAttempts.map((a) => a.questionId));
+    const configuredTotal = topicQuestionCounts.get(topicKey) ?? 0;
+    const denominator = Math.max(configuredTotal, distinctQuestions.size);
+    if (denominator > 0) {
+      topicMasteryRatios.push(trainingMeter(topicAttempts) / denominator);
+    }
+  }
+
+  return growthStage(
+    masteredCount,
+    topicMasteryRatios,
+  ).toLowerCase() as NogStageSlug;
 }
 
 function buildCardCheckUpdates(
@@ -187,189 +259,177 @@ export async function runQuickCheck(
 
   const contextPages = selectContextPages(allPages);
   const fingerprint = computeNotebookFingerprint(allPages);
-  const previousAttempts = await deps.attempts.findLatest(
-    input.nogId,
-    input.topicId,
-  );
-  if (
-    previousAttempts.length > 0 &&
-    previousAttempts.every(
-      (attempt) => attempt.notebookFingerprint === fingerprint,
-    )
-  ) {
-    return { status: "ok", reused: true, attempts: previousAttempts };
-  }
 
-  const questions = await deps.questions.listByTopic(input.topicId);
-  if (questions.length === 0) {
-    return { status: "no_questions" };
-  }
-
-  const now = deps.clock.now();
-  const allCards = await deps.thoughtCards.listByTopic(
-    input.nogId,
-    input.topicId,
-  );
-  const activeCards = allCards.filter((card) => {
-    if (card.nextReviewAt === undefined || card.intervalDays === undefined) {
-      return true;
-    }
-    return (
-      cardFreshness(
-        { nextReviewAt: card.nextReviewAt, intervalDays: card.intervalDays },
-        now,
-      ) !== "forgotten"
+  const runReserved = async (): Promise<RunQuickCheckResult> => {
+    const previousAttempts = await deps.attempts.findLatest(
+      input.nogId,
+      input.topicId,
     );
-  });
-
-  const entitlement = new EntitlementService(deps.usage);
-  const answerQuota = await entitlement.consume(user.id, "answer", 1);
-  if (!answerQuota.allowed) {
-    return { status: "tired_for_today" };
-  }
-
-  const answerPrompts = questions.map((question) => ({
-    id: question.id,
-    prompt: question.prompt,
-  }));
-
-  let answerResult;
-  try {
-    answerResult = await deps.brain.answer({
-      nogId: input.nogId,
-      topicId: input.topicId,
-      pages: contextPages,
-      cards: activeCards,
-      questions: answerPrompts,
-    });
-  } catch {
-    return { status: "sleepy" };
-  }
-
-  const gradeQuota = await entitlement.consume(user.id, "grade", 1);
-  if (!gradeQuota.allowed) {
-    return { status: "tired_for_today" };
-  }
-
-  let gradeResult;
-  try {
-    gradeResult = await deps.grader.grade({
-      topicId: input.topicId,
-      pages: contextPages,
-      questions,
-      answers: answerResult.answers,
-    });
-  } catch {
-    return { status: "sleepy" };
-  }
-
-  const answersByQuestion = new Map(
-    answerResult.answers.map((item) => [item.questionId, item.nogAnswer]),
-  );
-  const gradesByQuestion = new Map(
-    gradeResult.grades.map((item) => [item.questionId, item.concepts]),
-  );
-
-  const attemptDrafts: CheckAttemptDraft[] = questions.map((question) => {
-    const nogAnswer = answersByQuestion.get(question.id) ?? "";
-    const gradedConcepts = gradesByQuestion.get(question.id) ?? [];
-    const conceptsByName = new Map(
-      gradedConcepts.map((entry) => [entry.concept, entry]),
-    );
-    const normalizedConcepts = question.keyConcepts.map((concept) => {
-      const match = conceptsByName.get(concept);
-      return match
-        ? {
-            concept,
-            inAnswer: Boolean(match.inAnswer),
-            inPages: Boolean(match.inPages),
-            consistentWithReference: Boolean(match.consistentWithReference),
-          }
-        : {
-            concept,
-            inAnswer: false,
-            inPages: false,
-            consistentWithReference: false,
-          };
-    });
-
-    return {
-      questionId: question.id,
-      nogAnswer,
-      concepts: normalizedConcepts,
-      correct: isQuestionCorrect(normalizedConcepts),
-      notebookFingerprint: fingerprint,
-    };
-  });
-
-  const nowIso = now.toISOString();
-  const priorNogAttempts = deps.attempts.listByNog
-    ? await deps.attempts.listByNog(input.nogId)
-    : previousAttempts;
-  const combinedAttempts = [
-    ...priorNogAttempts.map((attempt) => ({
-      questionId: attempt.questionId,
-      attemptedAt: attempt.createdAt,
-      correct: attempt.correct,
-    })),
-    ...attemptDrafts.map((draft) => ({
-      questionId: draft.questionId,
-      attemptedAt: nowIso,
-      correct: draft.correct,
-    })),
-  ];
-  const masteredCount = trainingMeter(combinedAttempts);
-
-  const topicBuckets = new Map<
-    string,
-    Array<{ questionId: string; attemptedAt: string; correct: boolean }>
-  >();
-  for (const attempt of priorNogAttempts) {
-    const bucketTopic = attempt.topicId ?? input.topicId;
-    const list = topicBuckets.get(bucketTopic) ?? [];
-    list.push({
-      questionId: attempt.questionId,
-      attemptedAt: attempt.createdAt,
-      correct: attempt.correct,
-    });
-    topicBuckets.set(bucketTopic, list);
-  }
-  const currentTopicList = topicBuckets.get(input.topicId) ?? [];
-  for (const draft of attemptDrafts) {
-    currentTopicList.push({
-      questionId: draft.questionId,
-      attemptedAt: nowIso,
-      correct: draft.correct,
-    });
-  }
-  topicBuckets.set(input.topicId, currentTopicList);
-
-  const topicMasteryRatios: number[] = [];
-  for (const [topicKey, topicAttempts] of topicBuckets.entries()) {
-    const distinctQuestions = new Set(topicAttempts.map((a) => a.questionId));
-    const denominator =
-      topicKey === input.topicId
-        ? Math.max(questions.length, distinctQuestions.size)
-        : distinctQuestions.size;
-    if (denominator > 0) {
-      topicMasteryRatios.push(trainingMeter(topicAttempts) / denominator);
+    if (
+      previousAttempts.length > 0 &&
+      previousAttempts.every(
+        (attempt) => attempt.notebookFingerprint === fingerprint,
+      )
+    ) {
+      return { status: "ok", reused: true, attempts: previousAttempts };
     }
+
+    const questions = await deps.questions.listByTopic(input.topicId);
+    if (questions.length === 0) {
+      return { status: "no_questions" };
+    }
+
+    const now = deps.clock.now();
+    const allCards = await deps.thoughtCards.listByTopic(
+      input.nogId,
+      input.topicId,
+    );
+    const activeCards = allCards.filter((card) => {
+      if (card.nextReviewAt === undefined || card.intervalDays === undefined) {
+        return true;
+      }
+      return (
+        cardFreshness(
+          { nextReviewAt: card.nextReviewAt, intervalDays: card.intervalDays },
+          now,
+        ) !== "forgotten"
+      );
+    });
+
+    const entitlement = new EntitlementService(deps.usage);
+    const answerQuota = await entitlement.consume(user.id, "answer", 1);
+    if (!answerQuota.allowed) {
+      return { status: "tired_for_today" };
+    }
+
+    const answerPrompts = questions.map((question) => ({
+      id: question.id,
+      prompt: question.prompt,
+    }));
+
+    let answerResult;
+    try {
+      answerResult = await deps.brain.answer({
+        nogId: input.nogId,
+        topicId: input.topicId,
+        pages: contextPages,
+        cards: activeCards,
+        questions: answerPrompts,
+      });
+    } catch {
+      return { status: "sleepy" };
+    }
+
+    const gradeQuota = await entitlement.consume(user.id, "grade", 1);
+    if (!gradeQuota.allowed) {
+      return { status: "tired_for_today" };
+    }
+
+    let gradeResult;
+    try {
+      gradeResult = await deps.grader.grade({
+        topicId: input.topicId,
+        pages: contextPages,
+        questions,
+        answers: answerResult.answers,
+      });
+    } catch {
+      return { status: "sleepy" };
+    }
+
+    const answersByQuestion = new Map(
+      answerResult.answers.map((item) => [item.questionId, item.nogAnswer]),
+    );
+    const gradesByQuestion = new Map(
+      gradeResult.grades.map((item) => [item.questionId, item.concepts]),
+    );
+
+    const attemptDrafts: CheckAttemptDraft[] = questions.map((question) => {
+      const nogAnswer = answersByQuestion.get(question.id) ?? "";
+      const gradedConcepts = gradesByQuestion.get(question.id) ?? [];
+      const conceptsByName = new Map(
+        gradedConcepts.map((entry) => [entry.concept, entry]),
+      );
+      const normalizedConcepts = question.keyConcepts.map((concept) => {
+        const match = conceptsByName.get(concept);
+        return match
+          ? {
+              concept,
+              inAnswer: Boolean(match.inAnswer),
+              inPages: Boolean(match.inPages),
+              consistentWithReference: Boolean(match.consistentWithReference),
+            }
+          : {
+              concept,
+              inAnswer: false,
+              inPages: false,
+              consistentWithReference: false,
+            };
+      });
+
+      return {
+        questionId: question.id,
+        nogAnswer,
+        concepts: normalizedConcepts,
+        correct: isQuestionCorrect(normalizedConcepts),
+        notebookFingerprint: fingerprint,
+      };
+    });
+
+    const cardUpdates = buildCardCheckUpdates(activeCards, attemptDrafts, now);
+
+    const recorded = await withLock(nogRecordLocks, input.nogId, async () => {
+      const nowIso = deps.clock.now().toISOString();
+      const priorNogAttempts = deps.attempts.listByNog
+        ? await deps.attempts.listByNog(input.nogId)
+        : previousAttempts;
+      const combinedAttempts = [
+        ...priorNogAttempts.map((attempt) => ({
+          questionId: attempt.questionId,
+          topicId: attempt.topicId ?? input.topicId,
+          attemptedAt: attempt.createdAt,
+          correct: attempt.correct,
+        })),
+        ...attemptDrafts.map((draft) => ({
+          questionId: draft.questionId,
+          topicId: input.topicId,
+          attemptedAt: nowIso,
+          correct: draft.correct,
+        })),
+      ];
+      const nextStage = computeNogStageFromAttempts(
+        combinedAttempts,
+        new Map([[input.topicId, questions.length]]),
+      );
+
+      return deps.attempts.recordCheck({
+        nogId: input.nogId,
+        topicId: input.topicId,
+        attempts: attemptDrafts,
+        cardUpdates,
+        topicQuestionCount: questions.length,
+        stage: nextStage,
+        model: answerResult.model,
+      });
+    });
+
+    return { status: "ok", reused: false, attempts: recorded };
+  };
+
+  if (deps.attempts.withCheckReservation) {
+    return deps.attempts.withCheckReservation(
+      {
+        nogId: input.nogId,
+        topicId: input.topicId,
+        notebookFingerprint: fingerprint,
+      },
+      runReserved,
+    );
   }
 
-  const nextStage = growthStage(
-    masteredCount,
-    topicMasteryRatios,
-  ).toLowerCase() as NogStageSlug;
-  const cardUpdates = buildCardCheckUpdates(activeCards, attemptDrafts, now);
-
-  const recorded = await deps.attempts.recordCheck({
-    nogId: input.nogId,
-    topicId: input.topicId,
-    attempts: attemptDrafts,
-    cardUpdates,
-    stage: nextStage,
-    model: answerResult.model,
-  });
-
-  return { status: "ok", reused: false, attempts: recorded };
+  return withLock(
+    checkLocks,
+    `${input.nogId}:${input.topicId}:${fingerprint}`,
+    runReserved,
+  );
 }

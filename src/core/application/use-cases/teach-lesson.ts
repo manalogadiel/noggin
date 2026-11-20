@@ -4,6 +4,7 @@ import type {
   CurrentUser,
   DigestMessageInput,
   DigestOperation,
+  LessonKind,
   LessonPage,
   ListenerDigest,
   NogListener,
@@ -22,7 +23,7 @@ export interface TeachLessonDeps {
   nogs: Pick<NogRepository, "findOwned">;
   notebook: Pick<
     NotebookRepository,
-    "savePage" | "applyDigest" | "findPageByIdempotencyKey"
+    "savePage" | "applyDigest" | "findPageByIdempotencyKey" | "findSavedDigest"
   >;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   usage: UsageRepository;
@@ -42,6 +43,7 @@ export type TeachLessonResult =
   | { status: "not_found" }
   | { status: "empty" }
   | { status: "overload"; wordCount: number; limit: number }
+  | { status: "idempotency_conflict" }
   | { status: "tired_for_today" }
   | { status: "brain_fog"; page: LessonPage }
   | {
@@ -50,6 +52,23 @@ export type TeachLessonResult =
       digest: ListenerDigest;
       applied: ApplyDigestResult;
     };
+
+export function matchesReplayPage(
+  page: LessonPage,
+  expected: {
+    topicId: string;
+    kind: LessonKind;
+    parentLessonId: string | null;
+    body: string;
+  },
+): boolean {
+  return (
+    page.topicId === expected.topicId &&
+    page.kind === expected.kind &&
+    (page.parentLessonId ?? null) === expected.parentLessonId &&
+    page.body === expected.body
+  );
+}
 
 export function filterGroundedOperations(
   operations: ReadonlyArray<DigestOperation>,
@@ -130,18 +149,47 @@ export async function teachLesson(
     return { status: "overload", wordCount, limit };
   }
 
-  const entitlement = new EntitlementService(deps.usage);
-  const quota = await entitlement.consume(user.id, "listener", 1);
-  if (!quota.allowed) {
-    return { status: "tired_for_today" };
-  }
-
   const existingPage = deps.notebook.findPageByIdempotencyKey
     ? await deps.notebook.findPageByIdempotencyKey(
         input.nogId,
         input.idempotencyKey,
       )
     : null;
+
+  if (existingPage) {
+    if (
+      !matchesReplayPage(existingPage, {
+        topicId: input.topicId,
+        kind: "lesson",
+        parentLessonId: null,
+        body: input.body,
+      })
+    ) {
+      return { status: "idempotency_conflict" };
+    }
+
+    const savedDigest = deps.notebook.findSavedDigest
+      ? await deps.notebook.findSavedDigest(input.nogId, input.idempotencyKey)
+      : null;
+    if (savedDigest) {
+      return {
+        status: "ok",
+        page: existingPage,
+        digest: savedDigest.digest,
+        applied: {
+          applied: false,
+          cardIds: savedDigest.cardIds,
+          savedDigest: savedDigest.digest,
+        },
+      };
+    }
+  }
+
+  const entitlement = new EntitlementService(deps.usage);
+  const quota = await entitlement.consume(user.id, "listener", 1);
+  if (!quota.allowed) {
+    return { status: "tired_for_today" };
+  }
 
   const page =
     existingPage ??
@@ -154,6 +202,17 @@ export async function teachLesson(
       parentLessonId: null,
       idempotencyKey: input.idempotencyKey,
     }));
+
+  if (
+    !matchesReplayPage(page, {
+      topicId: input.topicId,
+      kind: "lesson",
+      parentLessonId: null,
+      body: input.body,
+    })
+  ) {
+    return { status: "idempotency_conflict" };
+  }
 
   const existingCards = await deps.thoughtCards.listByTopic(
     input.nogId,
@@ -193,7 +252,40 @@ export async function teachLesson(
     idempotencyKey: page.idempotencyKey,
     operations: groundedOperations,
     messages: buildDigestMessages(sanitizedDigest),
+    digest: sanitizedDigest,
   });
+
+  if (!applied.applied) {
+    const saved =
+      applied.savedDigest ??
+      (deps.notebook.findSavedDigest
+        ? (
+            await deps.notebook.findSavedDigest(
+              input.nogId,
+              page.idempotencyKey,
+            )
+          )?.digest
+        : undefined);
+    if (saved) {
+      return {
+        status: "ok",
+        page,
+        digest: saved,
+        applied,
+      };
+    }
+    return {
+      status: "ok",
+      page,
+      digest: {
+        reply: "",
+        mood: sanitizedDigest.mood,
+        followUpQuestions: [],
+        operations: [],
+      },
+      applied,
+    };
+  }
 
   return {
     status: "ok",

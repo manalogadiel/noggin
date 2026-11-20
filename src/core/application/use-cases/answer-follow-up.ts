@@ -14,6 +14,7 @@ import { EntitlementService } from "../services/entitlement";
 import {
   buildDigestMessages,
   filterGroundedOperations,
+  matchesReplayPage,
   MAX_FOLLOW_UP_QUESTIONS,
 } from "./teach-lesson";
 
@@ -26,12 +27,13 @@ export interface AnswerFollowUpDeps {
     NotebookRepository,
     | "findPage"
     | "findPageByIdempotencyKey"
-    | "saveFollowUpPage"
+    | "findSavedDigest"
     | "countFollowUps"
     | "countIssuedQuestions"
     | "savePage"
     | "applyDigest"
-  >;
+  > &
+    Partial<Pick<NotebookRepository, "saveFollowUpPage">>;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   usage: UsageRepository;
   listener: NogListener;
@@ -53,6 +55,7 @@ export type AnswerFollowUpResult =
   | { status: "empty" }
   | { status: "overload"; wordCount: number; limit: number }
   | { status: "follow_up_limit" }
+  | { status: "idempotency_conflict" }
   | { status: "tired_for_today" }
   | { status: "brain_fog"; page: LessonPage }
   | {
@@ -141,10 +144,24 @@ export async function answerFollowUp(
     return { status: "overload", wordCount, limit };
   }
 
+  const expectedReplay = {
+    topicId: rootLesson.topicId,
+    kind: "follow_up_answer" as const,
+    parentLessonId: rootLesson.id,
+    body: input.body,
+  };
+
   const lockKey = `${input.nogId}:${rootLesson.id}`;
   const saveOutcome = await withFollowUpLock<
     | { status: "tired_for_today" }
     | { status: "follow_up_limit" }
+    | { status: "idempotency_conflict" }
+    | {
+        status: "replayed";
+        page: LessonPage;
+        digest: ListenerDigest;
+        applied: ApplyDigestResult;
+      }
     | { status: "ready"; page: LessonPage }
   >(lockKey, async () => {
     const existingByKey = deps.notebook.findPageByIdempotencyKey
@@ -154,11 +171,26 @@ export async function answerFollowUp(
         )
       : null;
 
-    if (
-      existingByKey &&
-      existingByKey.kind === "follow_up_answer" &&
-      existingByKey.parentLessonId === rootLesson.id
-    ) {
+    if (existingByKey) {
+      if (!matchesReplayPage(existingByKey, expectedReplay)) {
+        return { status: "idempotency_conflict" };
+      }
+      const savedDigest = deps.notebook.findSavedDigest
+        ? await deps.notebook.findSavedDigest(input.nogId, input.idempotencyKey)
+        : null;
+      if (savedDigest) {
+        return {
+          status: "replayed",
+          page: existingByKey,
+          digest: savedDigest.digest,
+          applied: {
+            applied: false,
+            cardIds: savedDigest.cardIds,
+            savedDigest: savedDigest.digest,
+          },
+        };
+      }
+
       const entitlement = new EntitlementService(deps.usage);
       const quota = await entitlement.consume(user.id, "listener", 1);
       if (!quota.allowed) {
@@ -195,6 +227,30 @@ export async function answerFollowUp(
       if (atomic.status === "limit_reached") {
         return { status: "follow_up_limit" };
       }
+      if (
+        atomic.status === "conflict" ||
+        !matchesReplayPage(atomic.page, expectedReplay)
+      ) {
+        return { status: "idempotency_conflict" };
+      }
+      if (atomic.status === "existing" && deps.notebook.findSavedDigest) {
+        const savedDigest = await deps.notebook.findSavedDigest(
+          input.nogId,
+          input.idempotencyKey,
+        );
+        if (savedDigest) {
+          return {
+            status: "replayed",
+            page: atomic.page,
+            digest: savedDigest.digest,
+            applied: {
+              applied: false,
+              cardIds: savedDigest.cardIds,
+              savedDigest: savedDigest.digest,
+            },
+          };
+        }
+      }
       return { status: "ready", page: atomic.page };
     }
 
@@ -207,8 +263,20 @@ export async function answerFollowUp(
       parentLessonId: rootLesson.id,
       idempotencyKey: input.idempotencyKey,
     });
+    if (!matchesReplayPage(saved, expectedReplay)) {
+      return { status: "idempotency_conflict" };
+    }
     return { status: "ready", page: saved };
   });
+
+  if (saveOutcome.status === "replayed") {
+    return {
+      status: "ok",
+      page: saveOutcome.page,
+      digest: saveOutcome.digest,
+      applied: saveOutcome.applied,
+    };
+  }
 
   if (saveOutcome.status !== "ready") {
     return saveOutcome;
@@ -265,7 +333,40 @@ export async function answerFollowUp(
     idempotencyKey: page.idempotencyKey,
     operations: groundedOperations,
     messages: buildDigestMessages(sanitizedDigest),
+    digest: sanitizedDigest,
   });
+
+  if (!applied.applied) {
+    const saved =
+      applied.savedDigest ??
+      (deps.notebook.findSavedDigest
+        ? (
+            await deps.notebook.findSavedDigest(
+              input.nogId,
+              page.idempotencyKey,
+            )
+          )?.digest
+        : undefined);
+    if (saved) {
+      return {
+        status: "ok",
+        page,
+        digest: saved,
+        applied,
+      };
+    }
+    return {
+      status: "ok",
+      page,
+      digest: {
+        reply: "",
+        mood: sanitizedDigest.mood,
+        followUpQuestions: [],
+        operations: [],
+      },
+      applied,
+    };
+  }
 
   return {
     status: "ok",

@@ -1,3 +1,4 @@
+import { growthStage, trainingMeter } from "../../domain/training";
 import type {
   AnswerGrader,
   ApplyDigestInput,
@@ -5,6 +6,7 @@ import type {
   AttemptRepository,
   BrainAnswerResult,
   CheckAttemptRecord,
+  CheckReservationKey,
   Clock,
   CreateNogInput,
   CurrentUser,
@@ -16,6 +18,7 @@ import type {
   NogListener,
   NogRecord,
   NogRepository,
+  NogStageSlug,
   NotebookRepository,
   OwnedCheckAttempt,
   OwnedMessage,
@@ -23,6 +26,7 @@ import type {
   QuestionRecord,
   QuotaResult,
   RecordCheckInput,
+  SavedDigestRecord,
   SaveFollowUpPageResult,
   SpeechToText,
   SynthesizedAudio,
@@ -71,7 +75,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   const attemptStore = [...(options.attempts ?? [])];
   const usageCounts = new Map<string, number>();
   const voiceCacheStore = new Map<string, SynthesizedAudio>();
-  const appliedDigests = new Set<string>();
+  const appliedDigests = new Map<string, SavedDigestRecord>();
+  const reservationQueues = new Map<string, Promise<void>>();
   const caps: Record<UsageKind, number> = { ...DEFAULT_CAPS, ...options.caps };
 
   let idCounter = 1;
@@ -165,6 +170,9 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         ) ?? null
       );
     },
+    async findSavedDigest(nogId: string, idempotencyKey: string) {
+      return appliedDigests.get(`${nogId}:${idempotencyKey}`) ?? null;
+    },
     async saveFollowUpPage(
       input: NewPageInput & { parentLessonId: string; maxFollowUps: number },
     ): Promise<SaveFollowUpPageResult> {
@@ -173,6 +181,14 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
           p.nogId === input.nogId && p.idempotencyKey === input.idempotencyKey,
       );
       if (existing) {
+        if (
+          existing.kind !== "follow_up_answer" ||
+          existing.parentLessonId !== input.parentLessonId ||
+          existing.topicId !== input.topicId ||
+          existing.body !== input.body
+        ) {
+          return { status: "conflict" };
+        }
         return { status: "existing", page: existing };
       }
 
@@ -235,8 +251,13 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
     async applyDigest(input: ApplyDigestInput): Promise<ApplyDigestResult> {
       const digestKey = `${input.nogId}:${input.idempotencyKey}`;
-      if (appliedDigests.has(digestKey)) {
-        return { applied: false, cardIds: [] };
+      const existingDigest = appliedDigests.get(digestKey);
+      if (existingDigest) {
+        return {
+          applied: false,
+          cardIds: existingDigest.cardIds,
+          savedDigest: existingDigest.digest,
+        };
       }
 
       const lesson = pageStore.find(
@@ -301,8 +322,20 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         });
       }
 
-      appliedDigests.add(digestKey);
-      return { applied: true, cardIds };
+      const savedDigest: ListenerDigest = input.digest ?? {
+        reply:
+          input.messages.find((m) => m.role === "nog" && m.kind === "reply")
+            ?.body ?? "",
+        mood:
+          input.messages.find((m) => m.mood !== undefined)?.mood ?? "happy",
+        followUpQuestions: input.messages
+          .filter((m) => m.role === "nog" && m.kind === "question")
+          .map((m) => m.body),
+        operations: [...input.operations],
+      };
+
+      appliedDigests.set(digestKey, { digest: savedDigest, cardIds });
+      return { applied: true, cardIds, savedDigest };
     },
     async findOwnedMessage(userId: string, messageId: string) {
       const message = messageStore.find((m) => m.id === messageId);
@@ -331,6 +364,49 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
   };
 
+  function recomputeStageForNog(nogId: string): NogStageSlug {
+    const nogAttempts = attemptStore.filter((a) => a.nogId === nogId);
+    const mastered = trainingMeter(
+      nogAttempts.map((a) => ({
+        questionId: a.questionId,
+        attemptedAt: a.createdAt,
+        correct: a.correct,
+      })),
+    );
+
+    const byTopic = new Map<
+      string,
+      Array<{ questionId: string; attemptedAt: string; correct: boolean }>
+    >();
+    for (const attempt of nogAttempts) {
+      const questionTopic =
+        attempt.topicId ??
+        questionStore.find((q) => q.id === attempt.questionId)?.topicId ??
+        "__default__";
+      const list = byTopic.get(questionTopic) ?? [];
+      list.push({
+        questionId: attempt.questionId,
+        attemptedAt: attempt.createdAt,
+        correct: attempt.correct,
+      });
+      byTopic.set(questionTopic, list);
+    }
+
+    const topicRatios: number[] = [];
+    for (const [topicKey, list] of byTopic.entries()) {
+      const bankCount = questionStore.filter(
+        (q) => q.topicId === topicKey,
+      ).length;
+      const distinctCount = new Set(list.map((a) => a.questionId)).size;
+      const denominator = Math.max(bankCount, distinctCount);
+      if (denominator > 0) {
+        topicRatios.push(trainingMeter(list) / denominator);
+      }
+    }
+
+    return growthStage(mastered, topicRatios).toLowerCase() as NogStageSlug;
+  }
+
   const attempts: AttemptRepository = {
     async findLatest(nogId: string, topicId: string) {
       const topicQuestionIds = new Set(
@@ -340,6 +416,13 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       for (const attempt of attemptStore) {
         if (attempt.nogId !== nogId) continue;
         if (
+          attempt.topicId !== undefined &&
+          attempt.topicId !== topicId
+        ) {
+          continue;
+        }
+        if (
+          attempt.topicId === undefined &&
           topicQuestionIds.size > 0 &&
           !topicQuestionIds.has(attempt.questionId)
         ) {
@@ -374,11 +457,9 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         }
       }
 
-      if (input.stage) {
-        const targetNog = nogStore.find((n) => n.id === input.nogId);
-        if (targetNog) {
-          targetNog.stage = input.stage;
-        }
+      const targetNog = nogStore.find((n) => n.id === input.nogId);
+      if (targetNog) {
+        targetNog.stage = recomputeStageForNog(input.nogId);
       }
 
       return recorded;
@@ -400,6 +481,29 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
     async listByNog(nogId: string) {
       return attemptStore.filter((a) => a.nogId === nogId);
+    },
+    async withCheckReservation<T>(
+      key: CheckReservationKey,
+      work: () => Promise<T>,
+    ): Promise<T> {
+      const queueKey = `${key.nogId}:${key.topicId}:${key.notebookFingerprint}`;
+      const previous = reservationQueues.get(queueKey) ?? Promise.resolve();
+      let release!: () => void;
+      const current = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const chained = previous.then(() => current);
+      reservationQueues.set(queueKey, chained);
+
+      await previous;
+      try {
+        return await work();
+      } finally {
+        release();
+        if (reservationQueues.get(queueKey) === chained) {
+          reservationQueues.delete(queueKey);
+        }
+      }
     },
   };
 
