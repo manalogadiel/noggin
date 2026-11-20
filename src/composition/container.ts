@@ -9,7 +9,27 @@ import {
 } from "@/adapters/supabase/repositories";
 import { createServerSupabaseClient } from "@/adapters/supabase/server-client";
 import { createServiceSupabaseClient } from "@/adapters/supabase/service-client";
-import type { Clock, CurrentUser, NogRecord } from "@/core/application/ports";
+import { createGeminiTts } from "@/adapters/voice/gemini-tts";
+import { createGroqWhisperStt } from "@/adapters/voice/groq-whisper-stt";
+import {
+  computeVoiceCacheHash,
+  createSupabaseVoiceCache,
+} from "@/adapters/voice/voice-cache-repository";
+import {
+  createWhisperCppStt,
+  isWhisperCppFallbackEnabled,
+} from "@/adapters/voice/whisper-cpp-stt";
+import type {
+  AttemptRepository,
+  Clock,
+  CurrentUser,
+  NogRecord,
+  NotebookRepository,
+  SpeechToText,
+  TextToSpeech,
+  TranscribeInput,
+  VoiceCacheRepository,
+} from "@/core/application/ports";
 import {
   answerFollowUp,
   type AnswerFollowUpInput,
@@ -50,10 +70,19 @@ import {
   type RunQuickCheckResult,
 } from "@/core/application/use-cases/run-quick-check";
 import {
+  speakAnswer,
+  type SpeakAnswerInput,
+  type SpeakAnswerResult,
+} from "@/core/application/use-cases/speak-answer";
+import {
   teachLesson,
   type TeachLessonInput,
   type TeachLessonResult,
 } from "@/core/application/use-cases/teach-lesson";
+import {
+  transcribeLesson,
+  type TranscribeLessonResult,
+} from "@/core/application/use-cases/transcribe-lesson";
 
 const ENV_KEYS = [
   "NODE_ENV",
@@ -365,7 +394,8 @@ export interface AppContainer {
   answerFollowUp: (input: AnswerFollowUpInput) => Promise<AnswerFollowUpResult>;
   reviseLesson: (input: ReviseLessonInput) => Promise<ReviseLessonResult>;
   runQuickCheck: (input: RunQuickCheckInput) => Promise<RunQuickCheckResult>;
-  // Voice use cases (transcribeLesson, speakAnswer) are added here once voice adapters are wired.
+  transcribeLesson: (input: TranscribeInput) => Promise<TranscribeLessonResult>;
+  speakAnswer: (input: SpeakAnswerInput) => Promise<SpeakAnswerResult>;
 }
 
 export async function createContainer(): Promise<AppContainer> {
@@ -391,9 +421,12 @@ export async function createContainer(): Promise<AppContainer> {
       answerFollowUp: async () => ({ status: "unauthenticated" }),
       reviseLesson: async () => ({ status: "unauthenticated" }),
       runQuickCheck: async () => ({ status: "unauthenticated" }),
+      transcribeLesson: async () => ({ status: "unauthenticated" }),
+      speakAnswer: async () => ({ status: "unauthenticated" }),
     };
   }
 
+  const userId = authenticatedUser.id;
   const service = createServiceSupabaseClient();
   const currentUser: CurrentUser = {
     async get() {
@@ -409,7 +442,7 @@ export async function createContainer(): Promise<AppContainer> {
   const repositories = createSupabaseRepositories({
     session,
     service,
-    userId: authenticatedUser.id,
+    userId,
   }) as SupabaseRepositories & OptionalAuxRepositories;
 
   const speechMimicry = await readSpeechMimicryFlag(repositories, session);
@@ -417,7 +450,7 @@ export async function createContainer(): Promise<AppContainer> {
     getPersona: (nogId: string) =>
       resolvePersona(
         nogId,
-        authenticatedUser.id,
+        userId,
         repositories,
         session,
         speechMimicry,
@@ -425,9 +458,67 @@ export async function createContainer(): Promise<AppContainer> {
     speechMimicry,
   });
 
-  // Voice wiring placeholder: construct speech-to-text, text-to-speech, and
-  // private voice-cache storage adapters from `service` here, then expose
-  // `transcribeLesson` and `speakAnswer` on the returned container.
+  async function recordAdditionalSttSeconds(
+    preChargedSeconds: number,
+    reportedDurationSeconds: number | undefined,
+  ): Promise<void> {
+    if (
+      reportedDurationSeconds === undefined ||
+      !Number.isFinite(reportedDurationSeconds) ||
+      reportedDurationSeconds <= 0
+    ) {
+      return;
+    }
+
+    const actualBillableSeconds = Math.ceil(reportedDurationSeconds);
+    const delta = actualBillableSeconds - preChargedSeconds;
+    if (delta <= 0) {
+      return;
+    }
+
+    try {
+      const quota = await repositories.usage.consumeQuota(
+        userId,
+        "stt_seconds",
+        delta,
+      );
+      if (!quota.allowed && typeof service.from === "function") {
+        await service.from("usage_events").insert({
+          user_id: userId,
+          kind: "stt_seconds",
+          amount: delta,
+          model: process.env.STT_MODEL?.trim() || null,
+        });
+      }
+    } catch {
+      // Pre-check already charged declared seconds; never drop a completed transcript.
+    }
+  }
+
+  const speechToText: SpeechToText = {
+    async transcribe(input: TranscribeInput): Promise<{ text: string }> {
+      const preChargedSeconds = Math.ceil(input.durationSeconds);
+
+      try {
+        const result = await createGroqWhisperStt().transcribe(input);
+        await recordAdditionalSttSeconds(
+          preChargedSeconds,
+          result.durationSeconds,
+        );
+        return { text: result.text };
+      } catch (primaryError) {
+        if (!isWhisperCppFallbackEnabled()) {
+          throw primaryError;
+        }
+        const fallbackResult = await createWhisperCppStt().transcribe(input);
+        await recordAdditionalSttSeconds(
+          preChargedSeconds,
+          fallbackResult.durationSeconds,
+        );
+        return { text: fallbackResult.text };
+      }
+    },
+  };
 
   return {
     currentUser,
@@ -526,5 +617,89 @@ export async function createContainer(): Promise<AppContainer> {
         },
         input,
       ),
+    transcribeLesson: (input) =>
+      transcribeLesson(
+        {
+          currentUser,
+          usage: repositories.usage,
+          speechToText,
+        },
+        input,
+      ),
+    speakAnswer: (input) => {
+      const ttsModel = process.env.TTS_MODEL?.trim() ?? "";
+      const storageCache = createSupabaseVoiceCache({
+        service,
+        model: ttsModel,
+      });
+      let resolvedText: string | null = null;
+
+      const trackedNotebook: Pick<NotebookRepository, "findOwnedMessage"> = {
+        async findOwnedMessage(userId, messageId) {
+          const message = await repositories.notebook.findOwnedMessage(
+            userId,
+            messageId,
+          );
+          if (message && message.role === "nog") {
+            resolvedText = message.body;
+          }
+          return message;
+        },
+      };
+
+      const trackedAttempts: Pick<AttemptRepository, "findOwned"> = {
+        async findOwned(userId, attemptId) {
+          const attempt = await repositories.attempts.findOwned(
+            userId,
+            attemptId,
+          );
+          if (attempt) {
+            resolvedText = attempt.nogAnswer;
+          }
+          return attempt;
+        },
+      };
+
+      const modelScopedVoiceCache: VoiceCacheRepository = {
+        get(fallbackKey) {
+          if (!ttsModel) {
+            return Promise.resolve(null);
+          }
+          const cacheHash = computeVoiceCacheHash(
+            ttsModel,
+            resolvedText ?? fallbackKey,
+          );
+          return storageCache.get(cacheHash);
+        },
+        put(fallbackKey, audio) {
+          if (!ttsModel) {
+            return Promise.resolve();
+          }
+          const cacheHash = computeVoiceCacheHash(
+            ttsModel,
+            resolvedText ?? fallbackKey,
+          );
+          return storageCache.put(cacheHash, audio);
+        },
+      };
+
+      const textToSpeech: TextToSpeech = {
+        speak(speakInput) {
+          return createGeminiTts().speak(speakInput);
+        },
+      };
+
+      return speakAnswer(
+        {
+          currentUser,
+          notebook: trackedNotebook,
+          attempts: trackedAttempts,
+          voiceCache: modelScopedVoiceCache,
+          usage: repositories.usage,
+          textToSpeech,
+        },
+        input,
+      );
+    },
   };
 }
