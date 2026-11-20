@@ -151,22 +151,40 @@ const PROFANITY_LIST = new Set([
   "whore",
 ]);
 
-function normalizeToken(raw: string): string {
-  return raw
-    .toLowerCase()
-    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
-    .trim();
+const SUBWORD_REGEX = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
+const CLAUSE_BREAK_END = /[,.;:!?()[\]{}"'”’—–]+$/;
+
+function stripEdgePunctuation(raw: string): string {
+  return raw.replace(/^[^\p{L}\p{N}@+]+|[^\p{L}\p{N}]+$/gu, "");
 }
 
-function tokenize(text: string): string[] {
-  const tokens: string[] = [];
-  for (const part of text.split(/\s+/)) {
-    const normalized = normalizeToken(part);
-    if (normalized.length >= 2) {
-      tokens.push(normalized);
-    }
+function isPersonalInfoChunk(raw: string): boolean {
+  const cleaned = stripEdgePunctuation(raw).toLowerCase();
+  if (!cleaned) {
+    return false;
   }
-  return tokens;
+  if (cleaned.includes("@")) {
+    return true;
+  }
+  if (/^(?:https?:\/\/|www\.)/i.test(cleaned)) {
+    return true;
+  }
+  if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|edu|gov|io|ph|co|dev|app|ai)(?:\/.*)?$/i.test(cleaned)) {
+    return true;
+  }
+  if (/\d{3,}/.test(cleaned)) {
+    return true;
+  }
+  const digitCount = (cleaned.match(/\d/g) ?? []).length;
+  if (digitCount >= 7) {
+    return true;
+  }
+  return false;
+}
+
+function extractSubwords(text: string): string[] {
+  const matches = text.toLowerCase().match(SUBWORD_REGEX);
+  return matches ? matches.filter((word) => word.length >= 2) : [];
 }
 
 function buildBlockedSet(
@@ -179,7 +197,7 @@ function buildBlockedSet(
     if (normalizedPhrase) {
       blocked.add(normalizedPhrase);
     }
-    for (const token of tokenize(term)) {
+    for (const token of extractSubwords(term)) {
       blocked.add(token);
     }
   }
@@ -198,30 +216,57 @@ export function extractSpeechStyle(
   const documentFrequency = new Map<string, number>();
 
   for (const lesson of lessons) {
-    const tokens = tokenize(lesson);
     const seenInLesson = new Set<string>();
+    const rawChunks = lesson.split(/\s+/).filter(Boolean);
+    let previousToken: string | null = null;
 
-    for (const token of tokens) {
-      if (STOP_WORDS.has(token) || blocked.has(token)) {
-        continue;
-      }
-      seenInLesson.add(token);
-    }
+    for (const rawChunk of rawChunks) {
+      const endsClause = CLAUSE_BREAK_END.test(rawChunk);
 
-    for (let i = 0; i < tokens.length - 1; i += 1) {
-      const first = tokens[i];
-      const second = tokens[i + 1];
-      if (blocked.has(first) || blocked.has(second)) {
+      if (isPersonalInfoChunk(rawChunk)) {
+        previousToken = null;
         continue;
       }
-      if (STOP_WORDS.has(first) && STOP_WORDS.has(second)) {
+
+      const subwords = extractSubwords(rawChunk);
+      if (subwords.length === 0) {
+        previousToken = null;
         continue;
       }
-      const bigram = `${first} ${second}`;
-      if (blocked.has(bigram)) {
+
+      if (subwords.some((word) => blocked.has(word))) {
+        previousToken = null;
         continue;
       }
-      seenInLesson.add(bigram);
+
+      if (subwords.length > 1) {
+        const joined = subwords.join(" ");
+        if (blocked.has(joined)) {
+          previousToken = null;
+          continue;
+        }
+      }
+
+      for (const word of subwords) {
+        if (!STOP_WORDS.has(word)) {
+          seenInLesson.add(word);
+        }
+
+        if (previousToken !== null) {
+          if (!STOP_WORDS.has(previousToken) || !STOP_WORDS.has(word)) {
+            const bigram = `${previousToken} ${word}`;
+            if (!blocked.has(bigram)) {
+              seenInLesson.add(bigram);
+            }
+          }
+        }
+
+        previousToken = word;
+      }
+
+      if (endsClause) {
+        previousToken = null;
+      }
     }
 
     for (const phrase of seenInLesson) {

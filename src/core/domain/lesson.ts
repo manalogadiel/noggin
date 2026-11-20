@@ -1,11 +1,28 @@
 export const DEFAULT_LESSON_WORD_LIMIT = 120;
 
+const WORD_REGEX = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;
+
+const ABBREVIATIONS = new Set([
+  "al",
+  "approx",
+  "dr",
+  "eq",
+  "etc",
+  "fig",
+  "jr",
+  "mr",
+  "mrs",
+  "ms",
+  "no",
+  "prof",
+  "sr",
+  "st",
+  "vs",
+]);
+
 export function countWords(text: string): number {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return 0;
-  }
-  return trimmed.split(/\s+/).length;
+  const matches = text.match(WORD_REGEX);
+  return matches ? matches.length : 0;
 }
 
 export function isLessonOverloaded(
@@ -17,33 +34,59 @@ export function isLessonOverloaded(
 
 interface Segment {
   text: string;
-  trailingSpace: string;
   wordCount: number;
+}
+
+function isAbbreviationBoundary(text: string, punctuationStart: number, punctuation: string): boolean {
+  if (!punctuation.startsWith(".") || punctuation.length > 1) {
+    return false;
+  }
+
+  const beforeDot = text.slice(0, punctuationStart + 1);
+  if (/(?:^|[\s([{"'“‘])(?:[\p{L}]\.){2,}$/iu.test(beforeDot)) {
+    return true;
+  }
+
+  const wordMatch = /([\p{L}]+)\.$/u.exec(beforeDot);
+  if (wordMatch && ABBREVIATIONS.has(wordMatch[1].toLowerCase())) {
+    return true;
+  }
+
+  return false;
 }
 
 function splitLongSegmentByWords(text: string, maxWords: number): string[] {
   const parts: string[] = [];
-  const tokenRegex = /\S+/g;
+  const regex = new RegExp(WORD_REGEX.source, WORD_REGEX.flags);
   let match: RegExpExecArray | null;
   let chunkStart = 0;
-  let chunkEnd = 0;
   let wordsInChunk = 0;
 
-  while ((match = tokenRegex.exec(text)) !== null) {
-    if (wordsInChunk === 0) {
-      chunkStart = match.index;
-    }
+  while ((match = regex.exec(text)) !== null) {
     wordsInChunk += 1;
-    chunkEnd = match.index + match[0].length;
 
     if (wordsInChunk === maxWords) {
-      parts.push(text.slice(chunkStart, chunkEnd));
+      let splitEnd = match.index + match[0].length;
+      while (splitEnd < text.length && !/[\p{L}\p{N}\s]/u.test(text[splitEnd])) {
+        splitEnd += 1;
+      }
+      while (splitEnd < text.length && /\s/.test(text[splitEnd])) {
+        splitEnd += 1;
+      }
+      parts.push(text.slice(chunkStart, splitEnd));
+      chunkStart = splitEnd;
       wordsInChunk = 0;
+      regex.lastIndex = splitEnd;
     }
   }
 
-  if (wordsInChunk > 0) {
-    parts.push(text.slice(chunkStart, chunkEnd));
+  if (chunkStart < text.length) {
+    const remainder = text.slice(chunkStart);
+    if (parts.length > 0 && countWords(remainder) === 0) {
+      parts[parts.length - 1] += remainder;
+    } else {
+      parts.push(remainder);
+    }
   }
 
   return parts;
@@ -51,38 +94,36 @@ function splitLongSegmentByWords(text: string, maxWords: number): string[] {
 
 function segmentSentences(text: string): Segment[] {
   const segments: Segment[] = [];
-  const boundaryRegex = /[.!?]+["'”’)\]]*(?=\s+|$)/g;
+  const boundaryRegex = /([.!?]+)["'”’)\]]*(?=\s+|$)/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 
   while ((match = boundaryRegex.exec(text)) !== null) {
-    const sentenceEnd = match.index + match[0].length;
-    const rawSentence = text.slice(cursor, sentenceEnd);
+    if (isAbbreviationBoundary(text, match.index, match[1])) {
+      continue;
+    }
 
+    const sentenceEnd = match.index + match[0].length;
     let spaceEnd = sentenceEnd;
     while (spaceEnd < text.length && /\s/.test(text[spaceEnd])) {
       spaceEnd += 1;
     }
-    const trailingSpace = text.slice(sentenceEnd, spaceEnd);
 
-    if (rawSentence.trim().length > 0) {
-      segments.push({
-        text: rawSentence,
-        trailingSpace,
-        wordCount: countWords(rawSentence),
-      });
+    const rawSlice = text.slice(cursor, spaceEnd);
+    const words = countWords(rawSlice);
+    if (words > 0) {
+      segments.push({ text: rawSlice, wordCount: words });
+      cursor = spaceEnd;
     }
-    cursor = spaceEnd;
   }
 
   if (cursor < text.length) {
     const remainder = text.slice(cursor);
-    if (remainder.trim().length > 0) {
-      segments.push({
-        text: remainder,
-        trailingSpace: "",
-        wordCount: countWords(remainder),
-      });
+    const words = countWords(remainder);
+    if (words > 0) {
+      segments.push({ text: remainder, wordCount: words });
+    } else if (segments.length > 0) {
+      segments[segments.length - 1].text += remainder;
     }
   }
 
@@ -104,14 +145,12 @@ export function splitLesson(
   const segments = segmentSentences(draft);
   const parts: string[] = [];
   let currentText = "";
-  let currentTrailingSpace = "";
   let currentWords = 0;
 
   const flushCurrent = () => {
     if (currentWords > 0) {
       parts.push(currentText);
       currentText = "";
-      currentTrailingSpace = "";
       currentWords = 0;
     }
   };
@@ -125,19 +164,16 @@ export function splitLesson(
 
     if (currentWords === 0) {
       currentText = segment.text;
-      currentTrailingSpace = segment.trailingSpace;
       currentWords = segment.wordCount;
       continue;
     }
 
     if (currentWords + segment.wordCount <= maxWords) {
-      currentText += currentTrailingSpace + segment.text;
-      currentTrailingSpace = segment.trailingSpace;
+      currentText += segment.text;
       currentWords += segment.wordCount;
     } else {
       flushCurrent();
       currentText = segment.text;
-      currentTrailingSpace = segment.trailingSpace;
       currentWords = segment.wordCount;
     }
   }

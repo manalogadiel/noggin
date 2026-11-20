@@ -1,4 +1,5 @@
 export const DEFAULT_PETTING_DAILY_CAP = 5;
+export const DEFAULT_MAX_HAPPINESS = 100;
 
 export interface PettingState {
   happiness: number;
@@ -16,7 +17,7 @@ export function applyPettingHappiness(
   options: PettingOptions = {},
 ): PettingState {
   const dailyCap = options.dailyCap ?? DEFAULT_PETTING_DAILY_CAP;
-  const maxHappiness = options.maxHappiness ?? Number.POSITIVE_INFINITY;
+  const maxHappiness = options.maxHappiness ?? DEFAULT_MAX_HAPPINESS;
 
   const remainingDaily = Math.max(0, dailyCap - state.happinessToday);
   const requested = Math.max(0, delta);
