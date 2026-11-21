@@ -62,7 +62,7 @@ export function createSupabaseRepositories(
     topics: createTopicRepository({ session, service, userId }),
     nogs: createNogRepository({ session, service, userId }),
     notebook: createNotebookRepository({ session, service, userId }),
-    thoughtCards: createThoughtCardRepository({ session }),
+    thoughtCards: createThoughtCardRepository({ session, service, userId }),
     questions: createQuestionBank({ service }),
     attempts: createAttemptRepository({ session, service, userId }),
     usage: createUsageRepository({ service, userId }),

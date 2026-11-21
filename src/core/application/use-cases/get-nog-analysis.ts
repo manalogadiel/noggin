@@ -7,6 +7,7 @@ import {
 import { vitals, type VitalsResult } from "../../domain/vitals";
 import type {
   AttemptRepository,
+  CheckAttemptRecord,
   Clock,
   CurrentUser,
   NogRecord,
@@ -43,6 +44,7 @@ export type GetNogAnalysisResult =
       cards: AnalysisCard[];
       masteredCount: number;
       stage: GrowthStage;
+      attempts?: CheckAttemptRecord[];
     };
 
 export async function getNogAnalysis(
@@ -112,5 +114,6 @@ export async function getNogAnalysis(
     cards,
     masteredCount,
     stage,
+    attempts: rawAttempts,
   };
 }

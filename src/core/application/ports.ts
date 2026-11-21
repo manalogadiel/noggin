@@ -282,9 +282,20 @@ export interface ThoughtCardRecord {
   quote?: string;
 }
 
+export type CardReviewOutcome = "remembered" | "forgot";
+
+export interface ReviewThoughtCardInput {
+  ownerId: string;
+  nogId: string;
+  cardId: string;
+  outcome: CardReviewOutcome;
+  now?: Date;
+}
+
 export interface ThoughtCardRepository {
   listByTopic(nogId: string, topicId: string): Promise<ThoughtCardRecord[]>;
   listByNog?(nogId: string): Promise<ThoughtCardRecord[]>;
+  reviewCard?(input: ReviewThoughtCardInput): Promise<ThoughtCardRecord | null>;
 }
 
 export interface AnswerQuestionPrompt {
