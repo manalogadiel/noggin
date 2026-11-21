@@ -116,6 +116,25 @@ export const RIGS: Record<NogSceneName, Rig> = {
       { pivot: [0.27, 0.62], center: [0.245, 0.68], radius: [0.04, 0.07], body: 0, amp: 0.06, speed: 1.2, idle: true },
     ],
   },
+  egg: {
+    poster: "/nog/egg-speckled.png",
+    aspect: 605 / 589,
+    bodies: [{ base: [0.5, 0.86], center: [0.5, 0.48], radius: [0.3, 0.4] }],
+    eyes: [],
+    leaves: [],
+    arms: [],
+  },
+  hatched: {
+    poster: "/nog/hatched-shells.png",
+    aspect: 1583 / 994,
+    bodies: [{ base: [0.48, 0.8], center: [0.48, 0.62], radius: [0.17, 0.22] }],
+    eyes: [
+      { center: [0.4298, 0.5785], radius: [0.0234, 0.0367], body: 0 },
+      { center: [0.5747, 0.5288], radius: [0.0205, 0.0337], body: 0 },
+    ],
+    leaves: [],
+    arms: [],
+  },
 };
 
 /** Last pointer position in viewport pixels, shared by every Nog on the page. */

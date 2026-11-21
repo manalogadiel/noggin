@@ -5,7 +5,14 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-export type NogSceneName = "trio" | "flying" | "thinking" | "peek" | "lean";
+export type NogSceneName =
+  | "trio"
+  | "flying"
+  | "thinking"
+  | "peek"
+  | "lean"
+  | "egg"
+  | "hatched";
 
 // three.js stays out of every other page: this chunk loads only when a Nog nears the viewport.
 const NogCanvas = dynamic(() => import("./nog-rig"), { ssr: false });
@@ -36,10 +43,21 @@ export interface NogStageProps {
   height: number;
   sizes: string;
   priority?: boolean;
+  decorative?: boolean;
   className?: string;
 }
 
-export function NogStage({ scene, alt, poster, width, height, sizes, priority, className }: NogStageProps) {
+export function NogStage({
+  scene,
+  alt,
+  poster,
+  width,
+  height,
+  sizes,
+  priority,
+  decorative = false,
+  className,
+}: NogStageProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -85,8 +103,9 @@ export function NogStage({ scene, alt, poster, width, height, sizes, priority, c
   return (
     <div
       ref={ref}
-      role="img"
-      aria-label={alt}
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : alt}
+      aria-hidden={decorative ? "true" : undefined}
       data-nog-3d={ready ? "ready" : "poster"}
       className={cn("relative", className)}
     >

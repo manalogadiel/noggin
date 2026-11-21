@@ -1,0 +1,76 @@
+@keyframes egg-wobble {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-7deg) scale(1.03);
+  }
+  55% {
+    transform: rotate(6deg) scale(1.02);
+  }
+  80% {
+    transform: rotate(-3deg) scale(1.01);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes egg-shake {
+  0% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+  18% {
+    transform: translateX(-8px) rotate(-11deg) scale(1.05);
+  }
+  38% {
+    transform: translateX(8px) rotate(11deg) scale(1.05);
+  }
+  58% {
+    transform: translateX(-6px) rotate(-8deg) scale(1.03);
+  }
+  78% {
+    transform: translateX(5px) rotate(6deg) scale(1.02);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes egg-pop {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  45% {
+    transform: scale(1.16);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+}
+
+.wobble {
+  transform-origin: 50% 85%;
+  animation: egg-wobble 360ms ease-out;
+}
+
+.shake {
+  transform-origin: 50% 85%;
+  animation: egg-shake 420ms ease-out;
+}
+
+.pop {
+  transform-origin: 50% 60%;
+  animation: egg-pop 280ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wobble,
+  .shake,
+  .pop {
+    animation: none;
+  }
+}
