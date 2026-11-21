@@ -188,7 +188,10 @@ describe("Bath repair flow (/nogs/[id]/bath)", () => {
     await renderBath({ card: shakyCard.id });
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Missed Concept" }),
+      screen.getByRole("heading", { level: 1, name: "Bath" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Missed Concept" }),
     ).toBeVisible();
     expect(screen.getAllByText(shakyCard.label).length).toBeGreaterThanOrEqual(
       1,
@@ -255,10 +258,12 @@ describe("Bath repair flow (/nogs/[id]/bath)", () => {
     const user = userEvent.setup();
     await renderBath({ card: shakyCard.id });
 
-    await user.click(screen.getByRole("button", { name: /^Revise$/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Start Revising →" }),
+    );
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Revise" }),
+      screen.getByRole("heading", { name: "Revise" }),
     ).toBeVisible();
 
     const editor = screen.getByRole<HTMLTextAreaElement>("textbox");
@@ -307,7 +312,7 @@ describe("Bath repair flow (/nogs/[id]/bath)", () => {
       screen.getByText(/Squeaky clean!\s*Nothing to fix\.?/i),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: /^Revise$/i }),
+      screen.queryByRole("button", { name: "Start Revising →" }),
     ).not.toBeInTheDocument();
   });
 });

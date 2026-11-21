@@ -97,7 +97,7 @@ async function renderPlay(topicId = tcp.id) {
 }
 
 function startButton() {
-  return screen.getByRole("button", { name: "Start" });
+  return screen.getByRole("button", { name: "Start Quiz" });
 }
 
 async function startWithTimers() {

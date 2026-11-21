@@ -1,8 +1,8 @@
 import type {
-  CheckAttemptRecord,
   LessonPage,
   ListenerDigest,
   NogRecord,
+  QuickCheckAttempt,
   ThoughtCardRecord,
   TopicSummary,
 } from "@/core/application/ports";
@@ -140,11 +140,12 @@ export const freshUnderstoodCard: AnalysisCard = {
   freshness: "fresh",
 };
 
-export const passedAttempt: CheckAttemptRecord = {
+export const passedAttempt: QuickCheckAttempt = {
   id: "attempt-pass-1",
   nogId: nog.id,
   topicId: tcp.id,
   questionId: "q-tcp-1",
+  prompt: "How does a client initiate a TCP three-way handshake?",
   nogAnswer: "The client sends a SYN segment to initiate the connection.",
   concepts: [
     {
@@ -159,11 +160,12 @@ export const passedAttempt: CheckAttemptRecord = {
   createdAt: "2026-11-21T10:00:00.000Z",
 };
 
-export const missedAttempt: CheckAttemptRecord = {
+export const missedAttempt: QuickCheckAttempt = {
   id: "attempt-miss-2",
   nogId: nog.id,
   topicId: tcp.id,
   questionId: "q-tcp-2",
+  prompt: "Why does the server reply with a SYN-ACK segment during the handshake?",
   nogAnswer: "The server just waits until the client sends data.",
   concepts: [
     {

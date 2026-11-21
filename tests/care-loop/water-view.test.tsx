@@ -176,7 +176,10 @@ describe("Water review flow (/nogs/[id]/water)", () => {
     await renderWater();
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "What do you remember?" }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: /^Let['’]s test what you know!$/i,
+      }),
     ).toBeVisible();
     expect(
       screen.getByText(
@@ -204,7 +207,7 @@ describe("Water review flow (/nogs/[id]/water)", () => {
     }
 
     expect(
-      screen.getByRole("button", { name: /start review/i }),
+      screen.getByRole("button", { name: "Start Reviewing →" }),
     ).toBeEnabled();
 
     const rail = within(
@@ -253,7 +256,7 @@ describe("Water review flow (/nogs/[id]/water)", () => {
       ),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: /start review/i }),
+      screen.queryByRole("button", { name: "Start Reviewing →" }),
     ).not.toBeInTheDocument();
     const backLinks = screen.getAllByRole("link", {
       name: /back to (?:the )?room|room/i,
@@ -267,7 +270,9 @@ describe("Water review flow (/nogs/[id]/water)", () => {
     const user = userEvent.setup();
     await renderWater();
 
-    await user.click(screen.getByRole("button", { name: /start review/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Start Reviewing →" }),
+    );
 
     expect(screen.getByText(/recall:/i)).toBeVisible();
     expect(screen.getByText(dustyCard.label)).toBeVisible();
@@ -326,7 +331,9 @@ describe("Water review flow (/nogs/[id]/water)", () => {
     await user.click(checkboxes[1]);
     expect(checkboxes[1]).not.toBeChecked();
 
-    await user.click(screen.getByRole("button", { name: /start review/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Start Reviewing →" }),
+    );
     expect(screen.getByText(dustyCard.label)).toBeVisible();
 
     await user.click(
@@ -347,7 +354,9 @@ describe("Water review flow (/nogs/[id]/water)", () => {
     const user = userEvent.setup();
     await renderWater();
 
-    await user.click(screen.getByRole("button", { name: /start review/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Start Reviewing →" }),
+    );
     expect(screen.getByText(dustyCard.label)).toBeVisible();
 
     const teachAgain =
