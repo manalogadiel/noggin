@@ -37,7 +37,7 @@ export function RoomRail({ nogId, className }: RoomRailProps) {
     <nav
       aria-label="Nog room sections"
       className={cn(
-        "hidden lg:sticky lg:top-8 lg:flex lg:flex-col lg:items-center lg:gap-2.5 lg:self-start lg:rounded-[var(--noggin-radius-pill)] lg:bg-[var(--noggin-white)] lg:p-2.5 lg:shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_10px_var(--noggin-shadow-inset)]",
+        "hidden lg:fixed lg:top-[120px] lg:right-0 lg:z-20 lg:flex lg:flex-col lg:items-center lg:gap-2.5 lg:rounded-l-[28px] lg:rounded-r-none lg:bg-[var(--noggin-white)] lg:py-3 lg:pr-2 lg:pl-3 lg:shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_10px_var(--noggin-shadow-inset)]",
         className,
       )}
     >

@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Plus } from "lucide-react";
-import Link from "next/link";
+import { Check, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { customizeNogAction } from "@/app/(app)/actions/customize-actions";
@@ -79,19 +78,9 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6 py-2">
+    <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-6 py-4 md:py-8">
       <div className="flex flex-col gap-2">
-        <div>
-          <Link
-            href={roomHref}
-            className="noggin-display inline-flex min-h-11 items-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-4 py-2 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>← Room</span>
-          </Link>
-        </div>
-
-        <h1 className="noggin-display text-[clamp(2.25rem,5vw,4rem)] font-extrabold leading-[1.02] text-[var(--noggin-leaf-title)]">
+        <h1 className="noggin-display text-[clamp(2.5rem,5vw,4rem)] font-extrabold leading-[1.02] tracking-tight text-[var(--noggin-leaf-title)]">
           Make your Nog Yours
         </h1>
         <p className="text-[1.125rem] font-semibold text-[var(--noggin-forest)]">
@@ -99,16 +88,16 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-center lg:gap-10">
-        <div className="flex flex-col items-center justify-center rounded-[36px] bg-[radial-gradient(circle_at_50%_62%,var(--noggin-sun-top)_0%,var(--noggin-mint)_68%,transparent_100%)] p-6 lg:p-10">
-          <div className="w-full max-w-[280px] lg:max-w-[440px]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-center lg:gap-12">
+        <div className="flex flex-col items-center justify-center p-2 lg:p-4">
+          <div className="w-full max-w-[300px] lg:max-w-[460px]">
             <NogStage
               scene="room"
               alt={`${nog.name} preview`}
               poster="/nog/blob-closeup.png"
               width={1254}
               height={1254}
-              sizes="(min-width: 1024px) 440px, 280px"
+              sizes="(min-width: 1024px) 460px, 300px"
               tint={selectedColor}
               priority
               className="w-full"
@@ -116,7 +105,7 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 rounded-[36px] bg-[var(--noggin-mint)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8 lg:rounded-[44px]">
+        <div className="flex flex-col gap-7">
           <section className="flex flex-col gap-3.5">
             <h2 className="noggin-display text-[1.5rem] font-bold text-[var(--noggin-forest)]">
               Body Color

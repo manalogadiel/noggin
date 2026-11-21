@@ -61,7 +61,7 @@ export async function hatchNogAction(
   if (result.status === "ok") {
     revalidatePath("/home");
     revalidatePath("/nogs");
-    redirect(`/nogs/${result.nog.id}`);
+    redirect(`/nogs/${result.nog.id}/customize`);
   }
 
   if (result.status === "already_exists") {

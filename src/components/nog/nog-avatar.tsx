@@ -53,7 +53,7 @@ export function NogAvatar({
         aria-label={`Pet ${name}`}
         data-reaction={reaction}
         onClick={onTap}
-        className="group relative flex w-full max-w-[280px] cursor-pointer items-center justify-center rounded-[48px] bg-[radial-gradient(circle_at_50%_62%,var(--noggin-sun-top)_0%,var(--noggin-mint)_65%,transparent_100%)] p-3 transition-transform duration-150 ease-out focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--noggin-leaf-strong)] motion-reduce:transition-none lg:max-w-[520px] lg:p-6"
+        className="group relative flex w-full max-w-[280px] cursor-pointer items-center justify-center rounded-[48px] bg-transparent p-2 transition-transform duration-150 ease-out focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--noggin-leaf-strong)] motion-reduce:transition-none lg:max-w-[420px] lg:p-3"
       >
         <div
           key={tapCount > 0 ? `${reaction}-${tapCount}` : "idle"}
@@ -65,7 +65,7 @@ export function NogAvatar({
             poster="/nog/blob-closeup.png"
             width={1254}
             height={1254}
-            sizes="(min-width: 1024px) 520px, 280px"
+            sizes="(min-width: 1024px) 420px, 280px"
             tint={tint}
             priority
             decorative

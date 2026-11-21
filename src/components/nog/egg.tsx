@@ -77,16 +77,16 @@ export function EggHatch({ onHatched }: EggHatchProps) {
         aria-label="Tap the egg"
         onClick={handleTap}
         disabled={popping}
-        className="group relative flex w-full max-w-[320px] cursor-pointer items-center justify-center rounded-[36px] bg-[radial-gradient(circle_at_50%_62%,var(--noggin-sun-top)_0%,var(--noggin-mint)_68%,transparent_100%)] p-5 transition-opacity focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[var(--noggin-leaf-strong)] disabled:cursor-default sm:p-7"
+        className="group relative flex w-full max-w-[340px] cursor-pointer items-center justify-center rounded-[36px] bg-transparent p-2 transition-opacity focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--noggin-leaf-strong)] disabled:cursor-default"
       >
-        <div className={cn("w-full max-w-[250px] sm:max-w-[280px]", stageMotionClass)}>
+        <div className={cn("w-full max-w-[320px] sm:max-w-[330px]", stageMotionClass)}>
           <NogStage
             scene="egg"
             alt=""
             poster="/nog/egg-speckled.png"
             width={605}
             height={589}
-            sizes="(min-width: 640px) 280px, 250px"
+            sizes="(min-width: 640px) 330px, 320px"
             priority
             decorative
             className="w-full"

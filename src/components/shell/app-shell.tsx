@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-import { BottomBar } from "@/components/shell/bottom-bar";
-import { Sidebar } from "@/components/shell/sidebar";
-import { TopBar } from "@/components/shell/top-bar";
+import { ShellFrame } from "@/components/shell/shell-frame";
 
 export interface AppShellProps {
   displayName: string | null;
@@ -23,22 +21,9 @@ export function AppShell({
         Skip to content
       </a>
 
-      <div className="grid min-h-[100dvh] grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]">
-        <Sidebar showArena={showArena} />
-
-        <div className="flex min-w-0 flex-col">
-          <TopBar displayName={displayName} />
-
-          <main
-            id="main"
-            className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] md:px-8 md:py-8"
-          >
-            {children}
-          </main>
-        </div>
-
-        <BottomBar showArena={showArena} />
-      </div>
+      <ShellFrame displayName={displayName} showArena={showArena}>
+        {children}
+      </ShellFrame>
     </div>
   );
 }
