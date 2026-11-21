@@ -21,7 +21,8 @@ import type { NogSceneName } from "./nog-stage";
  */
 
 type UV = [number, number];
-interface BodyRig { base: UV; center: UV; radius: UV; hop?: boolean; float?: boolean }
+/** rigid: holds a prop (the book), so taps bounce it evenly instead of squashing it out of shape */
+interface BodyRig { base: UV; center: UV; radius: UV; hop?: boolean; float?: boolean; rigid?: boolean }
 interface EyeRig { center: UV; radius: UV; body: number }
 interface LimbRig { pivot: UV; center: UV; radius: UV; body: number; amp: number; speed?: number; idle?: boolean }
 interface Rig {
@@ -63,7 +64,7 @@ export const RIGS: Record<NogSceneName, Rig> = {
     poster: "/nog/flying-book.png",
     aspect: 1,
     // one Nog fills the image: the body region covers all of it so squash and float stay rigid (the book never bends)
-    bodies: [{ base: [0.45, 0.6], center: [0.45, 0.58], radius: [1.6, 1.6], float: true }],
+    bodies: [{ base: [0.45, 0.6], center: [0.45, 0.58], radius: [1.6, 1.6], float: true, rigid: true }],
     eyes: [
       { center: [0.2692, 0.4087], radius: [0.0343, 0.0391], body: 0 },
       { center: [0.4812, 0.463], radius: [0.0435, 0.0435], body: 0 },
@@ -287,7 +288,8 @@ function RiggedNog({ rig, texture, onReady }: { rig: Rig; texture: Texture; onRe
       const stretch = breath + squash;
       const tilt = b.float ? Math.sin(t * 0.7) * 0.025 : 0;
       u.uBodyB.value[i].set(b.radius[0] * a, b.radius[1], tilt, lift);
-      u.uBodyC.value[i].set(1 - stretch * 0.6, 1 + stretch, 0, 0);
+      if (b.rigid) u.uBodyC.value[i].set(1 + stretch * 0.5, 1 + stretch * 0.5, 0, 0);
+      else u.uBodyC.value[i].set(1 - stretch * 0.6, 1 + stretch, 0, 0);
 
       // blink: quick squash; double blink now and then; squint after a tap
       if (s.blinkAt < 0 && t > s.nextBlink) s.blinkAt = t;
