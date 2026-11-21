@@ -102,6 +102,20 @@ export const RIGS: Record<NogSceneName, Rig> = {
     leaves: [{ pivot: [0.48, 0.3], center: [0.46, 0.2], radius: [0.2, 0.12], body: 0, amp: 0.06 }],
     arms: [{ pivot: [0.73, 0.53], center: [0.79, 0.49], radius: [0.065, 0.065], body: 0, amp: -0.32 }],
   },
+  lean: {
+    poster: "/nog/peek-card.png",
+    aspect: 1,
+    bodies: [{ base: [0.46, 0.83], center: [0.46, 0.55], radius: [0.27, 0.36] }],
+    eyes: [
+      { center: [0.3995, 0.5076], radius: [0.0327, 0.0335], body: 0 },
+      { center: [0.5895, 0.4659], radius: [0.0299, 0.0319], body: 0 },
+    ],
+    leaves: [{ pivot: [0.45, 0.33], center: [0.43, 0.24], radius: [0.2, 0.12], body: 0, amp: 0.06 }],
+    arms: [
+      { pivot: [0.66, 0.53], center: [0.71, 0.5], radius: [0.055, 0.055], body: 0, amp: -0.2 },             // waves hello
+      { pivot: [0.27, 0.62], center: [0.245, 0.68], radius: [0.04, 0.07], body: 0, amp: 0.06, speed: 1.2, idle: true },
+    ],
+  },
 };
 
 /** Last pointer position in viewport pixels, shared by every Nog on the page. */

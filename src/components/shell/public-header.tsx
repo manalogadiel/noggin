@@ -2,16 +2,30 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "@/components/shell/wordmark";
 
-export interface PublicHeaderProps {
-  active: "home" | "discover";
+export interface PublicHeaderAction {
+  label: string;
+  href: string;
 }
+
+export interface PublicHeaderProps {
+  active?: "home" | "discover";
+  action?: PublicHeaderAction;
+}
+
+const DEFAULT_ACTION: PublicHeaderAction = {
+  label: "Log in",
+  href: "/login",
+};
 
 const NAV_TABS = [
   { key: "home", label: "Home", href: "/" },
   { key: "discover", label: "Discover", href: "/discover" },
 ] as const;
 
-export function PublicHeader({ active }: PublicHeaderProps) {
+export function PublicHeader({
+  active,
+  action = DEFAULT_ACTION,
+}: PublicHeaderProps) {
   return (
     <header className="relative z-20 mx-auto w-full max-w-[1280px] px-4 pt-5 md:px-10 md:pt-10">
       <div className="flex flex-wrap items-center justify-between gap-y-3 md:flex-nowrap md:gap-x-6">
@@ -49,10 +63,10 @@ export function PublicHeader({ active }: PublicHeaderProps) {
         </nav>
 
         <Link
-          href="/login"
+          href={action.href}
           className="noggin-primary-pill noggin-display order-2 inline-flex h-11 min-h-11 items-center justify-center px-5 text-[1rem] font-bold whitespace-nowrap md:order-3 md:h-14 md:px-6 md:text-[1.1875rem]"
         >
-          Log in
+          {action.label}
         </Link>
       </div>
     </header>

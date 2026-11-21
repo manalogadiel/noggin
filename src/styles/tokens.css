@@ -13,12 +13,14 @@
   --noggin-sun-bottom: #f7e4c2;
   --noggin-glass: rgb(255 255 255 / 0.62);
   --noggin-glass-hover: rgb(255 255 255 / 0.8);
+  --noggin-card-glass: rgb(242 238 229 / 0.81);
   --noggin-cream-translucent: rgb(255 244 229 / 0.91);
   --noggin-white: #ffffff;
   --noggin-shadow: rgb(53 93 7 / 0.22);
   --noggin-shadow-strong: rgb(53 93 7 / 0.3);
   --noggin-shadow-inset: rgb(0 0 0 / 0.18);
   --noggin-danger: #b91c1c;
+  --noggin-danger-soft: rgb(185 28 28 / 0.08);
 
   --noggin-radius-pill: 9999px;
   --noggin-radius-card: 40px;

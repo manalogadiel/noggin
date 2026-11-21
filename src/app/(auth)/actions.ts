@@ -11,6 +11,15 @@ export type AuthActionResult =
   | { status: "unauthenticated" }
   | void;
 
+export type AuthFormState = {
+  error?: string;
+  errorField?: "credentials" | "birthday" | "form";
+  email?: string;
+  displayName?: string;
+  birthDate?: string;
+  attempt?: number;
+};
+
 const DEFAULT_REDIRECT = "/nogs";
 const SIGN_UP_REDIRECT = "/adopt";
 const SIGN_OUT_REDIRECT = "/login";
@@ -19,7 +28,7 @@ const MIN_AGE_YEARS = 16;
 const SIGN_IN_ERROR = "Check your email and password";
 const SIGN_UP_ERROR = "Couldn't create the account";
 const AGE_GATE_ERROR =
-  "You must be at least 16 years old to create an account.";
+  "Your Nog is still snug in its shell! Noggin is for ages 16 and up. Come back on your 16th birthday.";
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const CONTROL_CHAR_PATTERN = /[\u0000-\u001f\u007f]/;
@@ -249,4 +258,40 @@ export async function signOutAction(): Promise<AuthActionResult> {
   }
 
   redirect(SIGN_OUT_REDIRECT);
+}
+
+export async function signInFormAction(
+  prevState: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const result = await signInAction(formData);
+  if (result && "error" in result) {
+    return {
+      error: result.error,
+      errorField: "credentials",
+      email: readFormString(formData, "email") ?? "",
+      attempt: (prevState?.attempt ?? 0) + 1,
+    };
+  }
+
+  return prevState;
+}
+
+export async function signUpFormAction(
+  prevState: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const result = await signUpAction(formData);
+  if (result && "error" in result) {
+    return {
+      error: result.error,
+      errorField: result.error === AGE_GATE_ERROR ? "birthday" : "form",
+      email: readFormString(formData, "email") ?? "",
+      displayName: readFormString(formData, "display_name") ?? "",
+      birthDate: readFormString(formData, "birth_date") ?? "",
+      attempt: (prevState?.attempt ?? 0) + 1,
+    };
+  }
+
+  return prevState;
 }
