@@ -20,6 +20,7 @@ import type {
   ListenerDigest,
   NewPageInput,
   NogBrain,
+  NogColors,
   NogListener,
   NogRecord,
   NogRepository,
@@ -331,6 +332,16 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       target.happinessToday = input.happinessToday;
       target.happinessDay = input.happinessDay;
       return { ...target };
+    },
+    async updateColors(ownerId: string, nogId: string, colors: NogColors) {
+      const target = nogStore.find(
+        (n) => n.id === nogId && n.ownerId === ownerId,
+      );
+      if (!target) {
+        return null;
+      }
+      target.colors = { ...target.colors, ...colors };
+      return { ...target, colors: { ...target.colors } };
     },
   };
 

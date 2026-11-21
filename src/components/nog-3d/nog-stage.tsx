@@ -44,6 +44,7 @@ export interface NogStageProps {
   width: number;
   height: number;
   sizes: string;
+  tint?: string | null;
   priority?: boolean;
   decorative?: boolean;
   className?: string;
@@ -56,6 +57,7 @@ export function NogStage({
   width,
   height,
   sizes,
+  tint,
   priority,
   decorative = false,
   className,
@@ -120,10 +122,32 @@ export function NogStage({
         priority={priority}
         className={cn("h-auto w-full object-contain transition-opacity duration-300", ready && "opacity-0")}
       />
+      {tint && (
+        // shortcut: tints leaves too in the fallback only
+        <span
+          aria-hidden="true"
+          style={{
+            backgroundColor: tint,
+            WebkitMaskImage: `url(${poster})`,
+            maskImage: `url(${poster})`,
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+          }}
+          className={cn(
+            "pointer-events-none absolute inset-0 mix-blend-multiply transition-opacity duration-300",
+            ready && "opacity-0",
+          )}
+        />
+      )}
       {mounted && (
         <NogCanvas
           scene={scene}
           active={visible}
+          tint={tint}
           onReady={onReady}
           onFail={onFail}
           className={cn(

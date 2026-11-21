@@ -45,6 +45,11 @@ import {
   type AnswerFollowUpResult,
 } from "@/core/application/use-cases/answer-follow-up";
 import {
+  customizeNog,
+  type CustomizeNogInput,
+  type CustomizeNogResult,
+} from "@/core/application/use-cases/customize-nog";
+import {
   getNogAnalysis,
   type GetNogAnalysisInput,
   type GetNogAnalysisResult,
@@ -459,6 +464,7 @@ export interface AppContainer {
   getNogRoom: (input: GetNogRoomInput) => Promise<GetNogRoomResult>;
   getNogAnalysis: (input: GetNogAnalysisInput) => Promise<GetNogAnalysisResult>;
   petNog: (input: PetNogInput) => Promise<PetNogResult>;
+  customizeNog: (input: CustomizeNogInput) => Promise<CustomizeNogResult>;
   listDueCards: (input: ListDueCardsInput) => Promise<ListDueCardsResult>;
   reviewCard: (input: ReviewCardInput) => Promise<ReviewCardResult>;
   teachLesson: (input: TeachLessonInput) => Promise<TeachLessonResult>;
@@ -494,6 +500,7 @@ export async function createContainer(): Promise<AppContainer> {
       getNogRoom: async () => ({ status: "unauthenticated" }),
       getNogAnalysis: async () => ({ status: "unauthenticated" }),
       petNog: async () => ({ status: "unauthenticated" }),
+      customizeNog: async () => ({ status: "unauthenticated" }),
       listDueCards: async () => ({ status: "unauthenticated" }),
       reviewCard: async () => ({ status: "unauthenticated" }),
       teachLesson: async () => ({ status: "unauthenticated" }),
@@ -699,6 +706,14 @@ export async function createContainer(): Promise<AppContainer> {
         {
           currentUser,
           clock,
+          nogs: repositories.nogs,
+        },
+        input,
+      ),
+    customizeNog: (input) =>
+      customizeNog(
+        {
+          currentUser,
           nogs: repositories.nogs,
         },
         input,

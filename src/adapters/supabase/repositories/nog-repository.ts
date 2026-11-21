@@ -1,15 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   CreateNogInput,
+  NogColors,
   NogRecord,
   NogRepository,
   NogStageSlug,
   UpdatePettingInput,
 } from "@/core/application/ports";
+import { parseBodyColor } from "@/core/domain/nog-colors";
 import { mapPostgrestError, SupabaseAdapterError } from "./errors";
 
 const NOG_COLUMNS =
-  "id, owner_id, subject_id, name, stage, mood, happiness, happiness_today, happiness_day, subjects(name)";
+  "id, owner_id, subject_id, name, stage, mood, happiness, happiness_today, happiness_day, colors, subjects(name)";
 
 interface SubjectJoinRow {
   name: string;
@@ -25,6 +27,7 @@ interface NogRow {
   happiness: number;
   happiness_today: number;
   happiness_day: string | null;
+  colors?: unknown;
   subjects?: SubjectJoinRow | SubjectJoinRow[] | null;
 }
 
@@ -36,6 +39,23 @@ function extractSubjectName(
   }
   const entry = Array.isArray(subjects) ? subjects[0] : subjects;
   return typeof entry?.name === "string" ? entry.name : undefined;
+}
+
+function mapNogColors(raw: unknown): NogColors {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return {};
+  }
+  const candidate = (raw as { body?: unknown }).body;
+  if (candidate === null) {
+    return { body: null };
+  }
+  if (typeof candidate === "string") {
+    const parsed = parseBodyColor(candidate);
+    if (parsed.ok) {
+      return { body: parsed.value };
+    }
+  }
+  return {};
 }
 
 function mapNogRow(row: NogRow): NogRecord {
@@ -51,6 +71,7 @@ function mapNogRow(row: NogRow): NogRecord {
     happiness: row.happiness,
     happinessToday: row.happiness_today,
     happinessDay: row.happiness_day ?? null,
+    colors: mapNogColors(row.colors),
   };
 }
 
@@ -166,6 +187,31 @@ export function createNogRepository(options: {
         throw new SupabaseAdapterError("NOT_FOUND", "Nog not found for owner.");
       }
       return mapNogRow(data);
+    },
+
+    async updateColors(
+      ownerId: string,
+      nogId: string,
+      colors: NogColors,
+    ): Promise<NogRecord | null> {
+      if (ownerId !== userId) {
+        return null;
+      }
+
+      const { data, error } = await session
+        .from("nogs")
+        .update({
+          colors: { body: colors.body ?? null },
+        })
+        .eq("id", nogId)
+        .eq("owner_id", ownerId)
+        .select(NOG_COLUMNS)
+        .maybeSingle<NogRow>();
+
+      if (error) {
+        throw mapPostgrestError(error, "nogs.updateColors");
+      }
+      return data ? mapNogRow(data) : null;
     },
   };
 }

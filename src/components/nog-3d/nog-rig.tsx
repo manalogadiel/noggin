@@ -10,6 +10,7 @@ import {
   ShaderMaterial,
   type Texture,
   TextureLoader,
+  Vector3,
   Vector4,
 } from "three";
 import type { NogSceneName } from "./nog-stage";
@@ -216,13 +217,29 @@ void main() {
 
 const fragmentShader = /* glsl */ `
 uniform sampler2D uMap;
+uniform vec3 uTint;
 varying vec2 vUv;
 void main() {
-  gl_FragColor = texture2D(uMap, vUv);
+  vec4 c = texture2D(uMap, vUv);
+  float leaf = step(c.r * 1.12, c.g) * step(c.b * 1.12, c.g);
+  c.rgb = mix(c.rgb * uTint, c.rgb, leaf);
+  gl_FragColor = c;
 }
 `;
 
 const vec4s = (n: number) => Array.from({ length: n }, () => new Vector4());
+
+function parseTintRgb(tint?: string | null): [number, number, number] {
+  if (!tint) return [1, 1, 1];
+  const clean = tint.trim().replace(/^#/, "");
+  if (!/^[0-9a-f]{6}$/i.test(clean)) return [1, 1, 1];
+  const num = Number.parseInt(clean, 16);
+  return [
+    ((num >> 16) & 255) / 255,
+    ((num >> 8) & 255) / 255,
+    (num & 255) / 255,
+  ];
+}
 
 function createMaterial(rig: Rig, texture: Texture): ShaderMaterial {
   const a = rig.aspect;
@@ -238,6 +255,7 @@ function createMaterial(rig: Rig, texture: Texture): ShaderMaterial {
     blendDst: OneMinusSrcAlphaFactor,
     uniforms: {
       uMap: { value: texture },
+      uTint: { value: new Vector3(1, 1, 1) },
       uAspect: { value: a },
       uBodyA: { value: vec4s(MAX.bodies) },
       uBodyB: { value: vec4s(MAX.bodies) },
@@ -264,10 +282,25 @@ function createMaterial(rig: Rig, texture: Texture): ShaderMaterial {
   return material;
 }
 
-function RiggedNog({ rig, texture, onReady }: { rig: Rig; texture: Texture; onReady: () => void }) {
+function RiggedNog({
+  rig,
+  texture,
+  tint,
+  onReady,
+}: {
+  rig: Rig;
+  texture: Texture;
+  tint?: string | null;
+  onReady: () => void;
+}) {
   const gl = useThree((s) => s.gl);
   const a = rig.aspect;
   const material = useMemo(() => createMaterial(rig, texture), [rig, texture]);
+
+  useEffect(() => {
+    const [r, g, b] = parseTintRgb(tint);
+    material.uniforms.uTint.value.set(r, g, b);
+  }, [material, tint]);
   // Fine mesh: roughly one vertex every 3-6 px of the render so eyes can squash smoothly.
   const geometry = useMemo(
     () => new PlaneGeometry(1, 1, Math.round(220 * Math.max(a, 1)), Math.round(220 / Math.min(a, 1))),
@@ -405,12 +438,13 @@ function RiggedNog({ rig, texture, onReady }: { rig: Rig; texture: Texture; onRe
 export interface NogRigCanvasProps {
   scene: NogSceneName;
   active: boolean;
+  tint?: string | null;
   onReady: () => void;
   onFail: () => void;
   className?: string;
 }
 
-export default function NogRigCanvas({ scene, active, onReady, onFail, className }: NogRigCanvasProps) {
+export default function NogRigCanvas({ scene, active, tint, onReady, onFail, className }: NogRigCanvasProps) {
   const rig = RIGS[scene];
   const [texture, setTexture] = useState<Texture | null>(null);
 
@@ -458,7 +492,7 @@ export default function NogRigCanvas({ scene, active, onReady, onFail, className
         gl.domElement.addEventListener("webglcontextlost", onFail, { once: true });
       }}
     >
-      <RiggedNog rig={rig} texture={texture} onReady={onReady} />
+      <RiggedNog rig={rig} texture={texture} tint={tint} onReady={onReady} />
     </Canvas>
   );
 }

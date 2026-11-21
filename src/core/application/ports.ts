@@ -49,6 +49,10 @@ export interface Clock {
   now(): Date;
 }
 
+export interface NogColors {
+  body?: string | null;
+}
+
 export interface NogRecord {
   id: string;
   ownerId: string;
@@ -61,6 +65,7 @@ export interface NogRecord {
   happinessToday?: number;
   happinessDay?: string | null;
   vitality?: number;
+  colors?: NogColors;
 }
 
 export interface SubjectRecord {
@@ -159,6 +164,11 @@ export interface NogRepository {
   ): Promise<NogRecord | null>;
   create(input: CreateNogInput): Promise<NogRecord>;
   updatePetting(input: UpdatePettingInput): Promise<NogRecord>;
+  updateColors?(
+    ownerId: string,
+    nogId: string,
+    colors: NogColors,
+  ): Promise<NogRecord | null>;
 }
 
 export type LessonKind = "lesson" | "follow_up_answer";
