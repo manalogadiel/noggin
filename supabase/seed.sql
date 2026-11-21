@@ -3,12 +3,12 @@ values
   (
     'free',
     'Free',
-    '{"listener": 10, "answer": 5, "grade": 5, "stt_seconds": 300, "tts_chars": 1000, "pet": 50}'::jsonb
+    '{"listener": 10, "answer": 5, "grade": 5, "stt_seconds": 300, "tts_chars": 1000, "pet": 50, "generate": 5}'::jsonb
   ),
   (
     'plus',
     'Noggin Plus',
-    '{"listener": 60, "answer": 40, "grade": 40, "stt_seconds": 1800, "tts_chars": 15000, "pet": 200}'::jsonb
+    '{"listener": 60, "answer": 40, "grade": 40, "stt_seconds": 1800, "tts_chars": 15000, "pet": 200, "generate": 20}'::jsonb
   )
 on conflict (code) do update
 set
@@ -37,15 +37,20 @@ declare
 
 Three steps are necessary rather than two because both endpoints must prove they can send and receive packets and agree on each direction's starting sequence number; a two-step exchange would leave the server unsure whether the client actually received its SYN-ACK or whether an old delayed SYN triggered a half-open session. Because each side picks an unpredictable initial sequence number, segments from earlier connections are unlikely to be mistaken for current traffic. If the final ACK is lost in transit, the server remains in the SYN-RECEIVED state and retransmits its SYN-ACK after a timeout until an ACK arrives or the attempt expires. Ending a TCP session is a separate process: connection teardown normally uses a four-way FIN and ACK exchange so each endpoint can close its half of the stream independently.$tcp$;
 begin
-  insert into public.subjects (slug, name, available)
-  values ('networking', 'Networking', true)
-  on conflict (slug) do update set name = excluded.name, available = excluded.available
+  insert into public.subjects (owner_id, slug, name, available)
+  values (null, 'networking', 'Networking', true)
+  on conflict (owner_id, slug) do update set name = excluded.name, available = excluded.available
   returning id into v_subject_id;
 
-  insert into public.topics (subject_id, slug, title, owner_id, visibility, trust_level, language, status)
-  values (v_subject_id, 'tcp-handshake', 'TCP handshake', null, 'public', 'official', 'en', 'active')
-  on conflict (subject_id, slug) do update
-  set title = excluded.title, visibility = excluded.visibility, trust_level = excluded.trust_level, status = excluded.status
+  insert into public.topics (subject_id, owner_id, slug, title, visibility, trust_level, language, status, question_count)
+  values (v_subject_id, null, 'tcp-handshake', 'TCP handshake', 'public', 'official', 'en', 'ready', 8)
+  on conflict (subject_id, owner_id, slug) do update
+  set
+    title = excluded.title,
+    visibility = excluded.visibility,
+    trust_level = excluded.trust_level,
+    status = excluded.status,
+    question_count = excluded.question_count
   returning id into v_topic_id;
 
   select id into v_source_id
@@ -153,5 +158,14 @@ begin
     key_concepts = excluded.key_concepts,
     source_excerpt = excluded.source_excerpt,
     status = excluded.status;
+
+  update public.topics
+  set question_count = (
+    select count(*)::int
+    from public.questions
+    where topic_id = v_topic_id
+      and status = 'active'
+  )
+  where id = v_topic_id;
 end;
 $$;

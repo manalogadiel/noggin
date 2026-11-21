@@ -9,7 +9,8 @@ export type UsageKind =
   | "grade"
   | "stt_seconds"
   | "tts_chars"
-  | "pet";
+  | "pet"
+  | "generate";
 
 export interface AuthenticatedUser {
   id: string;
@@ -27,6 +28,7 @@ export interface NogRecord {
   id: string;
   ownerId: string;
   subjectId: string;
+  subjectName?: string;
   name: string;
   stage: NogStageSlug;
   mood?: string;
@@ -34,6 +36,77 @@ export interface NogRecord {
   happinessToday?: number;
   happinessDay?: string | null;
   vitality?: number;
+}
+
+export interface SubjectRecord {
+  id: string;
+  ownerId: string | null;
+  slug: string;
+  name: string;
+  available: boolean;
+}
+
+export interface CreateUserSubjectInput {
+  ownerId: string;
+  name: string;
+  slug: string;
+}
+
+export interface SubjectRepository {
+  findById(subjectId: string): Promise<SubjectRecord | null>;
+  findBySlug(
+    slug: string,
+    ownerId?: string | null,
+  ): Promise<SubjectRecord | null>;
+  listAccessible(ownerId: string): Promise<SubjectRecord[]>;
+  createUserSubject(input: CreateUserSubjectInput): Promise<SubjectRecord>;
+}
+
+export type TopicStatus = "ready" | "pending";
+
+export interface TopicRecord {
+  id: string;
+  subjectId: string;
+  ownerId: string | null;
+  slug: string;
+  title: string;
+  status: TopicStatus;
+  questionCount: number;
+}
+
+export interface CreateUserTopicInput {
+  ownerId: string;
+  subjectId: string;
+  title: string;
+  slug: string;
+}
+
+export interface GeneratedQuestionDraft {
+  position: number;
+  prompt: string;
+  referenceAnswer: string;
+  sourceExcerpt: string;
+  keyConcepts: string[];
+}
+
+export interface SaveGeneratedQuestionsInput {
+  ownerId: string;
+  topicId: string;
+  questions: GeneratedQuestionDraft[];
+}
+
+export interface TopicRepository {
+  findById(topicId: string): Promise<TopicRecord | null>;
+  findBySubjectAndSlug(
+    subjectId: string,
+    slug: string,
+    ownerId?: string | null,
+  ): Promise<TopicRecord | null>;
+  listBySubject(subjectId: string): Promise<TopicRecord[]>;
+  createUserTopic(input: CreateUserTopicInput): Promise<TopicRecord>;
+  saveGeneratedQuestions(
+    input: SaveGeneratedQuestionsInput,
+  ): Promise<TopicRecord>;
 }
 
 export interface CreateNogInput {

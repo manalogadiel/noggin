@@ -9,7 +9,11 @@ import type {
 import { mapPostgrestError, SupabaseAdapterError } from "./errors";
 
 const NOG_COLUMNS =
-  "id, owner_id, subject_id, name, stage, mood, happiness, happiness_today, happiness_day";
+  "id, owner_id, subject_id, name, stage, mood, happiness, happiness_today, happiness_day, subjects(name)";
+
+interface SubjectJoinRow {
+  name: string;
+}
 
 interface NogRow {
   id: string;
@@ -21,13 +25,26 @@ interface NogRow {
   happiness: number;
   happiness_today: number;
   happiness_day: string | null;
+  subjects?: SubjectJoinRow | SubjectJoinRow[] | null;
+}
+
+function extractSubjectName(
+  subjects: NogRow["subjects"],
+): string | undefined {
+  if (!subjects) {
+    return undefined;
+  }
+  const entry = Array.isArray(subjects) ? subjects[0] : subjects;
+  return typeof entry?.name === "string" ? entry.name : undefined;
 }
 
 function mapNogRow(row: NogRow): NogRecord {
+  const subjectName = extractSubjectName(row.subjects);
   return {
     id: row.id,
     ownerId: row.owner_id,
     subjectId: row.subject_id,
+    ...(subjectName !== undefined ? { subjectName } : {}),
     name: row.name,
     stage: row.stage,
     mood: row.mood,
