@@ -199,7 +199,7 @@ async function renderCustomize(nogOverride?: Partial<CustomizableNog>) {
 }
 
 describe("CustomizeView (/nogs/[id]/customize)", () => {
-  it("renders the heading, subtitle, room rig preview, back link, and four preset swatches as radios in a Body color radiogroup", async () => {
+  it("renders the heading, subtitle, room rig preview, no back link, and four preset swatches as radios in a Body color radiogroup", async () => {
     await renderCustomize();
 
     expect(
@@ -207,8 +207,9 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
     ).toBeVisible();
     expect(screen.getByText(/customize your nog/i)).toBeVisible();
 
-    const backLink = screen.getByRole("link", { name: /room/i });
-    expect(backLink).toHaveAttribute("href", roomHref);
+    expect(
+      screen.queryByRole("link", { name: /room|back/i }),
+    ).not.toBeInTheDocument();
 
     const preview = screen.getByTestId("nog-scene-room");
     expect(preview).toBeVisible();
@@ -426,8 +427,8 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
   });
 });
 
-describe("Nog Room customize entry point and tint", () => {
-  it("shows a Customize link to /nogs/[id]/customize and passes nog.colors.body as the room NogStage tint", async () => {
+describe("Nog Room tint without in-room Customize pill", () => {
+  it("passes nog.colors.body as the room NogStage tint and omits the in-room Customize pill", async () => {
     currentNog = { ...baseNog, colors: { body: "#d9c8f5" } };
     window.history.replaceState(null, "", roomHref);
 
@@ -437,8 +438,9 @@ describe("Nog Room customize entry point and tint", () => {
       }),
     );
 
-    const customizeLink = screen.getByRole("link", { name: /customize/i });
-    expect(customizeLink).toHaveAttribute("href", customizeHref);
+    expect(
+      screen.queryByRole("link", { name: /customize/i }),
+    ).not.toBeInTheDocument();
 
     const stage = screen.getByTestId("nog-scene-room");
     expect(stage).toHaveAttribute("data-tint", "#d9c8f5");

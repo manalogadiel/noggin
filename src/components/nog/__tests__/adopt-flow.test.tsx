@@ -43,13 +43,15 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("AdoptFlow", () => {
-  it("walks through subject quick-pick, 3-tap hatch, meet, back navigation, and naming", async () => {
+  it("walks through subject quick-pick, 3-tap hatch, meet, and naming without a step counter or Back button", async () => {
     const user = userEvent.setup();
     render(<AdoptFlow />);
 
     expect(
       screen.getByRole("heading", { name: "What should your Nog learn?", level: 1 }),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/step \d+ of 4/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^back$/i })).not.toBeInTheDocument();
 
     const subjectInput = screen.getByRole("textbox", { name: "Subject" });
     expect(subjectInput).toHaveAttribute("autocomplete", "off");
@@ -62,6 +64,8 @@ describe("AdoptFlow", () => {
     const eggHeading = screen.getByRole("heading", { name: "Tap to hatch", level: 1 });
     expect(eggHeading).toHaveFocus();
     expect(screen.getByLabelText("Taps: 0 of 3")).toBeInTheDocument();
+    expect(screen.queryByText(/step \d+ of 4/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^back$/i })).not.toBeInTheDocument();
 
     const eggButton = screen.getByRole("button", { name: "Tap the egg" });
     await user.click(eggButton);
@@ -72,21 +76,19 @@ describe("AdoptFlow", () => {
 
     const meetHeading = screen.getByRole("heading", { name: "Meet your Nog", level: 1 });
     expect(meetHeading).toHaveFocus();
-
-    await user.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByRole("heading", { name: "Tap to hatch", level: 1 })).toHaveFocus();
-    await user.click(screen.getByRole("button", { name: "Tap the egg" }));
-    await user.click(screen.getByRole("button", { name: "Tap the egg" }));
-    await user.click(screen.getByRole("button", { name: "Tap the egg" }));
+    expect(screen.queryByText(/step \d+ of 4/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^back$/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Name your Nog" }));
     expect(
       screen.getByRole("heading", { name: "What will you call me?", level: 1 }),
     ).toHaveFocus();
     expect(screen.getByText("Enter the name of your Nog")).toBeInTheDocument();
+    expect(screen.queryByText(/step \d+ of 4/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^back$/i })).not.toBeInTheDocument();
 
-    await user.type(screen.getByRole("textbox", { name: "Nog name" }), "Packet");
-    expect(screen.getByRole("button", { name: "Meet Packet" })).toBeEnabled();
+    await user.type(screen.getByRole("textbox", { name: /^nog name$/i }), "Packet");
+    expect(screen.getByRole("button", { name: "Start Customizing →" })).toBeEnabled();
   });
 
   it("returns to step 1 with an alert and focused heading when the subject already has a Nog", async () => {
@@ -109,8 +111,8 @@ describe("AdoptFlow", () => {
     await user.click(eggButton);
 
     await user.click(screen.getByRole("button", { name: "Name your Nog" }));
-    await user.type(screen.getByRole("textbox", { name: "Nog name" }), "Duplicate");
-    await user.click(screen.getByRole("button", { name: "Meet Duplicate" }));
+    await user.type(screen.getByRole("textbox", { name: /^nog name$/i }), "Duplicate");
+    await user.click(screen.getByRole("button", { name: "Start Customizing →" }));
 
     const step1Heading = await screen.findByRole("heading", {
       name: "What should your Nog learn?",
@@ -142,8 +144,8 @@ describe("AdoptFlow", () => {
     await user.click(eggButton);
 
     await user.click(screen.getByRole("button", { name: "Name your Nog" }));
-    await user.type(screen.getByRole("textbox", { name: "Nog name" }), "Coral");
-    await user.click(screen.getByRole("button", { name: "Meet Coral" }));
+    await user.type(screen.getByRole("textbox", { name: /^nog name$/i }), "Coral");
+    await user.click(screen.getByRole("button", { name: "Start Customizing →" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /between 1 and 24 characters/i,

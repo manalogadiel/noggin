@@ -129,15 +129,25 @@ describe("Nog Room view", () => {
     ["sprout", 2],
     ["scholar", 3],
     ["genius", 4],
-  ])("renders the %s at level %i with progress from the room data", async (stage, level) => {
+  ])("renders the %s at level %i with progress from the room data and exact Figma layout (no vitals, rail, subject chip, or gear)", async (stage, level) => {
     await renderRoom({ nog: { ...nog, stage } });
 
     const main = within(screen.getByRole("main"));
-    expect(main.getByRole("heading", { name: "Nog Room", level: 1 })).toBeVisible();
+    const roomHeading = main.getByRole("heading", { name: "Nog Room", level: 1 });
+    expect(roomHeading).toBeVisible();
+    expect(roomHeading.className).not.toMatch(/\btruncate\b/);
     expect(main.getByRole("heading", { name: "Packet", level: 1 })).toBeVisible();
-    expect(main.getByText("Networking", { exact: true })).toBeVisible();
     expect(main.getByText(new RegExp(`^Lvl\\.\\s*${level}$`))).toBeVisible();
     expect(main.getByRole("progressbar", { value: { now: 42 } })).toBeVisible();
+
+    expect(main.queryByText("Networking")).not.toBeInTheDocument();
+    expect(main.queryByText("Happiness")).not.toBeInTheDocument();
+    expect(main.queryByText("Clarity")).not.toBeInTheDocument();
+    expect(main.queryByText("Vitality")).not.toBeInTheDocument();
+    expect(main.queryByRole("link", { name: /see analysis/i })).not.toBeInTheDocument();
+    expect(main.queryByRole("link", { name: /customize/i })).not.toBeInTheDocument();
+    expect(main.queryByRole("button", { name: /settings/i })).not.toBeInTheDocument();
+    expect(main.queryByRole("navigation", { name: /nog room sections/i })).not.toBeInTheDocument();
   });
 
   it("links all five room actions and My Notebook to this Nog's pages", async () => {
@@ -158,31 +168,35 @@ describe("Nog Room view", () => {
     }
   });
 
-  it("opens the AppShell navigation from the room menu button", async () => {
+  it("opens the focus-mode AppShell navigation from the top bar menu button with This Nog links", async () => {
     const user = userEvent.setup();
     await renderRoom();
 
-    const menu = screen.getByRole("button", { name: /^(open )?(app )?(menu|navigation)$/i });
+    const main = within(screen.getByRole("main"));
+    expect(main.queryByRole("button", { name: /open menu/i })).not.toBeInTheDocument();
+
+    const menu = screen.getByRole("button", { name: "Open menu" });
     expect(menu).toHaveAttribute("aria-expanded", "false");
     await user.click(menu);
     expect(menu).toHaveAttribute("aria-expanded", "true");
 
     const panelId = menu.getAttribute("aria-controls");
     const panel = panelId ? document.getElementById(panelId) : null;
-    if (!panel) throw new Error("The room menu button must control the navigation panel");
+    if (!panel) throw new Error("The top bar menu button must control the navigation panel");
     expect(within(panel).getByRole("link", { name: "Home" }))
       .toHaveAttribute("href", "/home");
     expect(within(panel).getByRole("link", { name: "My Nogs" }))
       .toHaveAttribute("href", "/nogs");
-  });
-
-  it("opens profile settings from the room", async () => {
-    const user = userEvent.setup();
-    await renderRoom();
-
-    await user.click(screen.getByRole("button", { name: /settings/i }));
-
-    expect(await screen.findByRole("dialog", { name: /settings/i })).toBeVisible();
+    expect(within(panel).getByRole("link", { name: "Room" }))
+      .toHaveAttribute("href", roomHref);
+    expect(within(panel).getByRole("link", { name: "Notebook" }))
+      .toHaveAttribute("href", `${roomHref}/notebook`);
+    expect(within(panel).getByRole("link", { name: "Analysis" }))
+      .toHaveAttribute("href", `${roomHref}/analysis`);
+    expect(within(panel).getByRole("link", { name: "Customize" }))
+      .toHaveAttribute("href", `${roomHref}/customize`);
+    expect(within(panel).getByRole("link", { name: "Settings" }))
+      .toHaveAttribute("href", "/profile/account");
   });
 
   it("cycles all six canned lines in a polite live region and starts over", async () => {
