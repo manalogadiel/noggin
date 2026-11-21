@@ -12,6 +12,8 @@ import type {
   CreateUserSubjectInput,
   CreateUserTopicInput,
   CurrentUser,
+  GeneratedQuestionDraft,
+  GenerateQuestionsInput,
   GraderResult,
   LessonPage,
   ListenerDigest,
@@ -26,6 +28,7 @@ import type {
   OwnedMessage,
   QuestionBank,
   QuestionRecord,
+  QuestionWriter,
   QuotaResult,
   RecordCheckInput,
   SavedDigestRecord,
@@ -59,6 +62,7 @@ export interface InMemoryPortsOptions {
   questions?: QuestionRecord[];
   attempts?: CheckAttemptRecord[];
   listenerDigest?: ListenerDigest;
+  generatedQuestions?: GeneratedQuestionDraft[];
   transcript?: string;
   audio?: SynthesizedAudio;
 }
@@ -78,7 +82,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   let currentNow = options.now ?? new Date("2026-11-21T03:00:00.000Z");
 
   const subjectStore = [...(options.subjects ?? [])];
-  const topicStore = [...(options.topics ?? [])];
+  const topicStore = (options.topics ?? []).map((topic) => ({ ...topic }));
   const nogStore = [...(options.nogs ?? [])];
   const pageStore = [...(options.pages ?? [])];
   const cardStore = [...(options.cards ?? [])];
@@ -766,6 +770,26 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
   };
 
+  const questionWriter: QuestionWriter = {
+    async generate(
+      input: GenerateQuestionsInput,
+    ): Promise<GeneratedQuestionDraft[]> {
+      if (options.generatedQuestions) {
+        return options.generatedQuestions.map((draft) => ({
+          ...draft,
+          keyConcepts: [...draft.keyConcepts],
+        }));
+      }
+      return Array.from({ length: 8 }, (_, index) => ({
+        position: index + 1,
+        prompt: `What core idea about ${input.topicTitle} is tested in question ${index + 1}?`,
+        referenceAnswer: `${input.topicTitle} in ${input.subjectName} covers concept ${index + 1}.`,
+        sourceExcerpt: `Study note ${index + 1} for ${input.topicTitle} in ${input.subjectName}.`,
+        keyConcepts: [`${input.topicTitle} concept ${index + 1}`, input.subjectName],
+      }));
+    },
+  };
+
   const speechToText: SpeechToText = {
     async transcribe() {
       return { text: options.transcript ?? "" };
@@ -807,6 +831,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       listener,
       brain,
       grader,
+      questionWriter,
       speechToText,
       textToSpeech,
       voiceCache,

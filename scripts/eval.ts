@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from "node:util";
 import type {
   AnswerInput,
   DigestOperation,
+  GenerateQuestionsInput,
   GradeInput,
   GraderResult,
   ListenInput,
@@ -23,7 +24,11 @@ import {
   PROMPT_VERSION as LISTENER_PROMPT_VERSION,
   type NogPersona,
 } from "../src/adapters/ai/prompts/listener";
-import { parseListenerDigest } from "../src/adapters/ai/schemas";
+import { PROMPT_VERSION as QUESTION_WRITER_PROMPT_VERSION } from "../src/adapters/ai/prompts/question-writer";
+import {
+  parseListenerDigest,
+  questionWriterResponseSchema,
+} from "../src/adapters/ai/schemas";
 
 type GoldenCase = { id: string; required?: boolean } & (
   | {
@@ -47,6 +52,11 @@ type GoldenCase = { id: string; required?: boolean } & (
       port: "answerer";
       input: AnswerInput;
       expected: { answers: { questionId: string; nogAnswerPattern: string }[] };
+    }
+  | {
+      port: "question-writer";
+      input: GenerateQuestionsInput;
+      expected?: { questionCount?: number };
     }
 );
 
@@ -254,7 +264,7 @@ export async function runEval(): Promise<boolean> {
 
   console.log(`Model: ${modelId}`);
   console.log(
-    `Prompt versions: listener=${LISTENER_PROMPT_VERSION}, answerer=${ANSWERER_PROMPT_VERSION}, grader=${GRADER_PROMPT_VERSION}`,
+    `Prompt versions: listener=${LISTENER_PROMPT_VERSION}, answerer=${ANSWERER_PROMPT_VERSION}, grader=${GRADER_PROMPT_VERSION}, questionWriter=${QUESTION_WRITER_PROMPT_VERSION}`,
   );
 
   const graderResults = new Map<string, GraderResult>();
@@ -307,6 +317,46 @@ export async function runEval(): Promise<boolean> {
           }
         }
         const passed = reason === undefined;
+        outcomes.push({ id: testCase.id, required, passed, reason });
+        console.log(
+          passed ? `PASS ${testCase.id}` : `FAIL ${testCase.id} — ${reason}`,
+        );
+      } else if (testCase.port === "question-writer") {
+        if (!adapters.questionWriter) {
+          outcomes.push({
+            id: testCase.id,
+            required,
+            passed: false,
+            reason: "questionWriter adapter not configured",
+          });
+          console.log(
+            `FAIL ${testCase.id} — questionWriter adapter not configured`,
+          );
+          continue;
+        }
+        const generated = await adapters.questionWriter.generate(
+          testCase.input,
+        );
+        const schemaCheck = questionWriterResponseSchema.safeParse({
+          questions: generated.map(
+            ({ prompt, referenceAnswer, sourceExcerpt, keyConcepts }) => ({
+              prompt,
+              referenceAnswer,
+              sourceExcerpt,
+              keyConcepts,
+            }),
+          ),
+        });
+        const expectedCount = testCase.expected?.questionCount ?? 8;
+        const positionsValid =
+          generated.length === expectedCount &&
+          generated.every((item, index) => item.position === index + 1);
+        const passed = schemaCheck.success && positionsValid;
+        const reason = !schemaCheck.success
+          ? "generated questions failed schema validation"
+          : !positionsValid
+            ? "generated questions had invalid count or positions"
+            : undefined;
         outcomes.push({ id: testCase.id, required, passed, reason });
         console.log(
           passed ? `PASS ${testCase.id}` : `FAIL ${testCase.id} — ${reason}`,
