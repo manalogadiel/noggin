@@ -135,6 +135,17 @@ export const RIGS: Record<NogSceneName, Rig> = {
     leaves: [],
     arms: [],
   },
+  room: {
+    poster: "/nog/blob-closeup.png",
+    aspect: 1,
+    bodies: [{ base: [0.5, 0.9], center: [0.5, 0.62], radius: [0.42, 0.34] }],
+    eyes: [
+      { center: [0.4342, 0.6711], radius: [0.0323, 0.0323], body: 0 },
+      { center: [0.6292, 0.6244], radius: [0.0271, 0.0287], body: 0 },
+    ],
+    leaves: [],
+    arms: [],
+  },
 };
 
 /** Last pointer position in viewport pixels, shared by every Nog on the page. */

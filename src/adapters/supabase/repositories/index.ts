@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   NogRepository,
+  ProfileRepository,
   QuestionBank,
   SubjectRepository,
   TopicRepository,
@@ -15,6 +16,7 @@ import {
   createNotebookRepository,
   type SupabaseNotebookRepository,
 } from "./notebook-repository";
+import { createProfileRepository } from "./profile-repository";
 import { createQuestionBank } from "./question-bank";
 import { createSubjectRepository } from "./subject-repository";
 import {
@@ -38,6 +40,7 @@ export interface CreateSupabaseRepositoriesOptions {
 }
 
 export interface SupabaseRepositories {
+  profiles: ProfileRepository;
   subjects: SubjectRepository;
   topics: TopicRepository;
   nogs: NogRepository;
@@ -54,6 +57,7 @@ export function createSupabaseRepositories(
   const { session, service, userId } = options;
 
   return {
+    profiles: createProfileRepository({ session, userId }),
     subjects: createSubjectRepository({ session, service, userId }),
     topics: createTopicRepository({ session, service, userId }),
     nogs: createNogRepository({ session, service, userId }),

@@ -1,9 +1,18 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { formatNogStage, nogRenderForStage } from "@/components/nog/nog-card";
+import {
+  petNogAction,
+  saveProfileSettingsAction,
+} from "@/app/(app)/actions/room-actions";
+import { NogRoomView } from "@/components/room/nog-room-view";
 import { createContainer } from "@/composition/container";
+import {
+  DEFAULT_PROFILE_SETTINGS,
+  type NogStageSlug,
+  type ProfileSettings,
+} from "@/core/application/ports";
+import { DEFAULT_GROWTH_THRESHOLDS } from "@/core/domain/training";
 
 export const metadata: Metadata = {
   title: "Nog Room",
@@ -13,68 +22,105 @@ export interface NogRoomPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function NogRoomPlaceholderPage({
-  params,
-}: NogRoomPageProps) {
-  const { id } = await params;
-  const container = await createContainer();
-  const result = await container.getNogRoom({ nogId: id });
+function stageProgressPercent(
+  stage: NogStageSlug,
+  masteredCount: number,
+): number {
+  const { sproutMastered, scholarMastered, geniusMastered } =
+    DEFAULT_GROWTH_THRESHOLDS;
 
-  if (result.status === "unauthenticated") {
-    redirect(`/login?next=${encodeURIComponent(`/nogs/${id}`)}`);
+  if (stage === "genius") {
+    return 100;
   }
-
-  if (result.status === "not_found") {
-    notFound();
+  if (stage === "scholar") {
+    const span = Math.max(1, geniusMastered - scholarMastered);
+    return Math.max(
+      0,
+      Math.min(100, Math.round(((masteredCount - scholarMastered) / span) * 100)),
+    );
   }
+  if (stage === "sprout") {
+    const span = Math.max(1, scholarMastered - sproutMastered);
+    return Math.max(
+      0,
+      Math.min(100, Math.round(((masteredCount - sproutMastered) / span) * 100)),
+    );
+  }
+  return Math.max(
+    0,
+    Math.min(100, Math.round((masteredCount / Math.max(1, sproutMastered)) * 100)),
+  );
+}
 
-  const { nog } = result;
-  const stageLabel = formatNogStage(nog.stage);
-  const subjectLabel = nog.subjectName ?? "Custom subject";
-
+function RoomLoadError({ nogId }: { nogId: string }) {
   return (
-    <div className="mx-auto w-full max-w-[720px] py-2 md:py-6">
+    <div className="mx-auto w-full max-w-[680px] py-6">
       <section
-        aria-labelledby="nog-room-heading"
+        role="alert"
         className="flex flex-col items-center rounded-[var(--noggin-radius-card)] bg-[var(--noggin-white)] p-8 text-center shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-12"
       >
-        <div className="flex h-[180px] w-[180px] items-center justify-center rounded-full bg-[linear-gradient(180deg,var(--noggin-sun-top)_0%,var(--noggin-mint-light)_100%)] p-4">
-          <Image
-            src={nogRenderForStage(nog.stage)}
-            alt=""
-            width={160}
-            height={160}
-            priority
-            className="h-full w-full object-contain"
-          />
-        </div>
-
-        <h1
-          id="nog-room-heading"
-          className="noggin-display mt-6 max-w-full text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.1] text-[var(--noggin-leaf-title)] [overflow-wrap:anywhere]"
-        >
-          {nog.name}
+        <h1 className="noggin-display text-[clamp(1.5rem,3.5vw,2.25rem)] font-extrabold text-[var(--noggin-forest)]">
+          Brain fog 😵 — couldn&apos;t open the room.
         </h1>
-
-        <p className="mt-2 text-[1.125rem] font-medium text-[var(--noggin-forest)]">
-          {subjectLabel}
-        </p>
-
-        <span className="mt-3 inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-4 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
-          {stageLabel}
-        </span>
-
-        <p className="mt-6 text-[1rem] leading-relaxed text-[var(--noggin-ink)]">
-          Your room is being built
-        </p>
-
         <Link
-          href="/nogs"
-          className="noggin-primary-pill noggin-display mt-8 inline-flex h-12 min-h-11 items-center justify-center px-7 text-[1.0625rem] font-bold"
+          href={`/nogs/${nogId}`}
+          className="noggin-primary-pill noggin-display mt-6 inline-flex min-h-12 items-center justify-center px-7 text-[1.0625rem] font-bold"
         >
-          Back to My Nogs
+          Try again
         </Link>
       </section>
     </div>
+  );
+}
+
+export default async function NogRoomPage({ params }: NogRoomPageProps) {
+  const { id } = await params;
+
+  let roomResult;
+  let masteredCount = 0;
+  let initialSettings: ProfileSettings = DEFAULT_PROFILE_SETTINGS;
+
+  try {
+    const container = await createContainer();
+    roomResult = await container.getNogRoom({ nogId: id });
+
+    if (roomResult.status === "ok") {
+      const [analysisResult, settingsResult] = await Promise.all([
+        container.getNogAnalysis({ nogId: id }).catch(() => null),
+        container.getProfileSettings().catch(() => null),
+      ]);
+
+      if (analysisResult?.status === "ok") {
+        masteredCount = analysisResult.masteredCount;
+      }
+      if (settingsResult?.status === "ok") {
+        initialSettings = settingsResult.settings;
+      }
+    }
+  } catch {
+    return <RoomLoadError nogId={id} />;
+  }
+
+  if (roomResult.status === "unauthenticated") {
+    redirect(`/login?next=${encodeURIComponent(`/nogs/${id}`)}`);
+  }
+
+  if (roomResult.status === "not_found") {
+    notFound();
+  }
+
+  const { nog, vitals } = roomResult;
+  const progress = stageProgressPercent(nog.stage, masteredCount);
+  const onPet = petNogAction.bind(null, nog.id);
+
+  return (
+    <NogRoomView
+      nog={nog}
+      vitals={vitals}
+      progress={progress}
+      initialSettings={initialSettings}
+      onSaveSettings={saveProfileSettingsAction}
+      onPet={onPet}
+    />
   );
 }
