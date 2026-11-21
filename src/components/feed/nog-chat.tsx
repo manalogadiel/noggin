@@ -60,7 +60,7 @@ export function NogChat({
           role="status"
           aria-live="polite"
           className={cn(
-            "relative w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
+            "relative z-10 w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
             isDizzy
               ? "border-2 border-[var(--noggin-danger)] bg-[var(--noggin-cream)] text-[var(--noggin-danger)]"
               : "border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] text-[var(--noggin-forest)]",
@@ -91,7 +91,7 @@ export function NogChat({
           />
         </div>
 
-        <div className="w-full max-w-[300px] shrink-0 lg:max-w-[380px]">
+        <div className="-mt-[22%] w-full max-w-[300px] shrink-0 lg:max-w-[380px]">
           {isDizzy ? (
             <NogStage
               scene="dizzy"

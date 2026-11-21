@@ -47,9 +47,9 @@ export function NogCard({ nog }: { nog: NogCardSummary }) {
         <Image
           src={imageSrc}
           alt=""
-          width={156}
-          height={156}
-          className="h-[156px] w-[156px] object-contain"
+          width={220}
+          height={220}
+          className="mb-6 h-[156px] w-[156px] scale-[1.45] object-contain"
         />
 
         <p className="noggin-display mt-4 max-w-full text-[1.5rem] font-extrabold leading-tight text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
