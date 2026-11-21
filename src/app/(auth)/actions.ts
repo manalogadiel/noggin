@@ -27,6 +27,8 @@ const MIN_AGE_YEARS = 16;
 
 const SIGN_IN_ERROR = "Check your email and password";
 const SIGN_UP_ERROR = "Couldn't create the account";
+const PRIVACY_CONSENT_ERROR =
+  "Please agree to the Privacy notice to continue.";
 const AGE_GATE_ERROR =
   "Your Nog is still snug in its shell! Noggin is for ages 16 and up. Come back on your 16th birthday.";
 
@@ -281,6 +283,29 @@ export async function signUpFormAction(
   prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  if (
+    !(formData instanceof FormData) ||
+    formData.get("privacy_accepted") !== "on"
+  ) {
+    return {
+      error: PRIVACY_CONSENT_ERROR,
+      errorField: "form",
+      email:
+        formData instanceof FormData
+          ? (readFormString(formData, "email") ?? "")
+          : "",
+      displayName:
+        formData instanceof FormData
+          ? (readFormString(formData, "display_name") ?? "")
+          : "",
+      birthDate:
+        formData instanceof FormData
+          ? (readFormString(formData, "birth_date") ?? "")
+          : "",
+      attempt: (prevState?.attempt ?? 0) + 1,
+    };
+  }
+
   const result = await signUpAction(formData);
   if (result && "error" in result) {
     return {

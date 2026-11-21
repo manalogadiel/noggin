@@ -126,6 +126,20 @@ describe("SignupForm", () => {
     );
   });
 
+  it("toggles the privacy checkbox when its 44 px label wrapper is clicked", async () => {
+    const user = userEvent.setup();
+    render(<SignupForm maxBirthday="2026-11-21" />);
+
+    const consent = screen.getByRole("checkbox", { name: /Privacy notice/i });
+    const wrapperLabel = consent.closest("label");
+    expect(wrapperLabel).not.toBeNull();
+    expect(wrapperLabel).toHaveAttribute("for", consent.id);
+    expect(consent).not.toBeChecked();
+
+    await user.click(wrapperLabel!);
+    expect(consent).toBeChecked();
+  });
+
   it("announces the age-gate error on Birthday and shows busy state while submitting", async () => {
     const user = userEvent.setup();
     let resolveAction!: (state: AuthFormState) => void;

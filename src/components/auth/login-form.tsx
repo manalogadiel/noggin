@@ -57,7 +57,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           onChange={(event) => setEmail(event.target.value)}
           aria-invalid={hasError || undefined}
           aria-describedby={hasError ? errorId : undefined}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-title)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
         />
       </div>
 
@@ -79,7 +79,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           required
           aria-invalid={hasError || undefined}
           aria-describedby={hasError ? errorId : undefined}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-title)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
         />
       </div>
 

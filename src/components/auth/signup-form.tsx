@@ -74,7 +74,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           onChange={(event) => setDisplayName(event.target.value)}
           aria-invalid={isFormError || undefined}
           aria-describedby={isFormError ? errorId : undefined}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-title)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
         />
       </div>
 
@@ -98,7 +98,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           onChange={(event) => setEmail(event.target.value)}
           aria-invalid={isFormError || undefined}
           aria-describedby={isFormError ? errorId : undefined}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-title)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
         />
       </div>
 
@@ -121,7 +121,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           required
           aria-invalid={isFormError || undefined}
           aria-describedby={passwordDescribedBy}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-title)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
         />
         <p id={passwordHelpId} className="text-[0.875rem] text-[var(--noggin-ink)]">
           At least 8 characters
@@ -149,7 +149,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           onChange={(event) => setBirthDate(event.target.value)}
           aria-invalid={isBirthdayError || undefined}
           aria-describedby={birthdayDescribedBy}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-title)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
         />
         <p id={birthdayHelpId} className="text-[0.875rem] text-[var(--noggin-ink)]">
           Noggin is for ages 16 and up. If you&apos;re 16–17, a guardian will
@@ -158,7 +158,10 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
       </div>
 
       <div className="flex items-start gap-2 pt-1">
-        <span className="relative -ml-2 inline-flex h-11 w-11 shrink-0 items-center justify-center">
+        <label
+          htmlFor={privacyId}
+          className="relative -ml-2 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
+        >
           <input
             id={privacyId}
             name="privacy_accepted"
@@ -166,7 +169,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
             required
             checked={privacyAccepted}
             onChange={(event) => setPrivacyAccepted(event.target.checked)}
-            className="peer h-6 w-6 cursor-pointer appearance-none rounded-[7px] border-2 border-[var(--noggin-leaf-title)] bg-[var(--noggin-white)] transition-colors checked:border-[var(--noggin-leaf-strong)] checked:bg-[var(--noggin-leaf-strong)] focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf-strong)]"
+            className="peer h-6 w-6 cursor-pointer appearance-none rounded-[7px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] transition-colors checked:border-[var(--noggin-leaf-strong)] checked:bg-[var(--noggin-leaf-strong)] focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf-strong)]"
           />
           <svg
             aria-hidden="true"
@@ -182,7 +185,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
               strokeLinejoin="round"
             />
           </svg>
-        </span>
+        </label>
 
         <label
           htmlFor={privacyId}
