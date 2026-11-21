@@ -747,7 +747,17 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         : null;
     },
     async listByNog(nogId: string) {
-      return attemptStore.filter((a) => a.nogId === nogId);
+      return attemptStore
+        .filter((a) => a.nogId === nogId)
+        .map((attempt) => {
+          if (attempt.prompt !== undefined) {
+            return attempt;
+          }
+          const prompt = questionStore.find(
+            (q) => q.id === attempt.questionId,
+          )?.prompt;
+          return prompt !== undefined ? { ...attempt, prompt } : attempt;
+        });
     },
     async withCheckReservation<T>(
       key: CheckReservationKey,

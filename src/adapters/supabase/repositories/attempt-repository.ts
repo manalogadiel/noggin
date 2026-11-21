@@ -40,11 +40,16 @@ interface OwnedAttemptRow {
   nog_answer: string;
 }
 
-function mapAttemptRow(row: AttemptRow, topicId?: string): CheckAttemptRecord {
+function mapAttemptRow(
+  row: AttemptRow,
+  topicId?: string,
+  prompt?: string,
+): CheckAttemptRecord {
   return {
     id: row.id,
     nogId: row.nog_id,
     ...(topicId !== undefined ? { topicId } : {}),
+    ...(prompt !== undefined ? { prompt } : {}),
     questionId: row.question_id,
     nogAnswer: row.nog_answer,
     concepts: Array.isArray(row.concepts)
@@ -88,27 +93,32 @@ export function createAttemptRepository(options: {
     }
   }
 
-  async function fetchQuestionTopicMap(
+  async function fetchQuestionMetaMap(
     questionIds: string[],
     operation: string,
-  ): Promise<Map<string, string>> {
+  ): Promise<Map<string, { topicId: string; prompt?: string }>> {
     if (questionIds.length === 0) {
       return new Map();
     }
 
     const { data, error } = await service
       .from("questions")
-      .select("id, topic_id")
+      .select("id, topic_id, prompt")
       .in("id", questionIds)
-      .returns<Array<{ id: string; topic_id: string }>>();
+      .returns<Array<{ id: string; topic_id: string; prompt?: string | null }>>();
 
     if (error) {
       throw mapPostgrestError(error, operation);
     }
 
-    const map = new Map<string, string>();
+    const map = new Map<string, { topicId: string; prompt?: string }>();
     for (const row of data ?? []) {
-      map.set(row.id, row.topic_id);
+      map.set(row.id, {
+        topicId: row.topic_id,
+        ...(typeof row.prompt === "string" && row.prompt.trim().length > 0
+          ? { prompt: row.prompt }
+          : {}),
+      });
     }
     return map;
   }
@@ -306,14 +316,15 @@ export function createAttemptRepository(options: {
       const distinctQuestionIds = Array.from(
         new Set(rows.map((row) => row.question_id)),
       );
-      const topicByQuestion = await fetchQuestionTopicMap(
+      const metaByQuestion = await fetchQuestionMetaMap(
         distinctQuestionIds,
         "attempts.listByNog",
       );
 
-      return rows.map((row) =>
-        mapAttemptRow(row, topicByQuestion.get(row.question_id)),
-      );
+      return rows.map((row) => {
+        const meta = metaByQuestion.get(row.question_id);
+        return mapAttemptRow(row, meta?.topicId, meta?.prompt);
+      });
     },
 
     async withCheckReservation<T>(

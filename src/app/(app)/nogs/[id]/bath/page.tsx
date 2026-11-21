@@ -27,6 +27,28 @@ function readParam(value: string | string[] | undefined): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+const MAX_ATTEMPT_TITLE_LENGTH = 80;
+
+function formatAttemptTitle(prompt: string | undefined): {
+  title: string;
+  fullTitle: string;
+} {
+  const normalized = prompt?.trim().replace(/\s+/g, " ") ?? "";
+  if (normalized.length === 0) {
+    return { title: "Missed question", fullTitle: "Missed question" };
+  }
+  if (normalized.length <= MAX_ATTEMPT_TITLE_LENGTH) {
+    return { title: normalized, fullTitle: normalized };
+  }
+  const slice = normalized.slice(0, MAX_ATTEMPT_TITLE_LENGTH - 1);
+  const lastSpace = slice.lastIndexOf(" ");
+  const cutoff = lastSpace >= 60 ? slice.slice(0, lastSpace) : slice;
+  return {
+    title: `${cutoff.trimEnd()}…`,
+    fullTitle: normalized,
+  };
+}
+
 function extractMissedConceptNames(attempt: CheckAttemptRecord): string[] {
   const missed = attempt.concepts
     .filter(
@@ -175,15 +197,14 @@ export default async function NogBathPage({
       continue;
     }
     const latestPage = topicId ? latestPageByTopic.get(topicId) : undefined;
+    const { title, fullTitle } = formatAttemptTitle(attempt.prompt);
     items.push({
       id: attempt.id,
       kind: "attempt",
       topicId,
       topicTitle: (topicId && topicTitleById.get(topicId)) || "Topic",
-      title:
-        (topicId && topicTitleById.get(topicId))
-          ? `${topicTitleById.get(topicId)} miss`
-          : "Missed question",
+      title,
+      fullTitle,
       statusLabel: "Missed check",
       nogAnswer: attempt.nogAnswer,
       missedConcepts: extractMissedConceptNames(attempt),

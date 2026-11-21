@@ -76,7 +76,7 @@ export function LessonEditor({
         "flex min-w-0 flex-col gap-4 rounded-[28px] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] transition-colors duration-200 motion-reduce:transition-none sm:p-6",
         isOverloaded
           ? "bg-[var(--noggin-meter-low-soft)] ring-2 ring-[var(--noggin-danger)]"
-          : "bg-[var(--noggin-mint)]",
+          : "border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
       )}
     >
       {fixingCard && (
@@ -93,7 +93,7 @@ export function LessonEditor({
       {splitTotalParts > 1 && (
         <div
           role="status"
-          className="flex items-center justify-between gap-2 rounded-[18px] bg-[var(--noggin-mint-light)] px-4 py-2.5 text-[0.875rem] font-semibold text-[var(--noggin-forest)]"
+          className="flex items-center justify-between gap-2 rounded-[18px] bg-[var(--noggin-white)] px-4 py-2.5 text-[0.875rem] font-semibold text-[var(--noggin-forest)]"
         >
           <span>
             Part {splitPartIndex} of {splitTotalParts} — feed each chunk in order.
@@ -114,7 +114,7 @@ export function LessonEditor({
               "text-[0.8125rem] font-semibold tabular-nums",
               isOverloaded
                 ? "text-[var(--noggin-danger)]"
-                : "text-[var(--noggin-ink)]",
+                : "text-[var(--noggin-forest)]",
             )}
           >
             {wordCount} {wordCount === 1 ? "word" : "words"}

@@ -379,6 +379,7 @@ export interface CheckAttemptRecord extends CheckAttemptDraft {
   id: string;
   nogId: string;
   topicId?: string;
+  prompt?: string;
   createdAt: string;
 }
 

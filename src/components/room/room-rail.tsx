@@ -37,7 +37,7 @@ export function RoomRail({ nogId, className }: RoomRailProps) {
     <nav
       aria-label="Nog room sections"
       className={cn(
-        "hidden lg:fixed lg:top-[120px] lg:right-0 lg:z-20 lg:flex lg:flex-col lg:items-center lg:gap-2.5 lg:rounded-l-[28px] lg:rounded-r-none lg:bg-[var(--noggin-white)] lg:py-3 lg:pr-2 lg:pl-3 lg:shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_10px_var(--noggin-shadow-inset)]",
+        "hidden lg:fixed lg:top-[120px] right-0 lg:z-20 lg:flex lg:flex-col lg:items-center lg:gap-2.5 rounded-l-[28px] rounded-r-none bg-[var(--noggin-leaf-strong)] lg:py-3 lg:pr-2 lg:pl-3 lg:shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_10px_var(--noggin-shadow-inset)]",
         className,
       )}
     >
@@ -54,10 +54,10 @@ export function RoomRail({ nogId, className }: RoomRailProps) {
             title={item.label}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex h-12 w-12 min-h-11 min-w-11 items-center justify-center rounded-full transition-colors duration-150 motion-reduce:transition-none",
+              "inline-flex h-12 w-12 min-h-11 min-w-11 items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-cream)] motion-reduce:transition-none",
               active
-                ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow-[0_6px_14px_var(--noggin-shadow),inset_0_-2px_8px_var(--noggin-shadow-inset)]"
-                : "text-[var(--noggin-forest)] hover:bg-[var(--noggin-mint-light)]",
+                ? "bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)] shadow-[0_6px_14px_var(--noggin-shadow)]"
+                : "text-[var(--noggin-white)] hover:bg-[color-mix(in_srgb,var(--noggin-white)_16%,transparent)]",
             )}
           >
             <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />

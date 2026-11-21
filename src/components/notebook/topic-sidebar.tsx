@@ -59,7 +59,7 @@ export function TopicSidebar({
   return (
     <aside
       aria-label="Topics"
-      className="flex min-w-0 flex-col gap-4 rounded-[28px] bg-[var(--noggin-cream)] p-4 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-5"
+      className="flex min-w-0 flex-col gap-4 rounded-[28px] border border-[var(--noggin-leaf)] bg-[var(--noggin-cream)] p-4 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-5"
     >
       <div className="relative">
         <label htmlFor={searchId} className="sr-only">

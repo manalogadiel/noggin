@@ -242,7 +242,7 @@ export function NotebookView({
 
           <section
             aria-label={selectedTopic ? selectedTopic.title : "Topic notes"}
-            className="flex min-w-0 flex-col gap-5 rounded-[28px] bg-[var(--noggin-cream)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-7"
+            className="flex min-w-0 flex-col gap-5 rounded-[28px] border border-[var(--noggin-leaf)] bg-[var(--noggin-cream)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-7"
           >
             {!selectedTopic ? (
               <div className="flex flex-col items-center rounded-[22px] bg-[var(--noggin-white)] px-6 py-10 text-center shadow-[0_6px_18px_var(--noggin-shadow)] sm:py-12">

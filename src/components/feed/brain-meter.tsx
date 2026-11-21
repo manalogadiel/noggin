@@ -30,7 +30,9 @@ export function BrainMeter({
       aria-labelledby={labelId}
       className={cn(
         "rounded-[28px] p-4 shadow-[0_12px_28px_var(--noggin-shadow)] transition-colors duration-200 motion-reduce:transition-none sm:p-5",
-        overloaded ? "bg-[var(--noggin-meter-low-soft)]" : "bg-[var(--noggin-white)]",
+        overloaded
+          ? "bg-[var(--noggin-meter-low-soft)] ring-2 ring-[var(--noggin-danger)]"
+          : "border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -48,8 +50,8 @@ export function BrainMeter({
               overloaded
                 ? "bg-[var(--noggin-danger)] text-[var(--noggin-white)]"
                 : fillPercent >= 80
-                  ? "bg-[var(--noggin-meter-mid-soft)] text-[var(--noggin-meter-mid-ink)]"
-                  : "bg-[var(--noggin-mint-light)] text-[var(--noggin-forest)]",
+                  ? "bg-[var(--noggin-cream)] text-[var(--noggin-meter-mid-ink)]"
+                  : "bg-[var(--noggin-white)] text-[var(--noggin-forest)]",
             )}
           >
             {statusLabel}
@@ -77,7 +79,7 @@ export function BrainMeter({
             ? `${wordCount} of ${maxWords} words, brain full`
             : `${wordCount} of ${maxWords} words`
         }
-        className="mt-3 h-4 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] p-0.5 shadow-[inset_0_1px_4px_var(--noggin-shadow-inset)]"
+        className="mt-3 h-4 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] p-0.5 shadow-[inset_0_1px_4px_var(--noggin-shadow-inset)]"
       >
         <div
           aria-hidden="true"
