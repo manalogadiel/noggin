@@ -90,7 +90,7 @@ export function HomeView({ firstName, nogs, error }: HomeViewProps) {
               <div className="order-2 flex flex-col items-start md:order-1">
                 {firstNog ? (
                   <>
-                    <h2 className="noggin-display text-[clamp(1.5rem,3vw,2.25rem)] font-bold leading-[1.15] text-[var(--noggin-forest)]">
+                    <h2 className="noggin-display text-[clamp(1.5rem,3vw,2.25rem)] font-bold leading-[1.15] text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
                       Ready to teach {firstNog.name}?
                     </h2>
                     <p className="mt-3 text-[1rem] leading-relaxed text-[var(--noggin-ink)] md:text-[1.125rem]">
@@ -162,7 +162,7 @@ export function HomeView({ firstName, nogs, error }: HomeViewProps) {
                         height={96}
                         className="h-24 w-24 object-contain"
                       />
-                      <span className="noggin-display mt-3 text-[1.25rem] font-bold text-[var(--noggin-forest)]">
+                      <span className="noggin-display mt-3 max-w-full text-[1.25rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
                         {nog.name}
                       </span>
                       <span className="mt-2 inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.9375rem] text-[var(--noggin-ink)]">
