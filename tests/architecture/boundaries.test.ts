@@ -54,7 +54,8 @@ describe("scaffold", () => {
       boundaryErrors.length,
       `Expected a core-only lint error for ${specifier}`,
     ).toBeGreaterThan(0);
-  });
+    // ESLint boots the full config per case; under parallel load that exceeds the 5 s default.
+  }, 30_000);
 
   it("lists the required environment variables with empty values", () => {
     const example = readScaffoldFile(".env.example");
