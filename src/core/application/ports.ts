@@ -322,6 +322,10 @@ export interface CheckAttemptRecord extends CheckAttemptDraft {
   createdAt: string;
 }
 
+export interface QuickCheckAttempt extends CheckAttemptRecord {
+  prompt: string;
+}
+
 export interface CardCheckUpdate {
   cardId: string;
   strength: number;
