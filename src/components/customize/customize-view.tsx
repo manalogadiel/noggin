@@ -90,14 +90,14 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-center lg:gap-12">
         <div className="flex flex-col items-center justify-center p-2 lg:p-4">
-          <div className="w-full max-w-[300px] lg:max-w-[460px]">
+          <div className="w-full max-w-[340px] lg:max-w-[600px]">
             <NogStage
               scene="room"
               alt={`${nog.name} preview`}
               poster="/nog/blob-closeup.png"
               width={1254}
               height={1254}
-              sizes="(min-width: 1024px) 460px, 300px"
+              sizes="(min-width: 1024px) 600px, 340px"
               tint={selectedColor}
               priority
               className="w-full"
