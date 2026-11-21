@@ -59,6 +59,11 @@ import {
   type GetProfileSettingsResult,
 } from "@/core/application/use-cases/get-profile-settings";
 import {
+  getTopicNotebook,
+  type GetTopicNotebookInput,
+  type GetTopicNotebookResult,
+} from "@/core/application/use-cases/get-topic-notebook";
+import {
   hatchNog,
   type HatchNogInput,
   type HatchNogResult,
@@ -440,6 +445,9 @@ export interface AppContainer {
   hatchNog: (input: HatchNogInput) => Promise<HatchNogResult>;
   addTopic: (input: AddTopicInput) => Promise<AddTopicResult>;
   listTopics: (input: ListTopicsInput) => Promise<ListTopicsResult>;
+  getTopicNotebook: (
+    input: GetTopicNotebookInput,
+  ) => Promise<GetTopicNotebookResult>;
   getNogRoom: (input: GetNogRoomInput) => Promise<GetNogRoomResult>;
   getNogAnalysis: (input: GetNogAnalysisInput) => Promise<GetNogAnalysisResult>;
   petNog: (input: PetNogInput) => Promise<PetNogResult>;
@@ -472,6 +480,7 @@ export async function createContainer(): Promise<AppContainer> {
       hatchNog: async () => ({ status: "unauthenticated" }),
       addTopic: async () => ({ status: "unauthenticated" }),
       listTopics: async () => ({ status: "unauthenticated" }),
+      getTopicNotebook: async () => ({ status: "unauthenticated" }),
       getNogRoom: async () => ({ status: "unauthenticated" }),
       getNogAnalysis: async () => ({ status: "unauthenticated" }),
       petNog: async () => ({ status: "unauthenticated" }),
@@ -638,6 +647,17 @@ export async function createContainer(): Promise<AppContainer> {
           currentUser,
           nogs: repositories.nogs,
           topics: repositories.topics,
+        },
+        input,
+      ),
+    getTopicNotebook: (input) =>
+      getTopicNotebook(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          topics: repositories.topics,
+          notebook: repositories.notebook,
+          thoughtCards: repositories.thoughtCards,
         },
         input,
       ),
