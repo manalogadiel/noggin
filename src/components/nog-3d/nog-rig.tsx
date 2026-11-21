@@ -62,7 +62,8 @@ export const RIGS: Record<NogSceneName, Rig> = {
   flying: {
     poster: "/nog/flying-book.png",
     aspect: 1,
-    bodies: [{ base: [0.45, 0.6], center: [0.45, 0.58], radius: [0.42, 0.42], float: true }],
+    // one Nog fills the image: the body region covers all of it so squash and float stay rigid (the book never bends)
+    bodies: [{ base: [0.45, 0.6], center: [0.45, 0.58], radius: [1.6, 1.6], float: true }],
     eyes: [
       { center: [0.2692, 0.4087], radius: [0.0343, 0.0391], body: 0 },
       { center: [0.4812, 0.463], radius: [0.0435, 0.0435], body: 0 },
@@ -119,6 +120,19 @@ varying vec2 vUv;
 float fall(vec2 p, vec2 c, vec2 r) { return 1.0 - smoothstep(0.55, 1.0, length((p - c) / r)); }
 vec2 rotAbout(vec2 p, vec2 o, float a) { float c = cos(a), s = sin(a); vec2 q = p - o; return o + vec2(c * q.x - s * q.y, s * q.x + c * q.y); }
 
+// breathe / squash / tilt / hop each body, weighted by where the point started
+vec2 bodies(vec2 p, vec2 p0) {
+  for (int i = 0; i < ${MAX.bodies}; i++) {
+    if (i >= uBodies) break;
+    vec4 A = uBodyA[i]; vec4 B = uBodyB[i]; vec4 C = uBodyC[i];
+    vec2 t = A.xy + (p - A.xy) * C.xy;
+    t = rotAbout(t, A.xy, B.z);
+    t.y -= B.w;
+    p = mix(p, t, fall(p0, A.zw, B.xy));
+  }
+  return p;
+}
+
 void main() {
   vUv = uv;
   vec2 p0 = vec2(uv.x * uAspect, 1.0 - uv.y);
@@ -133,20 +147,14 @@ void main() {
     float w = fall(p0, uLeafA[i].zw, uLeafB[i].xy) * (1.0 - smoothstep(uLeafA[i].y - 0.015, uLeafA[i].y + 0.02, p0.y));
     p = mix(p, rotAbout(p, uLeafA[i].xy, uLeafB[i].z), w);
   }
+  p = bodies(p, p0);
+  // eyes last, around where the body moved them: a blink only compresses, so the mesh never folds
   for (int i = 0; i < ${MAX.eyes}; i++) {
     if (i >= uEyes) break;
     vec4 A = uEyeA[i]; vec4 B = uEyeB[i];
+    vec2 c = bodies(A.xy, A.xy) + B.xy;
     p += B.xy * fall(p0, A.xy, A.zw * 2.6);
-    float cy = A.y + B.y;
-    p.y = mix(p.y, cy + (p.y - cy) * B.z, fall(p0, A.xy, A.zw * 1.45));
-  }
-  for (int i = 0; i < ${MAX.bodies}; i++) {
-    if (i >= uBodies) break;
-    vec4 A = uBodyA[i]; vec4 B = uBodyB[i]; vec4 C = uBodyC[i];
-    vec2 t = A.xy + (p - A.xy) * C.xy;
-    t = rotAbout(t, A.xy, B.z);
-    t.y -= B.w;
-    p = mix(p, t, fall(p0, A.zw, B.xy));
+    p.y = mix(p.y, c.y + (p.y - c.y) * B.z, fall(p0, A.xy, A.zw * 1.45));
   }
   gl_Position = vec4(p.x / uAspect * 2.0 - 1.0, 1.0 - p.y * 2.0, 0.0, 1.0);
 }
@@ -252,7 +260,7 @@ function RiggedNog({ rig, texture, onReady }: { rig: Rig; texture: Texture; onRe
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     const u = material.uniforms;
-    const rect = gl.domElement.getBoundingClientRect();
+    let rect: DOMRect | null = null;
 
     rig.bodies.forEach((b, i) => {
       const s = anim.current[i];
@@ -300,6 +308,7 @@ function RiggedNog({ rig, texture, onReady }: { rig: Rig; texture: Texture; onRe
       let tx = 0;
       let ty = 0;
       if (Number.isFinite(pointer.x)) {
+        rect ??= gl.domElement.getBoundingClientRect();
         const cx = rect.left + b.center[0] * rect.width;
         const cy = rect.top + b.center[1] * rect.height;
         tx = Math.max(-1, Math.min(1, (pointer.x - cx) / (window.innerWidth / 2))) * 0.012;

@@ -183,7 +183,7 @@ export default function DiscoverPage() {
 
         <section className="px-4 py-16 md:px-10 lg:py-24">
           <div className="noggin-cta-card relative mx-auto max-w-[1220px] rounded-[32px] px-6 py-10 sm:px-10 lg:rounded-[55px] lg:py-16 lg:pr-14 lg:pl-[40%]">
-            <div className="mx-auto mb-6 w-[220px] lg:pointer-events-none lg:absolute lg:bottom-0 lg:-left-10 lg:mb-0 lg:w-[460px] xl:w-[510px]">
+            <div className="mx-auto mb-6 w-[220px] lg:absolute lg:bottom-0 lg:-left-10 lg:mb-0 lg:w-[460px] xl:w-[510px]">
               <div className="nog-bob">
                 <NogStage
                   scene="peek"
