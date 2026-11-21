@@ -1,7 +1,7 @@
 export const DEFAULT_LESSON_WORD_LIMIT = 120;
 
 const WORD_REGEX =
-  /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
+  /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’-][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
 
 const NON_TERMINAL_ABBREVIATIONS = new Set([
   "dr",

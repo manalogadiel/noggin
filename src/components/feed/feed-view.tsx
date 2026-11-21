@@ -16,6 +16,7 @@ import {
 import { RoomRail } from "@/components/room/room-rail";
 import type {
   LessonPage,
+  MicMode,
   NogRecord,
   ThoughtCardRecord,
   TopicSummary,
@@ -43,6 +44,7 @@ export interface FeedViewProps {
   fixingCard: ThoughtCardRecord | null;
   initialDraft: string;
   reviseLessonId: string | null;
+  micMode?: MicMode;
 }
 
 type PendingRetry =
@@ -81,6 +83,7 @@ interface FeedWorkspaceProps {
   initialDraft: string;
   reviseLessonId: string | null;
   duplicateMessage: string | null;
+  micMode: MicMode;
 }
 
 function FeedWorkspace({
@@ -92,6 +95,7 @@ function FeedWorkspace({
   initialDraft,
   reviseLessonId,
   duplicateMessage,
+  micMode,
 }: FeedWorkspaceProps) {
   const router = useRouter();
   const [draft, setDraft] = useState(initialDraft);
@@ -580,6 +584,7 @@ function FeedWorkspace({
               fixingCard={fixingCard}
               splitPartIndex={splitPartIndex}
               splitTotalParts={splitTotalParts}
+              micMode={micMode}
               onDraftChange={handleDraftChange}
               onFeed={handleFeed}
               onSplit={handleSplitLesson}
@@ -653,6 +658,7 @@ export function FeedView({
   fixingCard,
   initialDraft,
   reviseLessonId,
+  micMode = "tap",
 }: FeedViewProps) {
   const router = useRouter();
   const [draftTitle, setDraftTitle] = useState("");
@@ -773,6 +779,7 @@ export function FeedView({
       initialDraft={initialDraft}
       reviseLessonId={reviseLessonId}
       duplicateMessage={activeDuplicateMessage}
+      micMode={micMode}
     />
   );
 }
