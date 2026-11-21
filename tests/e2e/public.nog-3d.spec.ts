@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type Response } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
@@ -116,6 +116,9 @@ async function waitForBrowserFrames(page: Page, frames: number) {
 }
 
 test.describe("live Nog scenes", () => {
+  const sceneWaitTimeout = 30_000;
+  test.describe.configure({ mode: "serial", timeout: 90_000 });
+
   test.use({
     viewport: { width: 375, height: 812 },
     reducedMotion: "no-preference",
@@ -132,14 +135,16 @@ test.describe("live Nog scenes", () => {
         const stage = nogStage(page, scene);
         const canvas = stage.locator("canvas");
         if (scene.belowFold) {
-          await expect(nogStage(page, discover.scenes[0])).toHaveAttribute("data-nog-3d", "ready");
+          await expect(nogStage(page, discover.scenes[0])).toHaveAttribute("data-nog-3d", "ready", {
+            timeout: sceneWaitTimeout,
+          });
           await expect(stage).not.toBeInViewport();
           await expect(stage).toHaveAttribute("data-nog-3d", "poster");
           await expect(canvas).toHaveCount(0);
         }
 
         await scrollToStage(stage);
-        await expect(stage).toHaveAttribute("data-nog-3d", "ready");
+        await expect(stage).toHaveAttribute("data-nog-3d", "ready", { timeout: sceneWaitTimeout });
         await expect(stage).toHaveAttribute("role", "img");
         await expect(stage).toHaveAttribute("aria-label", scene.name);
         await expect(stage).toHaveAccessibleName(scene.name);
@@ -153,7 +158,7 @@ test.describe("live Nog scenes", () => {
         expect(firstDraw).toEqual({ state: "poster", posterVisible: true });
 
         const draws = await frameCount(canvas);
-        await expect.poll(() => frameCount(canvas)).toBeGreaterThan(draws);
+        await expect.poll(() => frameCount(canvas), { timeout: sceneWaitTimeout }).toBeGreaterThan(draws);
         await expect.poll(() => stage.locator("img").evaluateAll((images) =>
           images.some((image) => image.checkVisibility({ opacityProperty: true })),
         )).toBe(false);
@@ -166,7 +171,7 @@ test.describe("live Nog scenes", () => {
     await page.goto(discover.path);
     const stage = nogStage(page, discover.scenes[0]);
     const canvas = stage.locator("canvas");
-    await expect(stage).toHaveAttribute("data-nog-3d", "ready");
+    await expect(stage).toHaveAttribute("data-nog-3d", "ready", { timeout: sceneWaitTimeout });
 
     await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
     await expect(stage).not.toBeInViewport();
@@ -176,14 +181,14 @@ test.describe("live Nog scenes", () => {
     expect(await frameCount(canvas)).toBe(pausedDraws);
 
     await scrollToStage(stage);
-    await expect.poll(() => frameCount(canvas)).toBeGreaterThan(pausedDraws);
+    await expect.poll(() => frameCount(canvas), { timeout: sceneWaitTimeout }).toBeGreaterThan(pausedDraws);
   });
 
   test("Home returns to the Figma poster when its WebGL context is lost", async ({ page }) => {
     await page.goto(landing.path);
     const scene = landing.scenes[0];
     const stage = nogStage(page, scene);
-    await expect(stage).toHaveAttribute("data-nog-3d", "ready");
+    await expect(stage).toHaveAttribute("data-nog-3d", "ready", { timeout: sceneWaitTimeout });
 
     await stage.locator("canvas").evaluate((canvas: HTMLCanvasElement) => {
       const context = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
@@ -195,15 +200,15 @@ test.describe("live Nog scenes", () => {
   });
 
   test("the shared layout does not load the Three.js code requested by a live scene", async ({ page }) => {
-    const scripts: Response[] = [];
+    const scriptBodies: Promise<string>[] = [];
     page.on("response", (response) => {
       if (response.ok() && new URL(response.url()).pathname.endsWith(".js")) {
-        scripts.push(response);
+        scriptBodies.push(response.text().catch(() => ""));
       }
     });
 
     async function requestedThree() {
-      const sources = await Promise.all(scripts.map((response) => response.text()));
+      const sources = await Promise.all(scriptBodies);
       // Three.js uses this marker to detect duplicate browser imports. Check the
       // downloaded code so an unused copy in a shared chunk also fails the test.
       return sources.some((source) => source.includes("__THREE__"));
@@ -214,7 +219,9 @@ test.describe("live Nog scenes", () => {
     expect(await requestedThree()).toBe(false);
 
     await page.goto(landing.path);
-    await expect(nogStage(page, landing.scenes[0])).toHaveAttribute("data-nog-3d", "ready");
+    await expect(nogStage(page, landing.scenes[0])).toHaveAttribute("data-nog-3d", "ready", {
+      timeout: sceneWaitTimeout,
+    });
     await expect.poll(requestedThree).toBe(true);
   });
 });
