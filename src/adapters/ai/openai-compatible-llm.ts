@@ -214,6 +214,23 @@ function isRetryableStatus(status: number): boolean {
   return status === 429 || (status >= 500 && status <= 599);
 }
 
+function isReasoningModel(model: string): boolean {
+  return /(^|\/)gpt-oss/i.test(model);
+}
+
+// Groq returns 400 json_validate_failed when its own JSON-mode generation fails; another model usually succeeds.
+async function isProviderJsonRejection(response: Response): Promise<boolean> {
+  if (response.status !== 400) {
+    return false;
+  }
+  try {
+    const body = (await response.json()) as { error?: { code?: unknown } };
+    return body?.error?.code === "json_validate_failed";
+  } catch {
+    return false;
+  }
+}
+
 function isTimeoutError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === "TimeoutError") {
     return true;
@@ -276,6 +293,8 @@ export function createOpenAiCompatibleAdapters(
       temperature: params.temperature,
       max_tokens: params.maxTokens,
       seed: DETERMINISTIC_SEED,
+      // Reasoning models spend most of the token budget thinking; low effort keeps them fast and within free limits.
+      ...(isReasoningModel(endpoint.model) ? { reasoning_effort: "low" } : {}),
     });
 
     let response: Response;
@@ -316,7 +335,9 @@ export function createOpenAiCompatibleAdapters(
       });
       return {
         ok: false,
-        retryable: isRetryableStatus(response.status),
+        retryable:
+          isRetryableStatus(response.status) ||
+          (await isProviderJsonRejection(response)),
         retryAfterMs,
       };
     }
