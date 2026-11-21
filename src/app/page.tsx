@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { NogStage } from "@/components/nog-3d/nog-stage";
 import { PublicHeader } from "@/components/shell/public-header";
 
 export default function LandingPage() {
@@ -25,14 +25,15 @@ export default function LandingPage() {
 
           <div className="relative z-10 -mt-5 w-full max-w-[1193px] sm:-mt-10 lg:mt-0">
             <div className="nog-bob">
-              <Image
-                src="/nog/landing-trio.png"
+              <NogStage
+                scene="trio"
                 alt="Three Nogs waving: a round baby Nog and two sprouting Nogs"
+                poster="/nog/landing-trio.png"
                 width={1024}
                 height={646}
                 priority
                 sizes="(min-width: 1024px) 1193px, 100vw"
-                className="mx-auto h-auto w-full object-contain"
+                className="mx-auto w-full"
               />
             </div>
 
