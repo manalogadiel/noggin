@@ -325,28 +325,53 @@ function extractSpeechPhrases(raw: unknown): string[] {
     .filter((item) => item.length > 0);
 }
 
+function normalizeFeatureFlags(raw: unknown): Record<string, boolean> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return {};
+  }
+  const normalized: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "boolean") {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+}
+
+async function readFeatureFlags(
+  repositories: (SupabaseRepositories & OptionalAuxRepositories) | null,
+  session: SupabaseClient,
+): Promise<Record<string, boolean>> {
+  try {
+    if (typeof repositories?.appConfig?.getFeatures === "function") {
+      const features = await repositories.appConfig.getFeatures();
+      return normalizeFeatureFlags(features);
+    }
+
+    if (typeof session.from === "function") {
+      const { data, error } = await session
+        .from("app_config")
+        .select("value")
+        .eq("key", "features")
+        .maybeSingle<{ value: unknown }>();
+      if (error || !data) {
+        return {};
+      }
+      return normalizeFeatureFlags(data.value);
+    }
+  } catch {
+    return {};
+  }
+
+  return {};
+}
+
 async function readSpeechMimicryFlag(
   repositories: SupabaseRepositories & OptionalAuxRepositories,
   session: SupabaseClient,
 ): Promise<boolean> {
-  if (typeof repositories.appConfig?.getFeatures === "function") {
-    const features = await repositories.appConfig.getFeatures();
-    return Boolean(features?.speech_mimicry);
-  }
-
-  if (typeof session.from === "function") {
-    const { data, error } = await session
-      .from("app_config")
-      .select("value")
-      .eq("key", "features")
-      .maybeSingle<{ value: unknown }>();
-    if (error || !data || typeof data.value !== "object" || data.value === null) {
-      return false;
-    }
-    return Boolean((data.value as Record<string, unknown>).speech_mimicry);
-  }
-
-  return false;
+  const features = await readFeatureFlags(repositories, session);
+  return Boolean(features.speech_mimicry);
 }
 
 async function readGrillMode(
@@ -450,6 +475,7 @@ async function readDisplayName(
 export interface AppContainer {
   currentUser: CurrentUser;
   getDisplayName: () => Promise<string | null>;
+  getFeatures: () => Promise<Record<string, boolean>>;
   getProfileSettings: () => Promise<GetProfileSettingsResult>;
   updateProfileSettings: (
     settings: ProfileSettings,
@@ -490,6 +516,7 @@ export async function createContainer(): Promise<AppContainer> {
     return {
       currentUser: anonymousUser,
       getDisplayName: async () => null,
+      getFeatures: async () => ({}),
       getProfileSettings: async () => ({ status: "unauthenticated" }),
       updateProfileSettings: async () => ({ status: "unauthenticated" }),
       listNogs: async () => ({ status: "unauthenticated" }),
@@ -621,6 +648,7 @@ export async function createContainer(): Promise<AppContainer> {
   return {
     currentUser,
     getDisplayName: () => readDisplayName(session, userId),
+    getFeatures: () => readFeatureFlags(repositories, session),
     getProfileSettings: () =>
       getProfileSettings({
         currentUser,

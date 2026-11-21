@@ -58,6 +58,7 @@ export interface InMemoryPortsOptions {
   userId?: string | null;
   now?: Date;
   caps?: Partial<Record<UsageKind, number>>;
+  features?: Record<string, boolean>;
   subjects?: SubjectRecord[];
   topics?: TopicRecord[];
   nogs?: NogRecord[];
@@ -906,6 +907,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     deps: {
       currentUser,
       clock,
+      getFeatures: async () => ({ ...(options.features ?? {}) }),
       profiles,
       subjects,
       topics: options.topics !== undefined ? topics : undefined,

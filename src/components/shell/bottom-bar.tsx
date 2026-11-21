@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Egg, House, Plus } from "lucide-react";
+import { Egg, House, Plus, Swords } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isNavItemActive,
-  NAV_ITEMS,
+  navItemsFor,
   PRIMARY_ACTION,
   type NavItem,
 } from "@/components/shell/nav-items";
@@ -15,11 +15,19 @@ function BottomNavIcon({ icon }: { icon: NavItem["icon"] }) {
   if (icon === "egg") {
     return <Egg className="h-5 w-5" aria-hidden="true" />;
   }
+  if (icon === "swords") {
+    return <Swords className="h-5 w-5" aria-hidden="true" />;
+  }
   return <House className="h-5 w-5" aria-hidden="true" />;
 }
 
-export function BottomBar() {
+export interface BottomBarProps {
+  showArena?: boolean;
+}
+
+export function BottomBar({ showArena = false }: BottomBarProps = {}) {
   const pathname = usePathname() ?? "";
+  const items = navItemsFor({ showArena });
 
   return (
     <nav
@@ -27,7 +35,7 @@ export function BottomBar() {
       className="fixed right-4 bottom-[calc(12px+env(safe-area-inset-bottom))] left-4 z-40 flex h-16 items-center justify-between rounded-[var(--noggin-radius-pill)] bg-[color-mix(in_srgb,var(--noggin-white)_92%,transparent)] px-3 shadow-[0_8px_24px_var(--noggin-shadow)] backdrop-blur-md md:hidden"
     >
       <div className="flex items-center gap-2">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = isNavItemActive(pathname, item.href);
           return (
             <Link

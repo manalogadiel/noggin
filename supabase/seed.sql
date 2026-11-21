@@ -19,7 +19,7 @@ insert into public.app_config (key, value)
 values
   (
     'features',
-    '{"speech_mimicry": true, "toss_physics": false, "faint_ui": false}'::jsonb
+    '{"speech_mimicry": true, "toss_physics": false, "faint_ui": false, "arena": true}'::jsonb
   ),
   (
     'economy',
