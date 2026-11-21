@@ -17,7 +17,7 @@ export function AuthFrame({ headerAction, children }: AuthFrameProps) {
 
       <main className="mx-auto flex w-full max-w-[1280px] flex-1 items-center justify-center px-4 pt-6 pb-12 md:px-10 lg:py-12">
         <div className="flex w-full flex-col items-center justify-center lg:flex-row lg:items-center">
-          <div className="relative z-20 -mb-6 w-[220px] shrink-0 lg:pointer-events-none lg:-mr-[172px] lg:mb-0 lg:w-[520px] xl:-mr-48 xl:w-[600px]">
+          <div className="relative z-20 -mb-6 w-[220px] shrink-0 lg:pointer-events-none lg:[&_*]:!pointer-events-none lg:-mr-[172px] lg:mb-0 lg:w-[520px] xl:-mr-48 xl:w-[600px]">
             <div className="nog-bob">
               <NogStage
                 scene="lean"
