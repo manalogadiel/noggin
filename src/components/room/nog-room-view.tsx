@@ -10,6 +10,7 @@ import {
   Menu,
   Moon,
   Plus,
+  Sprout,
   Utensils,
   X,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { useEffect, useId, useState } from "react";
 import { NogAvatar } from "@/components/nog/nog-avatar";
 import { usePetting } from "@/components/nog/use-petting";
 import { VitalsSummary } from "@/components/nog/vitals-summary";
+import { RoomRail } from "@/components/room/room-rail";
 import {
   SettingsSheet,
   type SaveProfileSettingsHandler,
@@ -99,7 +101,7 @@ export function NogRoomView({
   const roomBaseHref = `/nogs/${nog.id}`;
 
   return (
-    <div className="relative grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_460px] lg:items-start lg:gap-x-8 lg:gap-y-6">
+    <div className="relative grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px_auto] lg:items-start lg:gap-x-6 lg:gap-y-6 xl:grid-cols-[minmax(0,1fr)_460px_auto]">
       <div className="flex min-w-0 flex-col lg:col-start-1 lg:row-start-1">
         <div className="relative flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -212,6 +214,16 @@ export function NogRoomView({
               />
             </div>
           </div>
+
+          <div className="mt-4">
+            <Link
+              href={`${roomBaseHref}/analysis`}
+              className="noggin-display inline-flex min-h-11 items-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-cream)] px-4 py-2 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-95 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            >
+              <Sprout className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>See analysis</span>
+            </Link>
+          </div>
         </div>
 
         <VitalsSummary vitals={vitals} />
@@ -249,6 +261,11 @@ export function NogRoomView({
           <span>My Notebook</span>
         </Link>
       </div>
+
+      <RoomRail
+        nogId={nog.id}
+        className="lg:col-start-3 lg:row-span-2 lg:row-start-1"
+      />
     </div>
   );
 }
