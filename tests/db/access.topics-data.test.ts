@@ -34,11 +34,11 @@ describe("custom topics schema and reset inputs", () => {
     for (const { code, caps: { generate } } of plans) {
       const user = await db.createUser();
       success(await db.admin.rows("profiles", { id: eq(user.id) }, "PATCH", { plan_code: code }), "Set fixture plan");
-      const consume = (amount: number) => db.admin.rpc<{ allowed: boolean }>("consume_usage_quota", {
+      const consume = (amount: number) => db.admin.rpc<{ allowed: boolean }[]>("consume_usage_quota", {
         p_user_id: user.id, p_kind: "generate", p_amount: amount,
       });
-      expect(success(await consume(generate), "Consume generation allowance")).toMatchObject({ allowed: true });
-      expect(success(await consume(1), "Check exhausted generation allowance")).toMatchObject({ allowed: false });
+      expect(exactlyOne(await consume(generate), "Consume generation allowance")).toMatchObject({ allowed: true });
+      expect(exactlyOne(await consume(1), "Check exhausted generation allowance")).toMatchObject({ allowed: false });
     }
   });
 
