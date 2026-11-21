@@ -131,5 +131,33 @@ export function createProfileRepository(options: {
 
       return mapProfileSettingsRow(data);
     },
+
+    async updateDisplayName(
+      targetUserId: string,
+      displayName: string,
+    ): Promise<string> {
+      if (targetUserId !== userId) {
+        throw new SupabaseAdapterError(
+          "FORBIDDEN",
+          "Cannot update display name for another user.",
+        );
+      }
+
+      const trimmed = displayName.trim();
+      const { data, error } = await session
+        .from("profiles")
+        .update({ display_name: trimmed })
+        .eq("id", targetUserId)
+        .select("display_name")
+        .single<{ display_name: string | null }>();
+
+      if (error) {
+        throw mapPostgrestError(error, "profiles.updateDisplayName");
+      }
+
+      return typeof data?.display_name === "string"
+        ? data.display_name.trim()
+        : trimmed;
+    },
   };
 }

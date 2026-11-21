@@ -1,6 +1,8 @@
 import { nextReviewIntervalDays } from "../../domain/thought-card";
 import { growthStage, trainingMeter } from "../../domain/training";
 import type {
+  ActivityEvent,
+  ActivityRepository,
   AnswerGrader,
   ApplyDigestInput,
   ApplyDigestResult,
@@ -30,6 +32,7 @@ import type {
   OwnedMessage,
   ProfileRepository,
   ProfileSettings,
+  ProgressRepository,
   QuestionBank,
   QuestionRecord,
   QuestionWriter,
@@ -46,6 +49,7 @@ import type {
   TextToSpeech,
   ThoughtCardRecord,
   ThoughtCardRepository,
+  TopicMasteryRow,
   TopicRecord,
   TopicRepository,
   UpdatePettingInput,
@@ -67,6 +71,9 @@ export interface InMemoryPortsOptions {
   messages?: OwnedMessage[];
   questions?: QuestionRecord[];
   attempts?: CheckAttemptRecord[];
+  mastery?: TopicMasteryRow[];
+  activity?: ActivityEvent[];
+  displayNames?: Record<string, string>;
   profileSettings?: Record<string, ProfileSettings>;
   listenerDigest?: ListenerDigest;
   generatedQuestions?: GeneratedQuestionDraft[];
@@ -901,6 +908,163 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       profileSettingsStore.set(userId, next);
       return { ...next };
     },
+    async updateDisplayName(userId: string, displayName: string) {
+      const trimmed = displayName.trim();
+      displayNameStore.set(userId, trimmed);
+      return trimmed;
+    },
+  };
+
+  const masteryStore = (options.mastery ?? []).map((row) => ({ ...row }));
+  const activityStore = (options.activity ?? []).map((event) => ({ ...event }));
+  const displayNameStore = new Map<string, string>(
+    Object.entries(options.displayNames ?? {}),
+  );
+
+  const progress: ProgressRepository = {
+    async listMastery(ownerId: string): Promise<TopicMasteryRow[]> {
+      const ownedNogs = nogStore.filter((n) => n.ownerId === ownerId);
+      const ownedNogIds = new Set(ownedNogs.map((n) => n.id));
+      if (ownedNogIds.size === 0) {
+        return [];
+      }
+
+      if (options.mastery !== undefined) {
+        return masteryStore
+          .filter((row) => ownedNogIds.has(row.nogId))
+          .map((row) => ({ ...row }));
+      }
+
+      const rows: TopicMasteryRow[] = [];
+      for (const nog of ownedNogs) {
+        const nogTopics = topicStore.filter(
+          (t) =>
+            t.subjectId === nog.subjectId &&
+            (t.ownerId === null || t.ownerId === ownerId),
+        );
+        for (const topic of nogTopics) {
+          const topicQuestions = questionStore.filter(
+            (q) => q.topicId === topic.id,
+          );
+          const total =
+            topicQuestions.length > 0
+              ? topicQuestions.length
+              : topic.questionCount;
+          const topicQuestionIds = new Set(topicQuestions.map((q) => q.id));
+          const relevantAttempts = attemptStore.filter(
+            (a) =>
+              a.nogId === nog.id &&
+              (a.topicId === topic.id || topicQuestionIds.has(a.questionId)),
+          );
+          const mastered = trainingMeter(
+            relevantAttempts.map((a) => ({
+              questionId: a.questionId,
+              attemptedAt: a.createdAt,
+              correct: a.correct,
+            })),
+          );
+          rows.push({
+            nogId: nog.id,
+            topicId: topic.id,
+            topicName: topic.title,
+            mastered,
+            total,
+          });
+        }
+      }
+      return rows;
+    },
+  };
+
+  const activity: ActivityRepository = {
+    async listRecent(
+      ownerId: string,
+      limit = 30,
+    ): Promise<ActivityEvent[]> {
+      const ownedNogs = nogStore.filter((n) => n.ownerId === ownerId);
+      const ownedNogMap = new Map(ownedNogs.map((n) => [n.id, n]));
+      if (ownedNogMap.size === 0) {
+        return [];
+      }
+
+      if (options.activity !== undefined) {
+        return activityStore
+          .filter((event) => ownedNogMap.has(event.nogId))
+          .map((event) => ({ ...event }))
+          .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+          .slice(0, limit);
+      }
+
+      const topicMap = new Map(topicStore.map((t) => [t.id, t.title]));
+      const questionTopicMap = new Map(
+        questionStore.map((q) => [q.id, q.topicId]),
+      );
+
+      const events: ActivityEvent[] = [];
+
+      for (const page of pageStore) {
+        const nog = ownedNogMap.get(page.nogId);
+        if (!nog) continue;
+        events.push({
+          kind: "lesson",
+          id: page.id,
+          nogId: nog.id,
+          nogName: nog.name,
+          topicName: topicMap.get(page.topicId) ?? "Topic",
+          at: page.createdAt,
+          followUp: page.kind === "follow_up_answer",
+        });
+      }
+
+      const checkGroups = new Map<
+        string,
+        {
+          id: string;
+          nogId: string;
+          nogName: string;
+          topicName: string;
+          at: string;
+          correct: number;
+          total: number;
+        }
+      >();
+
+      for (const attempt of attemptStore) {
+        const nog = ownedNogMap.get(attempt.nogId);
+        if (!nog) continue;
+        const resolvedTopicId =
+          attempt.topicId ?? questionTopicMap.get(attempt.questionId) ?? "";
+        const groupKey = `${attempt.nogId}:${resolvedTopicId}:${attempt.createdAt}`;
+        const existing = checkGroups.get(groupKey);
+        if (existing) {
+          existing.total += 1;
+          if (attempt.correct) {
+            existing.correct += 1;
+          }
+        } else {
+          checkGroups.set(groupKey, {
+            id: attempt.id,
+            nogId: nog.id,
+            nogName: nog.name,
+            topicName: topicMap.get(resolvedTopicId) ?? "Topic",
+            at: attempt.createdAt,
+            correct: attempt.correct ? 1 : 0,
+            total: 1,
+          });
+        }
+      }
+
+      for (const group of checkGroups.values()) {
+        events.push({
+          kind: "check",
+          ...group,
+        });
+      }
+
+      return events
+        .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+        .slice(0, limit);
+    },
   };
 
   return {
@@ -909,6 +1073,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       clock,
       getFeatures: async () => ({ ...(options.features ?? {}) }),
       profiles,
+      progress,
+      activity,
       subjects,
       topics: options.topics !== undefined ? topics : undefined,
       nogs,
@@ -927,6 +1093,9 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
     stores: {
       profiles: profileSettingsStore,
+      displayNames: displayNameStore,
+      mastery: masteryStore,
+      activity: activityStore,
       subjects: subjectStore,
       topics: topicStore,
       nogs: nogStore,

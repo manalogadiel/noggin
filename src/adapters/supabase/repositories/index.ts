@@ -1,12 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  ActivityRepository,
   NogRepository,
   ProfileRepository,
+  ProgressRepository,
   QuestionBank,
   SubjectRepository,
   TopicRepository,
   UsageRepository,
 } from "@/core/application/ports";
+import { createActivityRepository } from "./activity-repository";
 import {
   createAttemptRepository,
   type SupabaseAttemptRepository,
@@ -17,6 +20,7 @@ import {
   type SupabaseNotebookRepository,
 } from "./notebook-repository";
 import { createProfileRepository } from "./profile-repository";
+import { createProgressRepository } from "./progress-repository";
 import { createQuestionBank } from "./question-bank";
 import { createSubjectRepository } from "./subject-repository";
 import {
@@ -41,6 +45,8 @@ export interface CreateSupabaseRepositoriesOptions {
 
 export interface SupabaseRepositories {
   profiles: ProfileRepository;
+  progress: ProgressRepository;
+  activity: ActivityRepository;
   subjects: SubjectRepository;
   topics: TopicRepository;
   nogs: NogRepository;
@@ -58,6 +64,8 @@ export function createSupabaseRepositories(
 
   return {
     profiles: createProfileRepository({ session, userId }),
+    progress: createProgressRepository({ session, service, userId }),
+    activity: createActivityRepository({ session, service, userId }),
     subjects: createSubjectRepository({ session, service, userId }),
     topics: createTopicRepository({ session, service, userId }),
     nogs: createNogRepository({ session, service, userId }),
