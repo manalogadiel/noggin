@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/nogs", "/adopt", "/settings"] as const;
+const PROTECTED_PREFIXES = ["/home", "/nogs", "/adopt", "/settings"] as const;
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
