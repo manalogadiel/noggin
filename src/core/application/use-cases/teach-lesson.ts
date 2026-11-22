@@ -12,6 +12,7 @@ import type {
   NotebookRepository,
   ThoughtCardRecord,
   ThoughtCardRepository,
+  TopicRepository,
   UsageRepository,
 } from "../ports";
 import { EntitlementService } from "../services/entitlement";
@@ -21,6 +22,7 @@ export const MAX_FOLLOW_UP_QUESTIONS = 2;
 export interface TeachLessonDeps {
   currentUser: CurrentUser;
   nogs: Pick<NogRepository, "findOwned">;
+  topics?: Pick<TopicRepository, "findById">;
   notebook: Pick<
     NotebookRepository,
     | "savePage"
@@ -46,6 +48,7 @@ export interface TeachLessonInput {
 export type TeachLessonResult =
   | { status: "unauthenticated" }
   | { status: "not_found" }
+  | { status: "questions_pending" }
   | { status: "empty" }
   | { status: "overload"; wordCount: number; limit: number }
   | { status: "idempotency_conflict" }
@@ -187,6 +190,20 @@ export async function teachLesson(
   const nog = await deps.nogs.findOwned(user.id, input.nogId);
   if (!nog) {
     return { status: "not_found" };
+  }
+
+  if (deps.topics) {
+    const topic = await deps.topics.findById(input.topicId);
+    if (
+      !topic ||
+      topic.subjectId !== nog.subjectId ||
+      (topic.ownerId !== null && topic.ownerId !== user.id)
+    ) {
+      return { status: "not_found" };
+    }
+    if (topic.status !== "ready") {
+      return { status: "questions_pending" };
+    }
   }
 
   const limit = input.maxWords ?? DEFAULT_LESSON_WORD_LIMIT;

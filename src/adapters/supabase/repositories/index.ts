@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   NogRepository,
   QuestionBank,
+  SubjectRepository,
+  TopicRepository,
   UsageRepository,
 } from "@/core/application/ports";
 import {
@@ -14,10 +16,12 @@ import {
   type SupabaseNotebookRepository,
 } from "./notebook-repository";
 import { createQuestionBank } from "./question-bank";
+import { createSubjectRepository } from "./subject-repository";
 import {
   createThoughtCardRepository,
   type SupabaseThoughtCardRepository,
 } from "./thought-card-repository";
+import { createTopicRepository } from "./topic-repository";
 import { createUsageRepository } from "./usage-repository";
 
 export {
@@ -34,6 +38,8 @@ export interface CreateSupabaseRepositoriesOptions {
 }
 
 export interface SupabaseRepositories {
+  subjects: SubjectRepository;
+  topics: TopicRepository;
   nogs: NogRepository;
   notebook: SupabaseNotebookRepository;
   thoughtCards: SupabaseThoughtCardRepository;
@@ -48,6 +54,8 @@ export function createSupabaseRepositories(
   const { session, service, userId } = options;
 
   return {
+    subjects: createSubjectRepository({ session, service, userId }),
+    topics: createTopicRepository({ session, service, userId }),
     nogs: createNogRepository({ session, service, userId }),
     notebook: createNotebookRepository({ session, service, userId }),
     thoughtCards: createThoughtCardRepository({ session }),

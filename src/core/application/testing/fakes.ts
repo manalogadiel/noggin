@@ -9,6 +9,8 @@ import type {
   CheckReservationKey,
   Clock,
   CreateNogInput,
+  CreateUserSubjectInput,
+  CreateUserTopicInput,
   CurrentUser,
   GraderResult,
   LessonPage,
@@ -28,11 +30,16 @@ import type {
   RecordCheckInput,
   SavedDigestRecord,
   SaveFollowUpPageResult,
+  SaveGeneratedQuestionsInput,
   SpeechToText,
+  SubjectRecord,
+  SubjectRepository,
   SynthesizedAudio,
   TextToSpeech,
   ThoughtCardRecord,
   ThoughtCardRepository,
+  TopicRecord,
+  TopicRepository,
   UpdatePettingInput,
   UsageKind,
   UsageRepository,
@@ -43,6 +50,8 @@ export interface InMemoryPortsOptions {
   userId?: string | null;
   now?: Date;
   caps?: Partial<Record<UsageKind, number>>;
+  subjects?: SubjectRecord[];
+  topics?: TopicRecord[];
   nogs?: NogRecord[];
   pages?: LessonPage[];
   cards?: ThoughtCardRecord[];
@@ -61,12 +70,15 @@ const DEFAULT_CAPS: Record<UsageKind, number> = {
   stt_seconds: 300,
   tts_chars: 1000,
   pet: 50,
+  generate: 5,
 };
 
 export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   let currentUserId = options.userId ?? "student-1";
   let currentNow = options.now ?? new Date("2026-11-21T03:00:00.000Z");
 
+  const subjectStore = [...(options.subjects ?? [])];
+  const topicStore = [...(options.topics ?? [])];
   const nogStore = [...(options.nogs ?? [])];
   const pageStore = [...(options.pages ?? [])];
   const cardStore = [...(options.cards ?? [])];
@@ -91,6 +103,175 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   const clock: Clock = {
     now() {
       return new Date(currentNow.getTime());
+    },
+  };
+
+  const subjects: SubjectRepository = {
+    async findById(subjectId: string) {
+      return subjectStore.find((s) => s.id === subjectId) ?? null;
+    },
+    async findBySlug(slug: string, ownerId?: string | null) {
+      const normalized = slug.trim().toLowerCase();
+      if (ownerId !== undefined) {
+        return (
+          subjectStore.find(
+            (s) => s.slug === normalized && s.ownerId === ownerId,
+          ) ?? null
+        );
+      }
+      return (
+        subjectStore.find(
+          (s) =>
+            s.slug === normalized &&
+            (s.ownerId === null || s.ownerId === currentUserId),
+        ) ?? null
+      );
+    },
+    async listAccessible(ownerId: string) {
+      return subjectStore.filter(
+        (s) => (s.ownerId === null && s.available) || s.ownerId === ownerId,
+      );
+    },
+    async createUserSubject(input: CreateUserSubjectInput) {
+      const name = input.name.trim();
+      const slug = input.slug.trim().toLowerCase();
+      if (name.length < 1 || name.length > 40) {
+        throw new Error("Subject name must be 1 to 40 characters");
+      }
+      const duplicate = subjectStore.some(
+        (s) =>
+          s.ownerId === input.ownerId &&
+          (s.slug === slug || s.name.trim().toLowerCase() === name.toLowerCase()),
+      );
+      if (duplicate) {
+        throw new Error("Subject already exists for owner");
+      }
+      const created: SubjectRecord = {
+        id: nextId("subject"),
+        ownerId: input.ownerId,
+        slug,
+        name,
+        available: true,
+      };
+      subjectStore.push(created);
+      return created;
+    },
+  };
+
+  const topics: TopicRepository = {
+    async findById(topicId: string) {
+      return topicStore.find((t) => t.id === topicId) ?? null;
+    },
+    async findBySubjectAndSlug(
+      subjectId: string,
+      slug: string,
+      ownerId?: string | null,
+    ) {
+      const normalized = slug.trim().toLowerCase();
+      if (ownerId !== undefined) {
+        return (
+          topicStore.find(
+            (t) =>
+              t.subjectId === subjectId &&
+              t.slug === normalized &&
+              t.ownerId === ownerId,
+          ) ?? null
+        );
+      }
+      return (
+        topicStore.find(
+          (t) =>
+            t.subjectId === subjectId &&
+            t.slug === normalized &&
+            (t.ownerId === null || t.ownerId === currentUserId),
+        ) ?? null
+      );
+    },
+    async listBySubject(subjectId: string) {
+      return topicStore.filter(
+        (t) =>
+          t.subjectId === subjectId &&
+          (t.ownerId === null || t.ownerId === currentUserId),
+      );
+    },
+    async createUserTopic(input: CreateUserTopicInput) {
+      const title = input.title.trim();
+      const slug = input.slug.trim().toLowerCase();
+      if (title.length < 1 || title.length > 60) {
+        throw new Error("Topic title must be 1 to 60 characters");
+      }
+      const subject = subjectStore.find(
+        (s) =>
+          s.id === input.subjectId &&
+          ((s.ownerId === null && s.available) || s.ownerId === input.ownerId),
+      );
+      if (subjectStore.length > 0 && !subject) {
+        throw new Error("Subject not accessible for owner");
+      }
+      const officialCollision = topicStore.some(
+        (t) =>
+          t.subjectId === input.subjectId &&
+          t.ownerId === null &&
+          t.slug === slug,
+      );
+      if (officialCollision) {
+        throw new Error("Topic slug collides with an official topic");
+      }
+      const existing = topicStore.find(
+        (t) =>
+          t.subjectId === input.subjectId &&
+          t.ownerId === input.ownerId &&
+          t.slug === slug,
+      );
+      if (existing) {
+        if (existing.status === "pending") {
+          return { ...existing };
+        }
+        throw new Error("Topic already exists for owner");
+      }
+      const created: TopicRecord = {
+        id: nextId("topic"),
+        subjectId: input.subjectId,
+        ownerId: input.ownerId,
+        slug,
+        title,
+        status: "pending",
+        questionCount: 0,
+      };
+      topicStore.push(created);
+      return { ...created };
+    },
+    async saveGeneratedQuestions(input: SaveGeneratedQuestionsInput) {
+      const topic = topicStore.find(
+        (t) => t.id === input.topicId && t.ownerId === input.ownerId,
+      );
+      if (!topic) {
+        throw new Error("Topic not found for owner");
+      }
+      if (topic.status !== "pending") {
+        throw new Error("Topic is already ready");
+      }
+      if (input.questions.length !== 8) {
+        throw new Error("Exactly 8 questions are required");
+      }
+      for (const draft of input.questions) {
+        if (draft.keyConcepts.length < 2 || draft.keyConcepts.length > 4) {
+          throw new Error("Each question must have 2 to 4 key concepts");
+        }
+      }
+      for (const draft of input.questions) {
+        questionStore.push({
+          id: nextId("question"),
+          topicId: topic.id,
+          prompt: draft.prompt,
+          referenceAnswer: draft.referenceAnswer,
+          sourceExcerpt: draft.sourceExcerpt,
+          keyConcepts: [...draft.keyConcepts],
+        });
+      }
+      topic.status = "ready";
+      topic.questionCount = input.questions.length;
+      return { ...topic };
     },
   };
 
@@ -615,6 +796,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     deps: {
       currentUser,
       clock,
+      subjects,
+      topics: options.topics !== undefined ? topics : undefined,
       nogs,
       notebook,
       thoughtCards,
@@ -629,6 +812,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       voiceCache,
     },
     stores: {
+      subjects: subjectStore,
+      topics: topicStore,
       nogs: nogStore,
       pages: pageStore,
       cards: cardStore,

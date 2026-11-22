@@ -21,6 +21,7 @@ import type {
   QuestionBank,
   ThoughtCardRecord,
   ThoughtCardRepository,
+  TopicRepository,
   UsageRepository,
 } from "../ports";
 import { EntitlementService } from "../services/entitlement";
@@ -59,6 +60,7 @@ export interface RunQuickCheckDeps {
   currentUser: CurrentUser;
   clock: Clock;
   nogs: Pick<NogRepository, "findOwned">;
+  topics?: Pick<TopicRepository, "findById">;
   notebook: Pick<NotebookRepository, "listPages">;
   thoughtCards: Pick<ThoughtCardRepository, "listByTopic">;
   questions: QuestionBank;
@@ -79,6 +81,7 @@ export interface RunQuickCheckInput {
 export type RunQuickCheckResult =
   | { status: "unauthenticated" }
   | { status: "not_found" }
+  | { status: "questions_pending" }
   | { status: "not_taught" }
   | { status: "no_questions" }
   | { status: "tired_for_today" }
@@ -248,6 +251,20 @@ export async function runQuickCheck(
   const nog = await deps.nogs.findOwned(user.id, input.nogId);
   if (!nog) {
     return { status: "not_found" };
+  }
+
+  if (deps.topics) {
+    const topic = await deps.topics.findById(input.topicId);
+    if (
+      !topic ||
+      topic.subjectId !== nog.subjectId ||
+      (topic.ownerId !== null && topic.ownerId !== user.id)
+    ) {
+      return { status: "not_found" };
+    }
+    if (topic.status !== "ready") {
+      return { status: "questions_pending" };
+    }
   }
 
   const runReserved = async (): Promise<RunQuickCheckResult> => {
