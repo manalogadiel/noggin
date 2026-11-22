@@ -11,6 +11,7 @@ export interface NogAvatarProps {
   message: string | null;
   tapCount: number;
   onTap: () => void;
+  tint?: string | null;
   className?: string;
 }
 
@@ -20,6 +21,7 @@ export function NogAvatar({
   message,
   tapCount,
   onTap,
+  tint,
   className,
 }: NogAvatarProps) {
   const reactionClass =
@@ -64,6 +66,7 @@ export function NogAvatar({
             width={1254}
             height={1254}
             sizes="(min-width: 1024px) 520px, 280px"
+            tint={tint}
             priority
             decorative
             className="w-full"

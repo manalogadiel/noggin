@@ -9,6 +9,7 @@ import {
   House,
   Menu,
   Moon,
+  Palette,
   Plus,
   Sprout,
   Utensils,
@@ -177,6 +178,7 @@ export function NogRoomView({
             message={message}
             tapCount={tapCount}
             onTap={pet}
+            tint={nog.colors?.body ?? null}
             className="w-full"
           />
         </div>
@@ -215,13 +217,20 @@ export function NogRoomView({
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-2.5">
             <Link
               href={`${roomBaseHref}/analysis`}
               className="noggin-display inline-flex min-h-11 items-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-cream)] px-4 py-2 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-95 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <Sprout className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>See analysis</span>
+            </Link>
+            <Link
+              href={`${roomBaseHref}/customize`}
+              className="noggin-display inline-flex min-h-11 items-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-cream)] px-4 py-2 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-95 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            >
+              <Palette className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Customize</span>
             </Link>
           </div>
         </div>
