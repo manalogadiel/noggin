@@ -83,6 +83,14 @@ import {
   type PetNogResult,
 } from "@/core/application/use-cases/pet-nog";
 import {
+  listDueCards,
+  reviewCard,
+  type ListDueCardsInput,
+  type ListDueCardsResult,
+  type ReviewCardInput,
+  type ReviewCardResult,
+} from "@/core/application/use-cases/review-cards";
+import {
   reviseLesson,
   type ReviseLessonInput,
   type ReviseLessonResult,
@@ -451,6 +459,8 @@ export interface AppContainer {
   getNogRoom: (input: GetNogRoomInput) => Promise<GetNogRoomResult>;
   getNogAnalysis: (input: GetNogAnalysisInput) => Promise<GetNogAnalysisResult>;
   petNog: (input: PetNogInput) => Promise<PetNogResult>;
+  listDueCards: (input: ListDueCardsInput) => Promise<ListDueCardsResult>;
+  reviewCard: (input: ReviewCardInput) => Promise<ReviewCardResult>;
   teachLesson: (input: TeachLessonInput) => Promise<TeachLessonResult>;
   answerFollowUp: (input: AnswerFollowUpInput) => Promise<AnswerFollowUpResult>;
   reviseLesson: (input: ReviseLessonInput) => Promise<ReviseLessonResult>;
@@ -484,6 +494,8 @@ export async function createContainer(): Promise<AppContainer> {
       getNogRoom: async () => ({ status: "unauthenticated" }),
       getNogAnalysis: async () => ({ status: "unauthenticated" }),
       petNog: async () => ({ status: "unauthenticated" }),
+      listDueCards: async () => ({ status: "unauthenticated" }),
+      reviewCard: async () => ({ status: "unauthenticated" }),
       teachLesson: async () => ({ status: "unauthenticated" }),
       answerFollowUp: async () => ({ status: "unauthenticated" }),
       reviseLesson: async () => ({ status: "unauthenticated" }),
@@ -688,6 +700,26 @@ export async function createContainer(): Promise<AppContainer> {
           currentUser,
           clock,
           nogs: repositories.nogs,
+        },
+        input,
+      ),
+    listDueCards: (input) =>
+      listDueCards(
+        {
+          currentUser,
+          clock,
+          nogs: repositories.nogs,
+          thoughtCards: repositories.thoughtCards,
+        },
+        input,
+      ),
+    reviewCard: (input) =>
+      reviewCard(
+        {
+          currentUser,
+          clock,
+          nogs: repositories.nogs,
+          thoughtCards: repositories.thoughtCards,
         },
         input,
       ),

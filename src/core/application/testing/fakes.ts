@@ -1,3 +1,4 @@
+import { nextReviewIntervalDays } from "../../domain/thought-card";
 import { growthStage, trainingMeter } from "../../domain/training";
 import type {
   AnswerGrader,
@@ -33,6 +34,7 @@ import type {
   QuestionWriter,
   QuotaResult,
   RecordCheckInput,
+  ReviewThoughtCardInput,
   SavedDigestRecord,
   SaveFollowUpPageResult,
   SaveGeneratedQuestionsInput,
@@ -559,6 +561,48 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
     async listByNog(nogId: string) {
       return cardStore.filter((c) => c.nogId === nogId);
+    },
+    async reviewCard(input: ReviewThoughtCardInput) {
+      const owned = nogStore.some(
+        (n) => n.id === input.nogId && n.ownerId === input.ownerId,
+      );
+      if (!owned) {
+        return null;
+      }
+
+      const card = cardStore.find(
+        (c) => c.id === input.cardId && c.nogId === input.nogId,
+      );
+      if (!card) {
+        return null;
+      }
+
+      const nowDate = input.now ?? clock.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+
+      if (input.outcome === "remembered") {
+        const nextInterval = nextReviewIntervalDays(
+          card.intervalDays ?? 1,
+          true,
+        );
+        card.strength = (card.strength ?? 1) + 1;
+        card.intervalDays = nextInterval;
+        card.nextReviewAt = new Date(
+          nowDate.getTime() + nextInterval * dayMs,
+        ).toISOString();
+      } else {
+        const nextInterval = nextReviewIntervalDays(
+          card.intervalDays ?? 1,
+          false,
+        );
+        card.status = "shaky";
+        card.intervalDays = nextInterval;
+        card.nextReviewAt = new Date(
+          nowDate.getTime() + nextInterval * dayMs,
+        ).toISOString();
+      }
+
+      return { ...card };
     },
   };
 

@@ -1,0 +1,20 @@
+@keyframes nogSleepBreathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.028);
+  }
+}
+
+.sleepyBreathe {
+  animation: nogSleepBreathe 4.8s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sleepyBreathe {
+    animation: none;
+  }
+}

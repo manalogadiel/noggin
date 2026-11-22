@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  ReviewThoughtCardInput,
   ThoughtCardRecord,
   ThoughtCardRepository,
 } from "@/core/application/ports";
@@ -40,12 +41,14 @@ function mapThoughtCardRow(row: ThoughtCardRow): ThoughtCardRecord {
 }
 
 export type SupabaseThoughtCardRepository = ThoughtCardRepository &
-  Required<Pick<ThoughtCardRepository, "listByNog">>;
+  Required<Pick<ThoughtCardRepository, "listByNog" | "reviewCard">>;
 
 export function createThoughtCardRepository(options: {
   session: SupabaseClient;
+  service: SupabaseClient;
+  userId: string;
 }): SupabaseThoughtCardRepository {
-  const { session } = options;
+  const { session, service, userId } = options;
 
   return {
     async listByTopic(
@@ -80,6 +83,37 @@ export function createThoughtCardRepository(options: {
         throw mapPostgrestError(error, "thoughtCards.listByNog");
       }
       return (data ?? []).map(mapThoughtCardRow);
+    },
+
+    async reviewCard(
+      input: ReviewThoughtCardInput,
+    ): Promise<ThoughtCardRecord | null> {
+      if (input.ownerId !== userId) {
+        return null;
+      }
+
+      const { data, error } = await service.rpc("review_thought_card", {
+        p_owner_id: input.ownerId,
+        p_card_id: input.cardId,
+        p_outcome: input.outcome,
+      });
+
+      if (error) {
+        if (error.code === "42501" || error.code === "P0002") {
+          return null;
+        }
+        throw mapPostgrestError(error, "thoughtCards.reviewCard");
+      }
+
+      if (!data || typeof data !== "object") {
+        return null;
+      }
+
+      const mapped = mapThoughtCardRow(data as ThoughtCardRow);
+      if (mapped.nogId !== input.nogId) {
+        return null;
+      }
+      return mapped;
     },
   };
 }
