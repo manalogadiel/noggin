@@ -1,4 +1,5 @@
 import { countWords, DEFAULT_LESSON_WORD_LIMIT } from "../../domain/lesson";
+import { groundQuote } from "../../domain/quote-grounding";
 import type {
   ApplyDigestResult,
   CurrentUser,
@@ -84,26 +85,33 @@ export function filterGroundedOperations(
   existingTopicCards: ReadonlyArray<Pick<ThoughtCardRecord, "id">> = [],
 ): DigestOperation[] {
   const validTopicCardIds = new Set(existingTopicCards.map((card) => card.id));
+  const grounded: DigestOperation[] = [];
 
-  return operations.filter((operation) => {
+  for (const operation of operations) {
     if (operation.type === "create") {
-      return (
-        operation.quote.trim().length > 0 && pageBody.includes(operation.quote)
-      );
+      const matchedQuote = groundQuote(pageBody, operation.quote);
+      if (matchedQuote !== null) {
+        grounded.push({ ...operation, quote: matchedQuote });
+      }
+      continue;
     }
 
     if (!validTopicCardIds.has(operation.cardId)) {
-      return false;
+      continue;
     }
 
     if (operation.quote === undefined) {
-      return true;
+      grounded.push(operation);
+      continue;
     }
 
-    return (
-      operation.quote.trim().length > 0 && pageBody.includes(operation.quote)
-    );
-  });
+    const matchedQuote = groundQuote(pageBody, operation.quote);
+    if (matchedQuote !== null) {
+      grounded.push({ ...operation, quote: matchedQuote });
+    }
+  }
+
+  return grounded;
 }
 
 const threadDigestLocks = new Map<string, Promise<void>>();

@@ -516,6 +516,7 @@ export interface TranscribeInput {
   audio: Uint8Array;
   mimeType: string;
   durationSeconds: number;
+  hint?: string;
 }
 
 export interface SpeechToText {
