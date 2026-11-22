@@ -58,10 +58,10 @@ describe("teachLesson", () => {
     const { deps } = makeFixture([savedPage]);
     const grounded = { ...createOperation, label: "ACK", quote: "The client finishes with ACK." };
     const fromOlderPage = createOperation;
-    const nearMatch = { ...grounded, quote: "The client finishes with ack." };
+    const ungroundedNearMatch = { ...grounded, quote: "The client finishes with FIN." };
     deps.listener.listen.mockResolvedValueOnce({
       ...digest,
-      operations: [fromOlderPage, grounded, nearMatch],
+      operations: [fromOlderPage, grounded, ungroundedNearMatch],
     });
 
     await expect(teachLesson(deps, {
@@ -72,7 +72,7 @@ describe("teachLesson", () => {
 
     expect(deps.notebook.applyDigest).toHaveBeenCalledTimes(1);
     expect(deps.notebook.applyDigest).toHaveBeenCalledWith(expect.objectContaining({
-      operations: [expect.objectContaining(grounded)],
+      operations: [expect.objectContaining({ ...grounded, quote: "The client finishes with ACK" })],
     }));
   });
 });
