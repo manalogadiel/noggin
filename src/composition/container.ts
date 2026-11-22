@@ -383,8 +383,33 @@ async function resolvePersona(
   };
 }
 
+async function readDisplayName(
+  session: SupabaseClient,
+  userId: string,
+): Promise<string | null> {
+  if (typeof session.from !== "function") {
+    return null;
+  }
+
+  try {
+    const { data, error } = await session
+      .from("profiles")
+      .select("display_name")
+      .eq("id", userId)
+      .maybeSingle<{ display_name: unknown }>();
+    if (error || !data || typeof data.display_name !== "string") {
+      return null;
+    }
+    const trimmed = data.display_name.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface AppContainer {
   currentUser: CurrentUser;
+  getDisplayName: () => Promise<string | null>;
   listNogs: () => Promise<ListNogsResult>;
   hatchNog: (input: HatchNogInput) => Promise<HatchNogResult>;
   getNogRoom: (input: GetNogRoomInput) => Promise<GetNogRoomResult>;
@@ -412,6 +437,7 @@ export async function createContainer(): Promise<AppContainer> {
     };
     return {
       currentUser: anonymousUser,
+      getDisplayName: async () => null,
       listNogs: async () => ({ status: "unauthenticated" }),
       hatchNog: async () => ({ status: "unauthenticated" }),
       getNogRoom: async () => ({ status: "unauthenticated" }),
@@ -522,6 +548,7 @@ export async function createContainer(): Promise<AppContainer> {
 
   return {
     currentUser,
+    getDisplayName: () => readDisplayName(session, userId),
     listNogs: () =>
       listNogs({
         currentUser,
