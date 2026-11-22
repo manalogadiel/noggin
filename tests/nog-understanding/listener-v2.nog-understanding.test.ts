@@ -39,6 +39,12 @@ describe("listener-v2 reads typed and spoken lessons", () => {
     expect(prompt).toMatch(/grammar|spelling|typo/i);
   });
 
+  it("matches the language of THIS lesson, including follow-up questions", () => {
+    const prompt = systemPrompt();
+    expect(prompt).toMatch(/English lesson[^.\n]*English only/i);
+    expect(prompt).toMatch(/follow-up questions[^.\n]*same language/i);
+  });
+
   it("forbids correcting facts from outside knowledge", () => {
     expect(systemPrompt()).toMatch(/only know what (you are|you're) taught|never correct facts/i);
   });
