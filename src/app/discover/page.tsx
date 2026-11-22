@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
+import { NogStage } from "@/components/nog-3d/nog-stage";
 import { PublicHeader } from "@/components/shell/public-header";
 
 export const metadata: Metadata = {
@@ -98,14 +98,15 @@ export default function DiscoverPage() {
                 className="noggin-sun-disc pointer-events-none absolute top-1/2 left-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70 sm:h-[480px] sm:w-[480px] lg:left-[58%] lg:h-[920px] lg:w-[920px]"
               />
               <div className="nog-float relative z-10 w-[88vw] max-w-[680px] lg:w-full">
-                <Image
-                  src="/nog/flying-book.png"
+                <NogStage
+                  scene="flying"
                   alt="A sprouting Nog flying with a book"
+                  poster="/nog/flying-book.png"
                   width={1254}
                   height={1254}
                   priority
                   sizes="(min-width: 1024px) 680px, 88vw"
-                  className="h-auto w-full rotate-[3.4deg] object-contain"
+                  className="w-full"
                 />
               </div>
             </div>
@@ -141,13 +142,14 @@ export default function DiscoverPage() {
             <div className="relative mt-12 lg:mt-16 lg:min-h-[600px] lg:py-6">
               <div className="relative mx-auto flex max-w-[828px] flex-col items-center justify-end">
                 <div className="nog-bob relative z-10 w-[76vw] max-w-[460px] lg:max-w-[500px]">
-                  <Image
-                    src="/nog/thinking.png"
+                  <NogStage
+                    scene="thinking"
                     alt="A Nog thinking"
+                    poster="/nog/thinking.png"
                     width={1254}
                     height={1254}
                     sizes="(min-width: 1024px) 500px, 76vw"
-                    className="h-auto w-full object-contain"
+                    className="w-full"
                   />
                 </div>
                 <div
@@ -181,15 +183,16 @@ export default function DiscoverPage() {
 
         <section className="px-4 py-16 md:px-10 lg:py-24">
           <div className="noggin-cta-card relative mx-auto max-w-[1220px] rounded-[32px] px-6 py-10 sm:px-10 lg:rounded-[55px] lg:py-16 lg:pr-14 lg:pl-[40%]">
-            <div className="mx-auto mb-6 w-[220px] lg:pointer-events-none lg:absolute lg:bottom-0 lg:-left-10 lg:mb-0 lg:w-[460px] xl:w-[510px]">
+            <div className="mx-auto mb-6 w-[220px] lg:absolute lg:bottom-0 lg:-left-10 lg:mb-0 lg:w-[460px] xl:w-[510px]">
               <div className="nog-bob">
-                <Image
-                  src="/nog/egg-peek.png"
+                <NogStage
+                  scene="peek"
                   alt="A Nog peeking out of its eggshell"
+                  poster="/nog/egg-peek.png"
                   width={1192}
                   height={1320}
                   sizes="(min-width: 1024px) 510px, 220px"
-                  className="h-auto w-full object-contain"
+                  className="w-full"
                 />
               </div>
             </div>

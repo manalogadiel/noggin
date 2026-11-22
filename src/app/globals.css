@@ -230,6 +230,12 @@
   animation-delay: 1.6s;
 }
 
+/* The live (rigged) Nog animates itself; the CSS bob only moves the still poster. */
+.nog-bob:has(> [data-nog-3d="ready"]),
+.nog-float:has(> [data-nog-3d="ready"]) {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nog-bob,
   .nog-float,
