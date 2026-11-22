@@ -105,6 +105,7 @@ export interface NogRecord {
   happinessDay?: string | null;
   vitality?: number;
   colors?: NogColors;
+  restUntil?: string | null;
 }
 
 export interface SubjectRecord {
@@ -207,6 +208,11 @@ export interface NogRepository {
     ownerId: string,
     nogId: string,
     colors: NogColors,
+  ): Promise<NogRecord | null>;
+  setRest(
+    ownerId: string,
+    nogId: string,
+    restUntil: string | null,
   ): Promise<NogRecord | null>;
 }
 

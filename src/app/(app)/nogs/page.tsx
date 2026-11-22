@@ -4,10 +4,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   EmptyNogsCard,
-  HatchNewCard,
-  NogCard,
   type NogCardSummary,
 } from "@/components/nog/nog-card";
+import { NogCollection } from "@/components/nog/nog-collection";
 import { createContainer } from "@/composition/container";
 
 export const metadata: Metadata = {
@@ -83,12 +82,7 @@ export default async function MyNogsPage() {
         </section>
       ) : nogs && nogs.length > 0 ? (
         <section aria-label="Nog collection">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {nogs.map((nog) => (
-              <NogCard key={nog.id} nog={nog} />
-            ))}
-            <HatchNewCard />
-          </div>
+          <NogCollection nogs={nogs} />
         </section>
       ) : (
         <section aria-label="Start your Nog collection">

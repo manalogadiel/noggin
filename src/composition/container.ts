@@ -101,6 +101,13 @@ import {
   type PetNogResult,
 } from "@/core/application/use-cases/pet-nog";
 import {
+  startRest,
+  wakeNog,
+  type RestNogResult,
+  type StartRestInput,
+  type WakeNogInput,
+} from "@/core/application/use-cases/rest-nog";
+import {
   listDueCards,
   reviewCard,
   type ListDueCardsInput,
@@ -541,6 +548,8 @@ export interface AppContainer {
   getNogAnalysis: (input: GetNogAnalysisInput) => Promise<GetNogAnalysisResult>;
   petNog: (input: PetNogInput) => Promise<PetNogResult>;
   customizeNog: (input: CustomizeNogInput) => Promise<CustomizeNogResult>;
+  startRest: (input: StartRestInput) => Promise<RestNogResult>;
+  wakeNog: (input: WakeNogInput) => Promise<RestNogResult>;
   listDueCards: (input: ListDueCardsInput) => Promise<ListDueCardsResult>;
   reviewCard: (input: ReviewCardInput) => Promise<ReviewCardResult>;
   teachLesson: (input: TeachLessonInput) => Promise<TeachLessonResult>;
@@ -582,6 +591,8 @@ export async function createContainer(): Promise<AppContainer> {
       getNogAnalysis: async () => ({ status: "unauthenticated" }),
       petNog: async () => ({ status: "unauthenticated" }),
       customizeNog: async () => ({ status: "unauthenticated" }),
+      startRest: async () => ({ status: "unauthenticated" }),
+      wakeNog: async () => ({ status: "unauthenticated" }),
       listDueCards: async () => ({ status: "unauthenticated" }),
       reviewCard: async () => ({ status: "unauthenticated" }),
       teachLesson: async () => ({ status: "unauthenticated" }),
@@ -833,6 +844,24 @@ export async function createContainer(): Promise<AppContainer> {
         {
           currentUser,
           nogs: repositories.nogs,
+        },
+        input,
+      ),
+    startRest: (input) =>
+      startRest(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          clock,
+        },
+        input,
+      ),
+    wakeNog: (input) =>
+      wakeNog(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          clock,
         },
         input,
       ),
