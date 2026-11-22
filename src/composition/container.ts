@@ -4,6 +4,13 @@ import { z } from "zod";
 import { createLlmAdapters, type NogPersona } from "@/adapters/ai/fallback-llm";
 import { createSupabaseCurrentUser } from "@/adapters/supabase/current-user";
 import {
+  askNog,
+  listAskHistory,
+  type AskNogInput,
+  type AskNogResult,
+  type ListAskHistoryResult,
+} from "@/core/application/use-cases/ask-nog";
+import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
@@ -27,6 +34,7 @@ import type {
   AttemptRepository,
   Clock,
   CurrentUser,
+  NogAsker,
   NogRecord,
   NotebookRepository,
   ProfileRepository,
@@ -159,6 +167,7 @@ const ENV_KEYS = [
   "LLM_API_KEY",
   "LLM_MODEL",
   "LLM_GRADER_MODEL",
+  "LLM_ASKER_MODEL",
   "LLM_QUESTION_WRITER_MODEL",
   "LLM_FALLBACK_BASE_URL",
   "LLM_FALLBACK_API_KEY",
@@ -209,6 +218,7 @@ const containerEnvSchema = z
     LLM_API_KEY: optionalTrimmedString,
     LLM_MODEL: optionalTrimmedString,
     LLM_GRADER_MODEL: optionalTrimmedString,
+    LLM_ASKER_MODEL: optionalTrimmedString,
     LLM_QUESTION_WRITER_MODEL: optionalTrimmedString,
     LLM_FALLBACK_BASE_URL: optionalHttpUrl,
     LLM_FALLBACK_API_KEY: optionalTrimmedString,
@@ -283,6 +293,7 @@ function validateContainerEnv(): ContainerEnv {
     LLM_API_KEY: process.env.LLM_API_KEY,
     LLM_MODEL: process.env.LLM_MODEL,
     LLM_GRADER_MODEL: process.env.LLM_GRADER_MODEL,
+    LLM_ASKER_MODEL: process.env.LLM_ASKER_MODEL,
     LLM_QUESTION_WRITER_MODEL: process.env.LLM_QUESTION_WRITER_MODEL,
     LLM_FALLBACK_BASE_URL: process.env.LLM_FALLBACK_BASE_URL,
     LLM_FALLBACK_API_KEY: process.env.LLM_FALLBACK_API_KEY,
@@ -554,11 +565,23 @@ export interface AppContainer {
   reviewCard: (input: ReviewCardInput) => Promise<ReviewCardResult>;
   teachLesson: (input: TeachLessonInput) => Promise<TeachLessonResult>;
   answerFollowUp: (input: AnswerFollowUpInput) => Promise<AnswerFollowUpResult>;
+  askNog: (input: AskNogInput) => Promise<AskNogResult>;
+  listAskHistory: (input: {
+    nogId: string;
+    limit?: number;
+  }) => Promise<ListAskHistoryResult>;
   reviseLesson: (input: ReviseLessonInput) => Promise<ReviseLessonResult>;
   runQuickCheck: (input: RunQuickCheckInput) => Promise<RunQuickCheckResult>;
   transcribeLesson: (input: TranscribeInput) => Promise<TranscribeLessonResult>;
   speakAnswer: (input: SpeakAnswerInput) => Promise<SpeakAnswerResult>;
 }
+
+/** Used when no answering model is configured; the ask flow reports brain fog. */
+const unavailableAsker: NogAsker = {
+  async ask() {
+    throw new Error("No answering model is configured.");
+  },
+};
 
 export async function createContainer(): Promise<AppContainer> {
   validateContainerEnv();
@@ -597,6 +620,8 @@ export async function createContainer(): Promise<AppContainer> {
       reviewCard: async () => ({ status: "unauthenticated" }),
       teachLesson: async () => ({ status: "unauthenticated" }),
       answerFollowUp: async () => ({ status: "unauthenticated" }),
+      askNog: async () => ({ status: "unauthenticated" }),
+      listAskHistory: async () => ({ status: "unauthenticated" }),
       reviseLesson: async () => ({ status: "unauthenticated" }),
       runQuickCheck: async () => ({ status: "unauthenticated" }),
       transcribeLesson: async () => ({ status: "unauthenticated" }),
@@ -905,8 +930,32 @@ export async function createContainer(): Promise<AppContainer> {
           nogs: repositories.nogs,
           notebook: repositories.notebook,
           thoughtCards: repositories.thoughtCards,
+          topics: repositories.topics,
           usage: repositories.usage,
           listener: llm.listener,
+        },
+        input,
+      ),
+    askNog: (input) =>
+      askNog(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          topics: repositories.topics,
+          thoughtCards: repositories.thoughtCards,
+          notebook: repositories.notebook,
+          usage: repositories.usage,
+          asker: llm.asker ?? unavailableAsker,
+          askHistory: repositories.askHistory,
+        },
+        input,
+      ),
+    listAskHistory: (input) =>
+      listAskHistory(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          askHistory: repositories.askHistory,
         },
         input,
       ),
