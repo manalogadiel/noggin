@@ -110,9 +110,9 @@ type User = ReturnType<typeof userEvent.setup>;
 async function openResults(user: User) {
   await user.click(startButton());
   expect(await screen.findByText(firstQuestion.prompt)).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Next" }));
+  await user.click(screen.getByRole("button", { name: "Next →" }));
   expect(screen.getByText(secondQuestion.prompt)).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "See results" }));
+  await user.click(screen.getByRole("button", { name: "See results →" }));
 }
 
 function expectProgress(position: number) {
@@ -286,14 +286,14 @@ describe("Quick Check in Play", () => {
     expectProgress(1);
     expect(screen.queryByText(secondQuestion.prompt)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next →" }));
     expect(screen.getByText(secondQuestion.prompt)).toBeVisible();
     expectProgress(2);
     expect(screen.queryByText(firstQuestion.prompt)).not.toBeInTheDocument();
     expect(screen.getByText(/^missed$/i)).toBeVisible();
     expect(screen.getByText(secondQuestion.concepts[0].concept)).toBeVisible();
     expect(screen.getByText(card.label)).toBeVisible();
-    expect(screen.getByRole("button", { name: "See results" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "See results →" })).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Previous" }));
     expect(screen.getByText(firstQuestion.prompt)).toBeVisible();
@@ -307,7 +307,7 @@ describe("Quick Check in Play", () => {
     await renderPlay();
     await openResults(user);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Keep teaching!" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Keep teaching!" })).toBeVisible();
     expect(screen.getByText(/you got 1 out of 2 correct!/i)).toBeVisible();
     for (const stat of [/\b1\s*correct\b/i, /\b1\s*incorrect\b/i, /\b50%\s*score\b/i, /\+\s*1\s*xp\s*training/i]) {
       expectResultStat(stat);
@@ -370,7 +370,7 @@ describe("Quick Check in Play", () => {
 
     await renderPlay(tcp.id);
     await openResults(user);
-    expect(screen.getByRole("heading", { level: 1, name: "Great Job!" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Great Job!" })).toBeVisible();
     expect(screen.getByText(/you got 2 out of 2 correct!/i)).toBeVisible();
     expectResultStat(/\b100%\s*score\b/i);
     expect(screen.getByRole("link", { name: "Continue Training" })).toHaveAttribute("href", roomHref);
