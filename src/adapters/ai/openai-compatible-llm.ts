@@ -2,12 +2,15 @@ import type {
   AnswerGrader,
   AnswerInput,
   BrainAnswerResult,
+  GeneratedQuestionDraft,
+  GenerateQuestionsInput,
   GradeInput,
   GraderResult,
   ListenInput,
   ListenerDigest,
   NogBrain,
   NogListener,
+  QuestionWriter,
 } from "@/core/application/ports";
 import {
   buildAnswererMessages,
@@ -24,12 +27,17 @@ import {
   type NogPersona,
 } from "./prompts/listener";
 import {
+  buildQuestionWriterMessages,
+  PROMPT_VERSION as QUESTION_WRITER_PROMPT_VERSION,
+} from "./prompts/question-writer";
+import {
   BRAIN_FOG_DIGEST,
   NOT_TAUGHT_ANSWER,
   parseBrainAnswers,
   parseGraderResult,
   parseJsonContent,
   parseListenerDigest,
+  parseQuestionWriterOutput,
   type ParseResult,
 } from "./schemas";
 
@@ -37,7 +45,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRY_AFTER_MS = 5_000;
 const DETERMINISTIC_SEED = 7;
 
-export type LlmRole = "listener" | "answerer" | "grader";
+export type LlmRole = "listener" | "answerer" | "grader" | "question-writer";
 
 export interface OpenAiCompatibleEndpoint {
   baseUrl: string;
@@ -71,6 +79,7 @@ export interface LlmAdapters {
   listener: NogListener;
   brain: NogBrain;
   grader: AnswerGrader;
+  questionWriter?: QuestionWriter;
 }
 
 export class NogSleepyError extends Error {
@@ -85,6 +94,16 @@ export class GraderOutputError extends Error {
   constructor(message = "Grader returned an invalid response format.") {
     super(message);
     this.name = "GraderOutputError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class QuestionWriterOutputError extends Error {
+  constructor(
+    message = "Question writer returned an invalid response format.",
+  ) {
+    super(message);
+    this.name = "QuestionWriterOutputError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -500,5 +519,29 @@ export function createOpenAiCompatibleAdapters(
     },
   };
 
-  return { listener, brain, grader };
+  const questionWriter: QuestionWriter = {
+    async generate(
+      input: GenerateQuestionsInput,
+    ): Promise<GeneratedQuestionDraft[]> {
+      const messages = buildQuestionWriterMessages(input);
+      const outcome = await executeStructuredCall(
+        messages,
+        {
+          role: "question-writer",
+          promptVersion: QUESTION_WRITER_PROMPT_VERSION,
+          temperature: 0.3,
+          maxTokens: 2048,
+        },
+        (data) => parseQuestionWriterOutput(data),
+      );
+      if (outcome.ok) {
+        return outcome.value;
+      }
+      throw new QuestionWriterOutputError(
+        "Question writer failed schema validation after JSON repair retry.",
+      );
+    },
+  };
+
+  return { listener, brain, grader, questionWriter };
 }

@@ -64,14 +64,17 @@ export interface SubjectRepository {
 
 export type TopicStatus = "ready" | "pending";
 
-export interface TopicRecord {
+export interface TopicSummary {
   id: string;
   subjectId: string;
-  ownerId: string | null;
   slug: string;
   title: string;
   status: TopicStatus;
   questionCount: number;
+}
+
+export interface TopicRecord extends TopicSummary {
+  ownerId: string | null;
 }
 
 export interface CreateUserTopicInput {
@@ -408,6 +411,15 @@ export interface GraderResult {
 
 export interface AnswerGrader {
   grade(input: GradeInput): Promise<GraderResult>;
+}
+
+export interface GenerateQuestionsInput {
+  subjectName: string;
+  topicTitle: string;
+}
+
+export interface QuestionWriter {
+  generate(input: GenerateQuestionsInput): Promise<GeneratedQuestionDraft[]>;
 }
 
 export interface TranscribeInput {

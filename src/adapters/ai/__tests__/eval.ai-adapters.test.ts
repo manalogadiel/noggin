@@ -1,6 +1,7 @@
 import type {
   AnswerInput,
   DigestOperation,
+  GeneratedQuestionDraft,
   GradeInput,
   GraderResult,
   ListenInput,
@@ -11,7 +12,11 @@ import { fileURLToPath } from "node:url";
 import { format } from "node:util";
 import { expect, it, vi } from "vitest";
 import packageJson from "../../../../package.json";
-import { completion, digest, fetchMock, providerEnv, requestAt } from "./fixtures";
+import { completion, digest, fetchMock, persona, providerEnv, requestAt } from "./fixtures";
+import { createFakeLlmAdapters } from "../fake-llm";
+import type { LlmAdapters } from "../fallback-llm";
+
+type WriterInput = { subjectName: string; topicTitle: string };
 
 type GoldenCase = { id: string; required?: boolean } & (
   | {
@@ -36,6 +41,7 @@ type GoldenCase = { id: string; required?: boolean } & (
     input: AnswerInput;
     expected: { answers: { questionId: string; nogAnswerPattern: string }[] };
   }
+  | { port: "question-writer"; input: WriterInput }
 );
 
 const root = new URL("../../../../", import.meta.url);
@@ -45,7 +51,7 @@ const golden: { cases: GoldenCase[] } = JSON.parse(
 );
 const runnerModules = import.meta.glob("../../../../scripts/eval.ts");
 
-function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: boolean) {
+async function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: boolean) {
   switch (testCase.port) {
     case "listener": {
       const { operation, operationStatuses, replyPatterns, output } = testCase.expected;
@@ -71,6 +77,16 @@ function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: boolean) {
       return { grades: output.grades.map(({ questionId, concepts }) => ({
         questionId,
         concepts: concepts.map((concept) => ({ ...concept, inPages: true })),
+      })) };
+    }
+    case "question-writer": {
+      const adapters: LlmAdapters & {
+        questionWriter?: { generate(input: WriterInput): Promise<GeneratedQuestionDraft[]> };
+      } = createFakeLlmAdapters({ getPersona: async () => persona, speechMimicry: false });
+      if (!adapters.questionWriter) throw new Error("The fake LLM needs a question writer for its golden cases");
+      const questions = await adapters.questionWriter.generate(testCase.input);
+      return { questions: questions.map(({ prompt, referenceAnswer, sourceExcerpt, keyConcepts }) => ({
+        prompt, referenceAnswer, sourceExcerpt, keyConcepts,
       })) };
     }
   }
@@ -99,7 +115,7 @@ it.each([false, true])("runs every golden case and reports the injection verdict
   const load = runnerModules[`../../../../${runner}`];
   expect(load, `missing ${runner}`).toBeTypeOf("function");
   for (const testCase of liveCases) {
-    fetchMock.mockResolvedValueOnce(completion(scriptedResult(testCase, changed)));
+    fetchMock.mockResolvedValueOnce(completion(await scriptedResult(testCase, changed)));
   }
 
   const output = ["log", "info", "error"].map((method) =>

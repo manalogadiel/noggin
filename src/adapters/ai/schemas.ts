@@ -3,6 +3,7 @@ import type {
   AnswerQuestionPrompt,
   BrainAnswerResult,
   DigestOperation,
+  GeneratedQuestionDraft,
   GraderResult,
   ListenerDigest,
   QuestionRecord,
@@ -38,6 +39,13 @@ const HTML_TAG_PATTERN =
 const THINK_BLOCK_PATTERN = /<think>[\s\S]*?<\/think>/gi;
 const CODE_FENCE_PATTERN = /^```(?:json)?\s*([\s\S]*?)\s*```$/i;
 
+const QUESTION_INJECTION_PATTERN =
+  /\b(?:ignore\s+(?:all\s+)?(?:previous|prior|above|system)?\s*(?:instructions?|rules?|prompts?)|disregard\s+(?:all\s+)?(?:previous|prior|above)?\s*(?:instructions?|rules?)|mark\s+(?:everything|every\s+answer|all\s+answers?)\s+correct|set\s+(?:every|all)\s+flags?(?:\s+to\s+true)?|override\s+(?:the\s+)?grading|inAnswer|inPages|consistentWithReference)\b|<\/?(?:questions|pages|answer|notebook|subject|topic|cards|page)\b/i;
+
+export function containsQuestionInjection(value: string): boolean {
+  return QUESTION_INJECTION_PATTERN.test(value);
+}
+
 function plainTextString(maxLength: number) {
   return z
     .string()
@@ -47,6 +55,18 @@ function plainTextString(maxLength: number) {
     .refine(
       (value) => !HTML_TAG_PATTERN.test(value),
       "must be plain text without HTML markup",
+    );
+}
+
+function questionPlainTextString(minTrimmedLength: number, maxLength: number) {
+  return plainTextString(maxLength)
+    .refine(
+      (value) => value.trim().length >= minTrimmedLength,
+      `must be at least ${minTrimmedLength} non-whitespace characters`,
+    )
+    .refine(
+      (value) => !containsQuestionInjection(value),
+      "must not contain prompt-injection or meta-grading text",
     );
 }
 
@@ -120,6 +140,32 @@ export const graderResponseSchema = z.object({
       ),
     }),
   ),
+});
+
+const generatedQuestionItemSchema = z.object({
+  prompt: questionPlainTextString(1, 240),
+  referenceAnswer: questionPlainTextString(1, 400),
+  sourceExcerpt: questionPlainTextString(1, 500),
+  keyConcepts: z
+    .array(questionPlainTextString(2, 80))
+    .min(2)
+    .max(4)
+    .refine((concepts) => {
+      const normalized = concepts.map((item) => item.trim().toLowerCase());
+      return new Set(normalized).size === normalized.length;
+    }, "keyConcepts must be distinct"),
+});
+
+export const questionWriterResponseSchema = z.object({
+  questions: z
+    .array(generatedQuestionItemSchema)
+    .length(8)
+    .refine((questions) => {
+      const normalizedPrompts = questions.map((item) =>
+        item.prompt.trim().toLowerCase(),
+      );
+      return new Set(normalizedPrompts).size === normalizedPrompts.length;
+    }, "question prompts must be distinct"),
 });
 
 export type ParseResult<T> =
@@ -303,4 +349,24 @@ export function parseGraderResult(
   }
 
   return { ok: true, value: { grades } };
+}
+
+export function parseQuestionWriterOutput(
+  data: unknown,
+): ParseResult<GeneratedQuestionDraft[]> {
+  const parsed = questionWriterResponseSchema.safeParse(data);
+  if (!parsed.success) {
+    return { ok: false, error: formatZodIssues(parsed.error) };
+  }
+
+  return {
+    ok: true,
+    value: parsed.data.questions.map((question, index) => ({
+      position: index + 1,
+      prompt: question.prompt.trim(),
+      referenceAnswer: question.referenceAnswer.trim(),
+      sourceExcerpt: question.sourceExcerpt.trim(),
+      keyConcepts: question.keyConcepts.map((concept) => concept.trim()),
+    })),
+  };
 }

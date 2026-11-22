@@ -25,11 +25,17 @@ import type {
   CurrentUser,
   NogRecord,
   NotebookRepository,
+  QuestionWriter,
   SpeechToText,
   TextToSpeech,
   TranscribeInput,
   VoiceCacheRepository,
 } from "@/core/application/ports";
+import {
+  addTopic,
+  type AddTopicInput,
+  type AddTopicResult,
+} from "@/core/application/use-cases/add-topic";
 import {
   answerFollowUp,
   type AnswerFollowUpInput,
@@ -54,6 +60,11 @@ import {
   listNogs,
   type ListNogsResult,
 } from "@/core/application/use-cases/list-nogs";
+import {
+  listTopics,
+  type ListTopicsInput,
+  type ListTopicsResult,
+} from "@/core/application/use-cases/list-topics";
 import {
   petNog,
   type PetNogInput,
@@ -412,6 +423,8 @@ export interface AppContainer {
   getDisplayName: () => Promise<string | null>;
   listNogs: () => Promise<ListNogsResult>;
   hatchNog: (input: HatchNogInput) => Promise<HatchNogResult>;
+  addTopic: (input: AddTopicInput) => Promise<AddTopicResult>;
+  listTopics: (input: ListTopicsInput) => Promise<ListTopicsResult>;
   getNogRoom: (input: GetNogRoomInput) => Promise<GetNogRoomResult>;
   getNogAnalysis: (input: GetNogAnalysisInput) => Promise<GetNogAnalysisResult>;
   petNog: (input: PetNogInput) => Promise<PetNogResult>;
@@ -440,6 +453,8 @@ export async function createContainer(): Promise<AppContainer> {
       getDisplayName: async () => null,
       listNogs: async () => ({ status: "unauthenticated" }),
       hatchNog: async () => ({ status: "unauthenticated" }),
+      addTopic: async () => ({ status: "unauthenticated" }),
+      listTopics: async () => ({ status: "unauthenticated" }),
       getNogRoom: async () => ({ status: "unauthenticated" }),
       getNogAnalysis: async () => ({ status: "unauthenticated" }),
       petNog: async () => ({ status: "unauthenticated" }),
@@ -546,6 +561,12 @@ export async function createContainer(): Promise<AppContainer> {
     },
   };
 
+  const questionWriter: QuestionWriter = llm.questionWriter ?? {
+    async generate() {
+      throw new Error("Question writer adapter is not configured.");
+    },
+  };
+
   return {
     currentUser,
     getDisplayName: () => readDisplayName(session, userId),
@@ -559,6 +580,28 @@ export async function createContainer(): Promise<AppContainer> {
         {
           currentUser,
           nogs: repositories.nogs,
+          subjects: repositories.subjects,
+        },
+        input,
+      ),
+    addTopic: (input) =>
+      addTopic(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          subjects: repositories.subjects,
+          topics: repositories.topics,
+          usage: repositories.usage,
+          questionWriter,
+        },
+        input,
+      ),
+    listTopics: (input) =>
+      listTopics(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          topics: repositories.topics,
         },
         input,
       ),
