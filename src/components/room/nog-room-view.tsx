@@ -9,6 +9,7 @@ import {
   Utensils,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { NogAvatar } from "@/components/nog/nog-avatar";
 import { usePetting } from "@/components/nog/use-petting";
 import type { SaveProfileSettingsHandler } from "@/components/settings/settings-sheet";
@@ -18,6 +19,7 @@ import type {
   ProfileSettings,
 } from "@/core/application/ports";
 import type { VitalsResult } from "@/core/domain/vitals";
+import { formatRoomRestDate, isNogResting } from "@/lib/rest-schedule";
 import { cn } from "@/lib/utils";
 
 export interface RoomViewProps {
@@ -27,6 +29,7 @@ export interface RoomViewProps {
   initialSettings: ProfileSettings;
   onSaveSettings: SaveProfileSettingsHandler;
   onPet: () => Promise<void>;
+  now?: Date;
 }
 
 const STAGE_LEVEL: Record<NogStageSlug, number> = {
@@ -51,12 +54,18 @@ function clampProgress(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-export function NogRoomView({ nog, progress, onPet }: RoomViewProps) {
+export function NogRoomView({ nog, progress, onPet, now }: RoomViewProps) {
   const { reaction, message, tapCount, pet } = usePetting({ onPet });
+  const [fallbackNow] = useState<Date>(() => new Date());
 
   const level = STAGE_LEVEL[nog.stage] ?? 1;
   const clampedProgress = clampProgress(progress);
   const roomBaseHref = `/nogs/${nog.id}`;
+  const effectiveNow = now ?? fallbackNow;
+  const restingDate =
+    nog.restUntil && isNogResting(nog.restUntil, effectiveNow)
+      ? formatRoomRestDate(nog.restUntil)
+      : null;
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-10 xl:grid-cols-[minmax(0,1fr)_460px]">
@@ -99,6 +108,13 @@ export function NogRoomView({ nog, progress, onPet }: RoomViewProps) {
           <h1 className="noggin-display max-w-full text-[clamp(2rem,4vw,3.25rem)] font-extrabold leading-[1.05] text-[var(--noggin-white)] [overflow-wrap:anywhere]">
             {nog.name}
           </h1>
+
+          {restingDate && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3 py-1 text-[0.8125rem] font-semibold text-[var(--noggin-forest)]">
+              <Moon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>Resting · back {restingDate}</span>
+            </p>
+          )}
 
           <div className="mt-4 flex items-center gap-3">
             <span className="noggin-display shrink-0 text-[1.125rem] font-bold text-[var(--noggin-white)]">

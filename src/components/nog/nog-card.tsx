@@ -28,20 +28,24 @@ export function formatNogStage(stage: NogStageSlug): string {
   return STAGE_LABELS[stage];
 }
 
+export function nogLevelForStage(stage: NogStageSlug): number {
+  return STAGE_LEVELS[stage] ?? 1;
+}
+
 export function nogRenderForStage(stage: NogStageSlug): string {
   return stage === "hatchling" ? "/nog/blob-closeup.png" : "/nog/thinking.png";
 }
 
 export function NogCard({ nog }: { nog: NogCardSummary }) {
   const stageLabel = formatNogStage(nog.stage);
-  const level = STAGE_LEVELS[nog.stage] ?? 1;
+  const level = nogLevelForStage(nog.stage);
   const imageSrc = nogRenderForStage(nog.stage);
 
   return (
     <Link
       href={`/nogs/${nog.id}`}
       aria-label={`${nog.name}, ${nog.subjectName}, ${stageLabel}`}
-      className="group flex h-full min-h-[320px] flex-col items-center justify-between rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group flex h-full min-h-[320px] flex-col items-center justify-between rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <div className="flex flex-1 flex-col items-center justify-center">
         <Image
@@ -52,7 +56,7 @@ export function NogCard({ nog }: { nog: NogCardSummary }) {
           className="mb-6 h-[156px] w-[156px] scale-[1.45] object-contain"
         />
 
-        <p className="noggin-display mt-4 max-w-full text-[1.5rem] font-extrabold leading-tight text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+        <p className="noggin-display mt-4 max-w-full text-[1.75rem] font-extrabold leading-tight text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
           {nog.name}
         </p>
 
@@ -72,16 +76,16 @@ export function HatchNewCard() {
   return (
     <Link
       href="/adopt"
-      className="group flex h-full min-h-[320px] flex-col items-center justify-center rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group flex h-full min-h-[320px] flex-col items-center justify-center rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <span
         aria-hidden="true"
-        className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow-[0_8px_20px_var(--noggin-shadow),inset_0_-2px_8px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+        className="flex h-24 w-24 items-center justify-center rounded-full bg-[var(--noggin-sage)] text-[var(--noggin-leaf-strong)] shadow-[0_8px_20px_var(--noggin-shadow),inset_0_-2px_8px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
       >
-        <Plus className="h-10 w-10" strokeWidth={2.75} />
+        <Plus className="h-11 w-11" strokeWidth={2.75} />
       </span>
 
-      <span className="noggin-display mt-5 text-[1.375rem] font-extrabold text-[var(--noggin-forest)]">
+      <span className="noggin-display mt-5 text-[1.5rem] font-extrabold text-[var(--noggin-forest)]">
         Hatch New
       </span>
     </Link>

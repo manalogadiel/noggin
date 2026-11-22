@@ -636,13 +636,13 @@ describe("figma-fidelity-2 Feed, Practice Quiz, Water, Bath, Analysis, Notebook,
 
     for (const item of expected) {
       const card = screen.getByRole("link", { name: item.label });
-      expect(card.className).toMatch(/bg-\[var\(--noggin-sage\)\]/);
+      expect(card.className).toMatch(/bg-\[var\(--noggin-mint-light\)\]/);
       expect(within(card).getByText(item.levelText)).toBeVisible();
       expect(within(card).queryByText(item.stageText)).not.toBeInTheDocument();
     }
 
     const hatchNew = screen.getByRole("link", { name: "Hatch New" });
     expect(hatchNew).toHaveAttribute("href", "/adopt");
-    expect(hatchNew.className).toMatch(/bg-\[var\(--noggin-sage\)\]/);
+    expect(hatchNew.className).toMatch(/bg-\[var\(--noggin-mint-light\)\]/);
   });
 });

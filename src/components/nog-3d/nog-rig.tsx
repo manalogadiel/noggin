@@ -23,7 +23,7 @@ import type { NogSceneName } from "./nog-stage";
 
 type UV = [number, number];
 /** rigid: holds a prop (the book), so taps bounce it evenly instead of squashing it out of shape */
-interface BodyRig { base: UV; center: UV; radius: UV; hop?: boolean; float?: boolean; rigid?: boolean }
+interface BodyRig { base: UV; center: UV; radius: UV; hop?: boolean; float?: boolean; rigid?: boolean; slow?: boolean }
 interface EyeRig { center: UV; radius: UV; body: number }
 interface LimbRig { pivot: UV; center: UV; radius: UV; body: number; amp: number; speed?: number; idle?: boolean }
 interface Rig {
@@ -152,6 +152,15 @@ export const RIGS: Record<NogSceneName, Rig> = {
     aspect: 1,
     // spiral eyes stay intact: animate the body only without eye handles
     bodies: [{ base: [0.5, 0.86], center: [0.5, 0.58], radius: [0.45, 0.45], float: true }],
+    eyes: [],
+    leaves: [],
+    arms: [],
+  },
+  sleeping: {
+    poster: "/nog/sleeping-books.png",
+    aspect: 908 / 721,
+    // closed eyes stay intact: one rigid-ish body breathing slowly without eye handles
+    bodies: [{ base: [0.5, 0.8], center: [0.47, 0.52], radius: [0.24, 0.2], rigid: true, slow: true }],
     eyes: [],
     leaves: [],
     arms: [],
@@ -357,7 +366,8 @@ function RiggedNog({
       }
       const tap = t - s.tapAt;
       const squash = tap < 0.9 ? -0.09 * Math.exp(-5.5 * tap) * Math.cos(15 * tap) : 0;
-      const breath = 0.012 * Math.sin((t + i * 1.3) * ((2 * Math.PI) / 3.4));
+      const breathPeriod = b.slow ? 5.2 : 3.4;
+      const breath = 0.012 * Math.sin((t + i * 1.3) * ((2 * Math.PI) / breathPeriod));
       let lift = b.float ? Math.sin(t * 0.9) * 0.012 : 0;
       if (b.hop) {
         if (s.hopAt < 0 && t > s.nextHop) s.hopAt = t;
