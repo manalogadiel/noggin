@@ -8,7 +8,17 @@ export default async function AppLayout({
   children: ReactNode;
 }>) {
   const container = await createContainer();
-  const displayName = await container.getDisplayName();
+  const [displayName, features] = await Promise.all([
+    container.getDisplayName(),
+    typeof container.getFeatures === "function"
+      ? container.getFeatures().catch((): Record<string, boolean> => ({}))
+      : Promise.resolve<Record<string, boolean>>({}),
+  ]);
+  const showArena = Boolean(features.arena);
 
-  return <AppShell displayName={displayName}>{children}</AppShell>;
+  return (
+    <AppShell displayName={displayName} showArena={showArena}>
+      {children}
+    </AppShell>
+  );
 }

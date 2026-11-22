@@ -5,10 +5,15 @@ import { TopBar } from "@/components/shell/top-bar";
 
 export interface AppShellProps {
   displayName: string | null;
+  showArena?: boolean;
   children: ReactNode;
 }
 
-export function AppShell({ displayName, children }: AppShellProps) {
+export function AppShell({
+  displayName,
+  showArena = false,
+  children,
+}: AppShellProps) {
   return (
     <div className="min-h-[100dvh] bg-[linear-gradient(180deg,var(--noggin-cream)_0%,var(--noggin-mint)_100%)] overflow-x-clip">
       <a
@@ -19,7 +24,7 @@ export function AppShell({ displayName, children }: AppShellProps) {
       </a>
 
       <div className="grid min-h-[100dvh] grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]">
-        <Sidebar />
+        <Sidebar showArena={showArena} />
 
         <div className="flex min-w-0 flex-col">
           <TopBar displayName={displayName} />
@@ -32,7 +37,7 @@ export function AppShell({ displayName, children }: AppShellProps) {
           </main>
         </div>
 
-        <BottomBar />
+        <BottomBar showArena={showArena} />
       </div>
     </div>
   );
