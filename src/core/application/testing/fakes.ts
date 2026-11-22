@@ -89,6 +89,7 @@ const DEFAULT_CAPS: Record<UsageKind, number> = {
   tts_chars: 1000,
   pet: 50,
   generate: 5,
+  ask: 15,
 };
 
 export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {

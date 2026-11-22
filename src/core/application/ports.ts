@@ -10,7 +10,8 @@ export type UsageKind =
   | "stt_seconds"
   | "tts_chars"
   | "pet"
-  | "generate";
+  | "generate"
+  | "ask";
 
 export interface AuthenticatedUser {
   id: string;
@@ -301,7 +302,7 @@ export interface OwnedMessage {
   nogId: string;
   lessonId?: string | null;
   role: "nog" | "student";
-  kind: "reply" | "question" | "answer" | "reaction";
+  kind: "reply" | "question" | "answer" | "reaction" | "ask" | "ask_answer";
   body: string;
 }
 
@@ -327,6 +328,7 @@ export interface NotebookRepository {
     userId: string,
     messageId: string,
   ): Promise<OwnedMessage | null>;
+  findPagesByIds?(nogId: string, lessonIds: string[]): Promise<LessonPage[]>;
 }
 
 export interface ThoughtCardRecord {
@@ -359,6 +361,66 @@ export interface ThoughtCardRepository {
   listByTopic(nogId: string, topicId: string): Promise<ThoughtCardRecord[]>;
   listByNog?(nogId: string): Promise<ThoughtCardRecord[]>;
   reviewCard?(input: ReviewThoughtCardInput): Promise<ThoughtCardRecord | null>;
+  search?(
+    nogId: string,
+    topicId: string | null,
+    query: string,
+    limit: number,
+  ): Promise<ThoughtCardRecord[]>;
+  listEvidenceLessonIds?(cardIds: string[]): Promise<CardEvidenceLink[]>;
+}
+
+export interface CardEvidenceLink {
+  cardId: string;
+  lessonId: string;
+}
+
+export interface AskInput {
+  nogId: string;
+  question: string;
+  cards: ThoughtCardRecord[];
+  pages: LessonPage[];
+}
+
+export interface AskOutput {
+  answer: string;
+  mood: string;
+  knows: boolean;
+  citedCardIds: string[];
+}
+
+export interface NogAsker {
+  ask(input: AskInput): Promise<AskOutput>;
+}
+
+export interface SaveAskExchangeInput {
+  ownerId: string;
+  nogId: string;
+  question: string;
+  answer: string;
+  mood: string;
+}
+
+export interface SavedAskExchange {
+  questionMessageId: string;
+  answerMessageId: string;
+}
+
+export interface AskExchangeRecord extends SavedAskExchange {
+  nogId: string;
+  question: string;
+  answer: string;
+  mood: string | null;
+  createdAt: string;
+}
+
+export interface AskHistoryRepository {
+  save(input: SaveAskExchangeInput): Promise<SavedAskExchange>;
+  listRecent(
+    ownerId: string,
+    nogId: string,
+    limit: number,
+  ): Promise<AskExchangeRecord[]>;
 }
 
 export interface AnswerQuestionPrompt {
