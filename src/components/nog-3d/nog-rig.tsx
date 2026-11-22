@@ -146,6 +146,15 @@ export const RIGS: Record<NogSceneName, Rig> = {
     leaves: [],
     arms: [],
   },
+  dizzy: {
+    poster: "/nog/hatchling-dizzy.png",
+    aspect: 1,
+    // spiral eyes stay intact: animate the body only without eye handles
+    bodies: [{ base: [0.5, 0.86], center: [0.5, 0.58], radius: [0.45, 0.45], float: true }],
+    eyes: [],
+    leaves: [],
+    arms: [],
+  },
 };
 
 /** Last pointer position in viewport pixels, shared by every Nog on the page. */
