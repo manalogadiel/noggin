@@ -57,6 +57,7 @@ describe("Fake Asker", () => {
     vi.resetModules();
     await expect(loadAdapters()).rejects.toThrow(/fake.*production/i);
     expect(fetchMock).not.toHaveBeenCalled();
+    vi.resetModules();
   });
 });
 

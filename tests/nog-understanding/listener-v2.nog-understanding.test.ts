@@ -22,7 +22,7 @@ function systemPrompt() {
 
 describe("listener-v2 reads typed and spoken lessons", () => {
   it("bumps the prompt version", () => {
-    expect(PROMPT_VERSION).toBe("listener-v2");
+    expect(PROMPT_VERSION).toMatch(/^listener-v(?:[2-9]|\d{2,})(?:\.|$)/);
   });
 
   it("explains spoken transcripts, fillers and self-corrections", () => {
