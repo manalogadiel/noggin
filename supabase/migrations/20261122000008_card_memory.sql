@@ -51,6 +51,10 @@ alter table public.nog_messages
   add constraint nog_messages_kind_check
   check (kind in ('reply', 'question', 'answer', 'reaction', 'ask', 'ask_answer'));
 
+create index nog_messages_ask_history_idx
+  on public.nog_messages (nog_id, created_at desc)
+  where kind in ('ask', 'ask_answer');
+
 create or replace function public.apply_lesson_digest(
   p_nog_id uuid,
   p_idempotency_key text,
@@ -306,7 +310,9 @@ begin
         strength = tc.strength + case when v_evidence_id is null then 0 else 1 end,
         status = coalesce(v_status, tc.status),
         updated_at = now()
-      where tc.id = v_card_id;
+      where tc.id = v_card_id
+        and tc.nog_id = p_nog_id
+        and tc.topic_id = v_lesson.topic_id;
 
       v_card_ids := array_append(v_card_ids, v_card_id);
 
