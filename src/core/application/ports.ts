@@ -261,6 +261,12 @@ export type DigestOperation =
       cardId: string;
       paraphrase?: string;
       quote?: string;
+    }
+  | {
+      type: "reinforce";
+      cardId: string;
+      quote: string;
+      status?: ThoughtCardStatus;
     };
 
 export interface DigestMessageInput {
@@ -335,6 +341,8 @@ export interface ThoughtCardRecord {
   nextReviewAt?: Date | string;
   sourceLessonId?: string;
   quote?: string;
+  evidenceCount?: number;
+  score?: number;
 }
 
 export type CardReviewOutcome = "remembered" | "forgot";
@@ -449,11 +457,18 @@ export interface UsageRepository {
   ): Promise<QuotaResult>;
 }
 
+export interface ListenContext {
+  nogQuestion?: string;
+  rootLesson?: string;
+}
+
 export interface ListenInput {
   nogId: string;
   topicId: string;
+  topicTitle?: string;
   page: LessonPage;
   existingCards: ThoughtCardRecord[];
+  context?: ListenContext;
 }
 
 export interface ListenerDigest {
@@ -461,6 +476,7 @@ export interface ListenerDigest {
   mood: string;
   followUpQuestions: string[];
   operations: DigestOperation[];
+  offTopic?: boolean;
 }
 
 export interface NogListener {

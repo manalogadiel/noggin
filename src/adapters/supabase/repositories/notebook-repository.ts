@@ -99,6 +99,14 @@ function serializeDigestOperation(
       ...(operation.quote !== undefined ? { quote: operation.quote } : {}),
     };
   }
+  if (operation.type === "reinforce") {
+    return {
+      type: "reinforce",
+      card_id: operation.cardId,
+      quote: operation.quote,
+      ...(operation.status !== undefined ? { status: operation.status } : {}),
+    };
+  }
   return {
     type: "conflict",
     card_id: operation.cardId,

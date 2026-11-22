@@ -501,6 +501,18 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       const topicId = lesson?.topicId ?? "";
       const cardIds: string[] = [];
 
+      const seenEvidence = new Set<string>();
+      const recordEvidence = (
+        card: ThoughtCardRecord,
+        kind: "reinforced" | "merged" | "conflict",
+      ) => {
+        const key = `${card.id}:${input.lessonId}:${kind}`;
+        if (!seenEvidence.has(key)) {
+          seenEvidence.add(key);
+          card.evidenceCount = (card.evidenceCount ?? 1) + 1;
+        }
+      };
+
       for (const op of input.operations) {
         if (op.type === "create") {
           const card: ThoughtCardRecord = {
@@ -514,9 +526,23 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
             intervalDays: 1,
             sourceLessonId: input.lessonId,
             quote: op.quote,
+            evidenceCount: 1,
           };
           cardStore.push(card);
           cardIds.push(card.id);
+        } else if (op.type === "reinforce") {
+          const existing = cardStore.find(
+            (c) =>
+              c.id === op.cardId &&
+              c.nogId === input.nogId &&
+              c.topicId === topicId,
+          );
+          if (existing) {
+            existing.strength = (existing.strength ?? 1) + 1;
+            if (op.status !== undefined) existing.status = op.status;
+            recordEvidence(existing, "reinforced");
+            cardIds.push(existing.id);
+          }
         } else if (op.type === "update") {
           const existing = cardStore.find(
             (c) =>
@@ -528,7 +554,10 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
             if (op.label !== undefined) existing.label = op.label;
             if (op.paraphrase !== undefined) existing.paraphrase = op.paraphrase;
             if (op.status !== undefined) existing.status = op.status;
-            if (op.quote !== undefined) existing.quote = op.quote;
+            if (op.quote !== undefined) {
+              existing.quote = op.quote;
+              recordEvidence(existing, "merged");
+            }
             cardIds.push(existing.id);
           }
         } else if (op.type === "conflict") {
@@ -541,6 +570,9 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
           if (existing) {
             existing.status = "confused";
             if (op.paraphrase !== undefined) existing.paraphrase = op.paraphrase;
+            if (op.quote !== undefined) {
+              recordEvidence(existing, "conflict");
+            }
             cardIds.push(existing.id);
           }
         }
