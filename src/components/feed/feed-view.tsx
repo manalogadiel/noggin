@@ -508,7 +508,7 @@ function FeedWorkspace({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-5">
+      <div className="flex min-w-0 flex-col gap-5 lg:pr-14">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <Link
@@ -523,14 +523,14 @@ function FeedWorkspace({
               Feed
             </h1>
 
-            <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
+            <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sage)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
               {topic.title}
             </span>
           </div>
 
           <Link
             href={feedBaseHref}
-            className="noggin-display inline-flex min-h-11 items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_14px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
+            className="noggin-display inline-flex min-h-11 items-center rounded-[var(--noggin-radius-pill)] border border-[var(--noggin-leaf-strong)] bg-transparent px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
           >
             Change topic
           </Link>
@@ -573,7 +573,7 @@ function FeedWorkspace({
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,360px)] lg:items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,420px)] lg:items-start">
           <div className="flex min-w-0 flex-col gap-5">
             <LessonEditor
               topic={topic}
@@ -590,10 +590,16 @@ function FeedWorkspace({
               onSplit={handleSplitLesson}
             />
 
+            <ThoughtCardDrawer
+              nogName={nog.name}
+              cards={thoughtCards}
+              highlightedCardId={fixingCard?.id ?? null}
+            />
+
             {isFirstLesson && (
               <section
                 aria-label="Lesson guidance"
-                className="rounded-[24px] bg-[var(--noggin-white)] p-5 shadow-[0_10px_24px_var(--noggin-shadow)]"
+                className="rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-cream)] p-5 shadow-[0_10px_24px_var(--noggin-shadow)]"
               >
                 <div className="flex items-center gap-2 text-[var(--noggin-forest)]">
                   <Lightbulb
@@ -620,12 +626,6 @@ function FeedWorkspace({
                 )}
               </section>
             )}
-
-            <ThoughtCardDrawer
-              nogName={nog.name}
-              cards={thoughtCards}
-              highlightedCardId={fixingCard?.id ?? null}
-            />
           </div>
 
           <div className="flex min-w-0 flex-col gap-5">

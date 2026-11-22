@@ -5,11 +5,11 @@ import {
   BookOpen,
   CalendarClock,
   Check,
-  Droplets,
   Eye,
   RotateCcw,
   Sparkles,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -167,7 +167,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-5">
+      <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
         <div className="flex items-center gap-3">
           <Link
             href={roomHref}
@@ -176,51 +176,66 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
-
-          <span className="inline-flex items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
-            <Droplets className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{nog.name} · Water</span>
-          </span>
         </div>
 
         {step === "select" && (
-          <section className="rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-8">
-            <header className="flex flex-col gap-1.5">
-              <h1 className="noggin-display text-[clamp(1.85rem,4vw,2.75rem)] font-extrabold leading-[1.08] text-[var(--noggin-leaf-title)]">
-                What do you remember?
-              </h1>
-              <p className="text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
-                Revisit what you&apos;ve learned to help your Nog grow stronger!
-              </p>
-            </header>
+          <div className="flex min-w-0 flex-col gap-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <header className="flex min-w-0 flex-col gap-2">
+                <h1 className="noggin-display text-[clamp(2rem,4.5vw,3.25rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
+                  Let&apos;s test what you know!
+                </h1>
+                <p className="max-w-[52ch] text-[1rem] leading-relaxed text-[var(--noggin-ink)]">
+                  Revisit what you&apos;ve learned to help your Nog grow
+                  stronger!
+                </p>
+              </header>
+
+              {dueCards.length > 0 && (
+                <div className="mx-auto w-full max-w-[240px] shrink-0 lg:mx-0 lg:max-w-[360px]">
+                  <Image
+                    src="/nog/hatchling-confused.png"
+                    alt={`${nog.name} wondering what you remember`}
+                    width={1024}
+                    height={1024}
+                    sizes="(min-width: 1024px) 360px, 240px"
+                    priority
+                    className="nog-bob h-auto w-full object-contain"
+                  />
+                </div>
+              )}
+            </div>
 
             {dueCards.length === 0 ? (
-              <div className="mt-6 flex flex-col items-center gap-5 rounded-[28px] bg-[var(--noggin-white)] p-7 text-center shadow-[0_12px_28px_var(--noggin-shadow)] sm:p-9">
-                <div className="w-full max-w-[190px]">
+              <div className="mt-2 flex flex-col items-center gap-5 py-6 text-center">
+                <div className="w-full max-w-[280px] lg:max-w-[360px]">
                   <NogStage
                     scene="room"
                     alt={`${nog.name} with a fresh memory`}
                     poster="/nog/blob-closeup.png"
                     width={1254}
                     height={1254}
-                    sizes="190px"
+                    sizes="(min-width: 1024px) 360px, 280px"
                     priority
-                    className="nog-bob"
+                    className="nog-bob w-full"
                   />
                 </div>
-                <p className="noggin-display max-w-[38ch] text-[1.2rem] font-bold text-[var(--noggin-forest)]">
+                <p className="noggin-display max-w-[38ch] text-[1.25rem] font-bold text-[var(--noggin-forest)]">
                   Nothing to water today — your Nog&apos;s memory is fresh!
                 </p>
                 <Link
                   href={roomHref}
-                  className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-7 text-[1rem] font-bold"
+                  className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-8 text-[1rem] font-bold"
                 >
                   Back to room
                 </Link>
               </div>
             ) : (
-              <div className="mt-6 flex flex-col gap-5">
-                <ul className="flex flex-col gap-3" aria-label="Due thoughts">
+              <div className="flex flex-col gap-6">
+                <ul
+                  className="flex flex-col gap-3"
+                  aria-label="Due thoughts"
+                >
                   {dueCards.map((card) => {
                     const checked = selectedIds.has(card.id);
                     const topicTitle = topicTitleById.get(card.topicId);
@@ -231,39 +246,45 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                       <li key={card.id}>
                         <label
                           className={cn(
-                            "flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-[22px] bg-[var(--noggin-white)] px-4 py-3.5 shadow-[0_6px_16px_var(--noggin-shadow)] transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
-                            checked &&
-                              "bg-[var(--noggin-cream)] ring-2 ring-[var(--noggin-leaf-strong)]",
+                            "flex min-h-15 cursor-pointer items-center justify-between gap-4 rounded-[var(--noggin-radius-pill)] border bg-[var(--noggin-white)] px-6 py-3.5 shadow-[0_8px_20px_var(--noggin-shadow)] transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                            checked
+                              ? "border-[var(--noggin-leaf-strong)] ring-2 ring-[var(--noggin-leaf-strong)]"
+                              : "border-[var(--noggin-sage-strong)]",
                           )}
                         >
-                          <span className="flex min-w-0 items-center gap-3.5">
+                          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                            <span className="noggin-display text-[1rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+                              {card.label}
+                            </span>
+                            {topicTitle && (
+                              <span className="text-[0.875rem] font-medium text-[var(--noggin-ink)]">
+                                {topicTitle}
+                              </span>
+                            )}
+                            <span
+                              className={cn(
+                                "inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] px-2.5 py-0.5 text-[0.75rem] font-semibold",
+                                card.status === "shaky"
+                                  ? "bg-[var(--noggin-meter-mid-soft)] text-[var(--noggin-meter-mid-ink)]"
+                                  : "bg-[var(--noggin-mint-light)] text-[var(--noggin-forest)]",
+                              )}
+                            >
+                              {badgeLabel}
+                            </span>
+                          </span>
+
+                          <span className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center">
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleCard(card.id)}
-                              className="h-5 w-5 shrink-0 accent-[var(--noggin-leaf-strong)]"
+                              className="peer h-6 w-6 cursor-pointer appearance-none rounded-[8px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] transition-colors checked:bg-[var(--noggin-leaf-strong)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf)]"
                             />
-                            <span className="flex min-w-0 flex-col">
-                              <span className="noggin-display text-[1rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                                {card.label}
-                              </span>
-                              {topicTitle && (
-                                <span className="text-[0.8125rem] font-medium text-[var(--noggin-ink)]">
-                                  {topicTitle}
-                                </span>
-                              )}
-                            </span>
-                          </span>
-
-                          <span
-                            className={cn(
-                              "inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] px-3 py-1 text-[0.75rem] font-semibold",
-                              card.status === "shaky"
-                                ? "bg-[var(--noggin-meter-mid-soft)] text-[var(--noggin-meter-mid-ink)]"
-                                : "bg-[var(--noggin-mint-light)] text-[var(--noggin-forest)]",
-                            )}
-                          >
-                            {badgeLabel}
+                            <Check
+                              aria-hidden="true"
+                              className="pointer-events-none absolute h-3.5 w-3.5 text-[var(--noggin-white)] opacity-0 transition-opacity peer-checked:opacity-100"
+                              strokeWidth={3}
+                            />
                           </span>
                         </label>
                       </li>
@@ -271,29 +292,28 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                   })}
                 </ul>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                  <p className="text-[0.875rem] font-medium text-[var(--noggin-ink)]">
-                    {selectedCount} of {dueCards.length} selected
-                  </p>
+                <div className="flex flex-col items-center gap-2.5 pt-2">
                   <button
                     type="button"
                     disabled={selectedCount === 0}
                     onClick={handleStartReview}
-                    className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-8 text-[1.0625rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
+                    className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center px-10 text-[1.125rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
                   >
-                    <Droplets className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>Start Review</span>
+                    Start Reviewing →
                   </button>
+                  <p className="text-[0.875rem] font-medium text-[var(--noggin-ink)]">
+                    {selectedCount} of {dueCards.length} selected
+                  </p>
                 </div>
               </div>
             )}
-          </section>
+          </div>
         )}
 
         {step === "review" && currentCard && (
-          <section className="rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-8">
+          <div className="flex min-w-0 flex-col gap-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="noggin-display text-[0.875rem] font-bold uppercase tracking-wide text-[var(--noggin-leaf-strong)]">
+              <p className="noggin-display text-[0.9375rem] font-bold uppercase tracking-wide text-[var(--noggin-leaf-strong)]">
                 Thought {currentIndex + 1} of {queue.length}
               </p>
 
@@ -311,13 +331,13 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
               </span>
             </div>
 
-            <div className="mt-5 rounded-[28px] bg-[var(--noggin-white)] p-6 shadow-[0_12px_28px_var(--noggin-shadow)] sm:p-8">
+            <section className="rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="noggin-display text-[0.875rem] font-bold uppercase tracking-wide text-[var(--noggin-leaf-title)]">
+                <span className="noggin-display text-[0.9375rem] font-extrabold uppercase tracking-wide text-[var(--noggin-forest)]">
                   Recall:
                 </span>
                 {topicTitleById.get(currentCard.topicId) && (
-                  <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-3 py-1 text-[0.75rem] font-semibold text-[var(--noggin-ink)]">
+                  <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-3.5 py-1 text-[0.8125rem] font-semibold text-[var(--noggin-forest)]">
                     {topicTitleById.get(currentCard.topicId)}
                   </span>
                 )}
@@ -332,13 +352,13 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                   <button
                     type="button"
                     onClick={() => setQuoteVisible(true)}
-                    className="noggin-display inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-5 py-2.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
+                    className="noggin-display inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-5 py-2.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] motion-reduce:transition-none"
                   >
                     <Eye className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>Show my words</span>
                   </button>
                 ) : (
-                  <div className="flex flex-col gap-3 rounded-[22px] bg-[var(--noggin-cream)] p-5">
+                  <div className="flex flex-col gap-3 rounded-[22px] bg-[var(--noggin-white)] p-5 shadow-[0_6px_16px_var(--noggin-shadow)]">
                     <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-[var(--noggin-leaf-strong)]">
                       Your words
                     </p>
@@ -359,7 +379,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
               {errorMessage && (
                 <p
                   role="alert"
-                  className="mt-4 rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
+                  className="mt-4 rounded-[18px] border border-[var(--noggin-danger)] bg-[var(--noggin-white)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
                 >
                   {errorMessage}
                 </p>
@@ -380,32 +400,32 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => void handleTeachAgain()}
-                  className="noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-panel)] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                  className="noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                 >
                   <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>Teach it again</span>
                 </button>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         )}
 
         {step === "done" && (
-          <section className="flex flex-col items-center gap-5 rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-7 text-center shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-10">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--noggin-mint-light)] text-[var(--noggin-leaf-strong)]">
+          <div className="flex flex-col items-center gap-5 py-4 text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--noggin-sage)] text-[var(--noggin-forest)]">
               <Sparkles className="h-6 w-6" aria-hidden="true" />
             </div>
 
-            <div className="w-full max-w-[200px]">
+            <div className="w-full max-w-[280px] lg:max-w-[360px]">
               <NogStage
                 scene="room"
                 alt={`${nog.name} feeling refreshed`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
                 height={1254}
-                sizes="200px"
+                sizes="(min-width: 1024px) 360px, 280px"
                 priority
-                className="nog-bob"
+                className="nog-bob w-full"
               />
             </div>
 
@@ -439,7 +459,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                 <span>Review list</span>
               </button>
             </div>
-          </section>
+          </div>
         )}
       </div>
 

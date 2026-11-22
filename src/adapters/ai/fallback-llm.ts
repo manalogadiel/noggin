@@ -8,6 +8,7 @@ import {
   QuestionWriterOutputError,
   type LlmAdapterOptions,
   type LlmAdapters,
+  type LlmRole,
   type OpenAiCompatibleConfig,
   type OpenAiCompatibleEndpoint,
 } from "./openai-compatible-llm";
@@ -95,7 +96,21 @@ function readProviderConfigFromEnv(): OpenAiCompatibleConfig {
     };
   }
 
-  return { primary, fallback };
+  const graderModel = readNonEmptyEnv("LLM_GRADER_MODEL");
+  const questionWriterModel = readNonEmptyEnv("LLM_QUESTION_WRITER_MODEL");
+  const roleModels: Partial<Record<LlmRole, string>> = {};
+  if (graderModel) {
+    roleModels.grader = graderModel;
+  }
+  if (questionWriterModel) {
+    roleModels["question-writer"] = questionWriterModel;
+  }
+
+  return {
+    primary,
+    fallback,
+    ...(Object.keys(roleModels).length > 0 ? { roleModels } : {}),
+  };
 }
 
 export function createLlmAdapters(options: LlmAdapterOptions): LlmAdapters {

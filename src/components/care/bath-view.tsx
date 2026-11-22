@@ -4,10 +4,8 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
-  PencilLine,
   Play,
   RefreshCw,
-  Sparkles,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +24,7 @@ export interface BathItem {
   topicId: string;
   topicTitle: string;
   title: string;
+  fullTitle?: string;
   statusLabel: "Shaky" | "Confused" | "Missed check";
   nogAnswer: string;
   missedConcepts: string[];
@@ -209,8 +208,8 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-5">
-        <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+        <header className="flex items-center gap-3">
           <Link
             href={roomHref}
             aria-label={`Back to ${nog.name}'s room`}
@@ -219,30 +218,29 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
 
-          <span className="inline-flex items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
-            <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{nog.name} · Bath</span>
-          </span>
-        </div>
+          <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-tight text-[var(--noggin-leaf-title)]">
+            Bath
+          </h1>
+        </header>
 
         {!selected ? (
-          <section className="flex flex-col items-center gap-5 rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-7 text-center shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-10">
-            <div className="w-full max-w-[200px]">
+          <div className="flex flex-col items-center gap-5 py-6 text-center">
+            <div className="w-full max-w-[280px] lg:max-w-[360px]">
               <NogStage
                 scene="room"
                 alt={`${nog.name} squeaky clean`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
                 height={1254}
-                sizes="200px"
+                sizes="(min-width: 1024px) 360px, 280px"
                 priority
-                className="nog-bob"
+                className="nog-bob w-full"
               />
             </div>
 
-            <h1 className="noggin-display text-[clamp(1.75rem,4vw,2.5rem)] font-extrabold text-[var(--noggin-leaf-title)]">
+            <h2 className="noggin-display text-[clamp(1.75rem,4vw,2.5rem)] font-extrabold text-[var(--noggin-forest)]">
               Squeaky clean! Nothing to fix.
-            </h1>
+            </h2>
 
             <p className="max-w-[42ch] text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
               {nog.name} has no shaky thoughts or missed quiz concepts right
@@ -251,50 +249,58 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
 
             <Link
               href={roomHref}
-              className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-7 text-[1rem] font-bold"
+              className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-8 text-[1rem] font-bold"
             >
               Back to room
             </Link>
-          </section>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,260px)_minmax(0,1fr)] xl:items-start">
+          <div className="flex min-w-0 flex-col gap-6">
             <aside
               aria-label="Thoughts to fix"
-              className="rounded-[28px] bg-[var(--noggin-white)] p-4 shadow-[0_12px_28px_var(--noggin-shadow)]"
+              className="rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] p-4 shadow-[0_10px_24px_var(--noggin-shadow)]"
             >
-              <h2 className="noggin-display px-2 text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+              <h2 className="noggin-display px-1 text-[0.9375rem] font-extrabold text-[var(--noggin-forest)]">
                 Needs a bath ({items.length})
               </h2>
 
-              <ul className="mt-3 flex flex-col gap-2">
+              <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((item) => {
                   const isActive = item.id === selected.id;
+                  const fullLabel = item.fullTitle ?? item.title;
                   return (
                     <li key={item.id}>
                       <button
                         type="button"
+                        title={fullLabel}
                         aria-current={isActive ? "true" : undefined}
                         onClick={() => handleSelectItem(item)}
                         className={cn(
-                          "flex w-full min-h-12 cursor-pointer flex-col items-start gap-1 rounded-[18px] px-3.5 py-3 text-left transition-colors duration-150 motion-reduce:transition-none",
+                          "flex h-full w-full min-h-12 cursor-pointer flex-col items-start justify-between gap-1.5 rounded-[18px] px-4 py-3 text-left transition-colors duration-150 motion-reduce:transition-none",
                           isActive
-                            ? "bg-[var(--noggin-mint-light)] ring-2 ring-[var(--noggin-leaf-strong)]"
-                            : "bg-[var(--noggin-mint)] hover:bg-[var(--noggin-cream)]",
+                            ? "bg-[var(--noggin-sage)] ring-2 ring-[var(--noggin-leaf-strong)]"
+                            : "bg-[var(--noggin-white)] hover:bg-[var(--noggin-cream)]",
                         )}
                       >
-                        <span className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+                        <span className="noggin-display text-[0.9375rem] font-bold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
                           {item.title}
                         </span>
                         <span className="flex flex-wrap items-center gap-1.5 text-[0.75rem] font-semibold">
-                          <span className="text-[var(--noggin-ink)]">
+                          <span
+                            className={cn(
+                              isActive
+                                ? "text-[var(--noggin-forest)]"
+                                : "text-[var(--noggin-ink)]",
+                            )}
+                          >
                             {item.topicTitle}
                           </span>
                           <span
                             className={cn(
                               "rounded-[var(--noggin-radius-pill)] px-2 py-0.5",
                               item.statusLabel === "Confused"
-                                ? "bg-[var(--noggin-meter-low-soft)] text-[var(--noggin-danger)]"
-                                : "bg-[var(--noggin-meter-mid-soft)] text-[var(--noggin-meter-mid-ink)]",
+                                ? "bg-[var(--noggin-white)] text-[var(--noggin-danger)]"
+                                : "bg-[var(--noggin-cream)] text-[var(--noggin-meter-mid-ink)]",
                             )}
                           >
                             {item.statusLabel}
@@ -308,101 +314,116 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
             </aside>
 
             {mode === "detail" ? (
-              <section className="rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-8">
-                <header className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h1 className="noggin-display text-[clamp(1.85rem,4vw,2.6rem)] font-extrabold leading-[1.08] text-[var(--noggin-leaf-title)]">
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] lg:items-start">
+                <div className="flex flex-col items-center gap-4 lg:items-start">
+                  <div className="w-full min-w-0">
+                    <h2 className="noggin-display text-[clamp(1.85rem,4vw,2.75rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
                       Missed Concept
-                    </h1>
-                    <p className="mt-1 text-[0.9375rem] font-semibold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                      {selected.title} ·{" "}
-                      <span className="font-medium text-[var(--noggin-ink)]">
+                    </h2>
+                    <p
+                      title={selected.fullTitle ?? selected.title}
+                      className="mt-2 text-[1rem] font-bold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]"
+                    >
+                      {selected.title}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-[0.875rem] font-medium text-[var(--noggin-ink)]">
                         {selected.topicTitle}
                       </span>
-                    </p>
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] px-3 py-0.5 text-[0.75rem] font-bold",
+                          selected.statusLabel === "Confused"
+                            ? "bg-[var(--noggin-meter-low-soft)] text-[var(--noggin-danger)]"
+                            : "bg-[var(--noggin-meter-mid-soft)] text-[var(--noggin-meter-mid-ink)]",
+                        )}
+                      >
+                        {selected.statusLabel}
+                      </span>
+                    </div>
                   </div>
 
-                  <span
-                    className={cn(
-                      "inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] px-3.5 py-1 text-[0.8125rem] font-bold",
-                      selected.statusLabel === "Confused"
-                        ? "bg-[var(--noggin-meter-low-soft)] text-[var(--noggin-danger)]"
-                        : "bg-[var(--noggin-meter-mid-soft)] text-[var(--noggin-meter-mid-ink)]",
-                    )}
-                  >
-                    {selected.statusLabel}
-                  </span>
-                </header>
+                  <div className="w-full max-w-[300px] lg:max-w-[360px]">
+                    <NogStage
+                      scene="thinking"
+                      alt={`${nog.name} thinking about ${selected.fullTitle ?? selected.title}`}
+                      poster="/nog/thinking.png"
+                      width={1024}
+                      height={1024}
+                      sizes="(min-width: 1024px) 360px, 300px"
+                      priority
+                      className="nog-bob w-full"
+                    />
+                  </div>
+                </div>
 
-                <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <article className="flex flex-col gap-2.5 rounded-[24px] bg-[var(--noggin-white)] p-5 shadow-[0_10px_24px_var(--noggin-shadow)]">
-                    <h2 className="noggin-display text-[0.9375rem] font-bold uppercase tracking-wide text-[var(--noggin-leaf-strong)]">
-                      Nog Answer
-                    </h2>
-                    <p className="text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                      {selected.nogAnswer}
-                    </p>
-                  </article>
-
-                  <article className="flex flex-col gap-3 rounded-[24px] bg-[var(--noggin-white)] p-5 shadow-[0_10px_24px_var(--noggin-shadow)]">
-                    <h2 className="noggin-display text-[0.9375rem] font-bold uppercase tracking-wide text-[var(--noggin-meter-mid-ink)]">
-                      What it missed
-                    </h2>
-                    <p className="text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
-                      Explain these in your own words
-                    </p>
-
-                    {selected.missedConcepts.length > 0 ? (
-                      <ul className="flex flex-wrap gap-2">
-                        {selected.missedConcepts.map((concept) => (
-                          <li
-                            key={concept}
-                            className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-meter-mid-soft)] px-3.5 py-1.5 text-[0.8125rem] font-semibold text-[var(--noggin-meter-mid-ink)]"
-                          >
-                            {concept}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="rounded-[16px] bg-[var(--noggin-cream)] px-3.5 py-2.5 text-[0.875rem] text-[var(--noggin-forest)]">
-                        Give {nog.name} a clearer explanation of{" "}
-                        <span className="font-semibold">{selected.title}</span>.
+                <div className="flex min-w-0 flex-col gap-6">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <article className="flex min-h-[260px] flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_12px_28px_var(--noggin-shadow)]">
+                      <h3 className="noggin-display text-[1rem] font-extrabold uppercase tracking-wide text-[var(--noggin-forest)]">
+                        Nog Answer
+                      </h3>
+                      <p className="text-[1rem] leading-relaxed text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+                        {selected.nogAnswer}
                       </p>
+                    </article>
+
+                    <article className="flex min-h-[260px] flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_12px_28px_var(--noggin-shadow)]">
+                      <h3 className="noggin-display text-[1rem] font-extrabold uppercase tracking-wide text-[var(--noggin-forest)]">
+                        What it missed
+                      </h3>
+                      <p className="text-[0.875rem] font-medium leading-relaxed text-[var(--noggin-forest)]">
+                        Explain these in your own words
+                      </p>
+
+                      {selected.missedConcepts.length > 0 ? (
+                        <ul className="flex flex-wrap gap-2">
+                          {selected.missedConcepts.map((concept) => (
+                            <li
+                              key={concept}
+                              className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-3.5 py-1.5 text-[0.8125rem] font-semibold text-[var(--noggin-forest)] shadow-[0_2px_8px_var(--noggin-shadow)]"
+                            >
+                              {concept}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="rounded-[18px] bg-[var(--noggin-white)] px-4 py-3 text-[0.875rem] text-[var(--noggin-forest)]">
+                          Give {nog.name} a clearer explanation of{" "}
+                          <span className="font-semibold">{selected.title}</span>.
+                        </p>
+                      )}
+                    </article>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {selected.lessonId && (
+                      <button
+                        type="button"
+                        onClick={handleOpenRevise}
+                        className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center px-9 text-[1.0625rem] font-bold"
+                      >
+                        Start Revising →
+                      </button>
                     )}
-                  </article>
-                </div>
 
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  {selected.lessonId && (
-                    <button
-                      type="button"
-                      onClick={handleOpenRevise}
-                      className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-7 text-[1rem] font-bold"
+                    <Link
+                      href={feedHref}
+                      className="noggin-display inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
                     >
-                      <PencilLine
-                        className="h-4 w-4 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span>Revise</span>
-                    </button>
-                  )}
-
-                  <Link
-                    href={feedHref}
-                    className="noggin-display inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
-                  >
-                    <Wrench className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>Fix this thought</span>
-                  </Link>
+                      <Wrench className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>Fix this thought</span>
+                    </Link>
+                  </div>
                 </div>
-              </section>
+              </div>
             ) : (
-              <section className="rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-8">
+              <div className="flex min-w-0 flex-col gap-5">
                 <header className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h1 className="noggin-display text-[clamp(1.85rem,4vw,2.6rem)] font-extrabold leading-[1.08] text-[var(--noggin-leaf-title)]">
+                    <h2 className="noggin-display text-[clamp(1.85rem,4vw,2.6rem)] font-extrabold leading-[1.08] text-[var(--noggin-leaf-title)]">
                       Revise
-                    </h1>
+                    </h2>
                     <p className="mt-1 text-[0.9375rem] text-[var(--noggin-ink)]">
                       Update your lesson for{" "}
                       <span className="font-semibold text-[var(--noggin-forest)]">
@@ -421,7 +442,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                   </button>
                 </header>
 
-                <div className="mt-5 flex flex-col gap-3 rounded-[24px] bg-[var(--noggin-white)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]">
+                <div className="flex flex-col gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label
                       htmlFor="bath-revise-editor"
@@ -433,8 +454,8 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                       className={cn(
                         "rounded-[var(--noggin-radius-pill)] px-3 py-1 text-[0.8125rem] font-semibold",
                         isOverload
-                          ? "bg-[var(--noggin-danger-soft)] text-[var(--noggin-danger)]"
-                          : "bg-[var(--noggin-mint)] text-[var(--noggin-ink)]",
+                          ? "bg-[var(--noggin-danger)] text-[var(--noggin-white)]"
+                          : "bg-[var(--noggin-white)] text-[var(--noggin-forest)]",
                       )}
                     >
                       {wordCount} / {DEFAULT_LESSON_WORD_LIMIT} words
@@ -447,14 +468,14 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                     value={draft}
                     onChange={(event) => handleDraftChange(event.target.value)}
                     placeholder={`Explain ${selected.title} in your own words…`}
-                    className="w-full resize-y rounded-[18px] border border-[var(--noggin-panel)] bg-[var(--noggin-cream)] p-4 text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--noggin-leaf-strong)]"
+                    className="w-full resize-y rounded-[20px] bg-[var(--noggin-white)] p-4 text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_8px_var(--noggin-shadow)] focus:outline-none focus:ring-2 focus:ring-[var(--noggin-leaf-strong)]"
                   />
 
                   {saveFeedback?.kind === "ok" && (
                     <div
                       role="status"
                       aria-live="polite"
-                      className="flex items-start gap-2.5 rounded-[18px] bg-[var(--noggin-mint-light)] p-4 text-[var(--noggin-forest)]"
+                      className="flex items-start gap-2.5 rounded-[18px] bg-[var(--noggin-white)] p-4 text-[var(--noggin-forest)]"
                     >
                       <CheckCircle2
                         className="mt-0.5 h-5 w-5 shrink-0 text-[var(--noggin-leaf-strong)]"
@@ -474,7 +495,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                   {saveFeedback?.kind === "overload" && (
                     <p
                       role="alert"
-                      className="flex items-center gap-2 rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
+                      className="flex items-center gap-2 rounded-[18px] border border-[var(--noggin-danger)] bg-[var(--noggin-white)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
                     >
                       <AlertCircle
                         className="h-4 w-4 shrink-0"
@@ -490,7 +511,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                   {saveFeedback?.kind === "empty" && (
                     <p
                       role="alert"
-                      className="rounded-[18px] bg-[var(--noggin-meter-mid-soft)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-meter-mid-ink)]"
+                      className="rounded-[18px] bg-[var(--noggin-cream)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-meter-mid-ink)]"
                     >
                       Write a short explanation before saving.
                     </p>
@@ -499,7 +520,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                   {saveFeedback?.kind === "tired_for_today" && (
                     <p
                       role="alert"
-                      className="rounded-[18px] bg-[var(--noggin-meter-mid-soft)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-meter-mid-ink)]"
+                      className="rounded-[18px] bg-[var(--noggin-cream)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-meter-mid-ink)]"
                     >
                       {nog.name} is tired for today — try again tomorrow.
                     </p>
@@ -508,7 +529,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                   {saveFeedback?.kind === "brain_fog" && (
                     <div
                       role="alert"
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[var(--noggin-danger)]"
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[var(--noggin-danger)] bg-[var(--noggin-white)] px-4 py-3 text-[var(--noggin-danger)]"
                     >
                       <span className="text-[0.875rem] font-semibold">
                         Brain fog — your revision was saved, try again in a bit.
@@ -516,7 +537,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                       <button
                         type="button"
                         onClick={() => void handleSaveRevision()}
-                        className="noggin-display inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)]"
+                        className="noggin-display inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)]"
                       >
                         <RefreshCw
                           className="h-4 w-4 shrink-0"
@@ -530,7 +551,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                   {saveFeedback?.kind === "error" && (
                     <p
                       role="alert"
-                      className="rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
+                      className="rounded-[18px] border border-[var(--noggin-danger)] bg-[var(--noggin-white)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
                     >
                       {saveFeedback.message}
                     </p>
@@ -548,7 +569,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
 
                     <Link
                       href={rerunHref}
-                      className="noggin-display inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-panel)] motion-reduce:transition-none"
+                      className="noggin-display inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] motion-reduce:transition-none"
                     >
                       <Play
                         className="h-4 w-4 shrink-0 fill-current"
@@ -558,7 +579,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                     </Link>
                   </div>
                 </div>
-              </section>
+              </div>
             )}
           </div>
         )}

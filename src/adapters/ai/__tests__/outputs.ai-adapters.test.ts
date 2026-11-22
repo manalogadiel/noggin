@@ -142,8 +142,8 @@ describe("prompt and request contracts", () => {
     const requests = await Promise.all([requestAt(0), requestAt(1), requestAt(2)]);
     expect(requests.map(({ body }) => [body.temperature, body.max_tokens, body.response_format])).toEqual([
       [0.6, 600, { type: "json_object" }],
-      [0.4, 900, { type: "json_object" }],
-      [0, 900, { type: "json_object" }],
+      [0.4, 1600, { type: "json_object" }],
+      [0, 2000, { type: "json_object" }],
     ]);
     for (const { body } of requests) expect(body.seed ?? 7).toBe(7);
   });

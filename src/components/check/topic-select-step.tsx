@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BookOpen, Clock, Play, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Clock, Play, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import type { NogRecord, TopicSummary } from "@/core/application/ports";
@@ -46,108 +46,146 @@ export function TopicSelectStep({
   const canStart = Boolean(selectedTopicId) && hasReadyTopic && !isThinking;
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <Link
-          href={roomHref}
-          aria-label={`Back to ${nog.name}'s room`}
-          className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-        </Link>
+    <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+      <header className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <Link
+            href={roomHref}
+            aria-label={`Back to ${nog.name}'s room`}
+            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+          </Link>
 
-        <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
-          {nog.name}
-        </span>
-      </div>
-
-      <section className="rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-8">
-        <header className="flex flex-col gap-1.5">
           <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
             Practice Quiz
           </h1>
-          <p className="text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
-            Test what your Nog has learned.
-          </p>
-        </header>
+        </div>
 
-        {isThinking ? (
-          <div className="mt-6 flex flex-col items-center gap-5 rounded-[28px] bg-[var(--noggin-white)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow)] sm:p-8">
+        <p className="max-w-[58ch] text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
+          Test what your Nog has learned. {nog.name} answers each question from
+          its own notebook while you watch.
+        </p>
+      </header>
+
+      {isThinking ? (
+        <div className="mt-2 flex flex-col items-center gap-6 py-4 text-center">
+          <div
+            role="status"
+            aria-live="polite"
+            className="relative w-full max-w-[440px] rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] px-6 py-4 text-[1rem] font-semibold text-[var(--noggin-forest)] shadow-[0_10px_24px_var(--noggin-shadow)]"
+          >
+            <p className="noggin-display font-bold">Hmm, let me think…</p>
             <div
-              role="status"
-              aria-live="polite"
-              className="w-full max-w-[420px] rounded-[24px] bg-[var(--noggin-mint-light)] px-5 py-4 text-[1rem] font-semibold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)]"
+              aria-hidden="true"
+              className="mx-auto mt-3 flex max-w-[260px] flex-col gap-2"
             >
-              <p className="noggin-display font-bold">Hmm, let me think…</p>
-              <div
-                aria-hidden="true"
-                className="mx-auto mt-3 flex max-w-[260px] flex-col gap-2"
-              >
-                <div className="h-2.5 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
-                <div className="mx-auto h-2.5 w-3/4 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
-              </div>
-            </div>
-
-            <div className="w-full max-w-[220px]">
-              <NogStage
-                scene="room"
-                alt={`${nog.name} thinking through the quiz questions`}
-                poster="/nog/blob-closeup.png"
-                width={1254}
-                height={1254}
-                sizes="220px"
-                priority
-                className="nog-bob"
-              />
+              <div className="h-2.5 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
+              <div className="mx-auto h-2.5 w-3/4 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
             </div>
           </div>
-        ) : (
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(240px,320px)] lg:items-start">
-            <div className="flex min-w-0 flex-col gap-5">
-              {topics.length === 0 ? (
-                <div className="flex flex-col items-start gap-4 rounded-[28px] bg-[var(--noggin-white)] p-6 shadow-[0_10px_26px_var(--noggin-shadow)]">
-                  <p className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]">
-                    No topics to quiz yet
-                  </p>
-                  <p className="text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
-                    Teach {nog.name} a lesson first, then come back to test what stuck.
-                  </p>
-                  <Link
-                    href={feedBaseHref}
-                    className="noggin-primary-pill noggin-display inline-flex min-h-11 items-center justify-center gap-2 px-6 text-[0.9375rem] font-bold"
-                  >
-                    <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>Teach a topic</span>
-                  </Link>
-                </div>
-              ) : (
-                <fieldset className="flex flex-col gap-3 border-0 p-0">
-                  <legend className="noggin-display mb-1 text-[1rem] font-bold text-[var(--noggin-forest)]">
-                    Choose a topic
-                  </legend>
 
-                  <div className="flex flex-col gap-3">
-                    {topics.map((topic) => {
-                      const isPending = topic.status !== "ready";
-                      const isSelected = !isPending && selectedTopicId === topic.id;
-                      const questionLabel =
-                        topic.questionCount === 1
-                          ? "1 question"
-                          : `${topic.questionCount} questions`;
+          <div className="w-full max-w-[300px] lg:max-w-[380px]">
+            <NogStage
+              scene="room"
+              alt={`${nog.name} thinking through the quiz questions`}
+              poster="/nog/blob-closeup.png"
+              width={1254}
+              height={1254}
+              sizes="(min-width: 1024px) 380px, 300px"
+              priority
+              className="nog-bob w-full"
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(360px,0.95fr)_2px_minmax(0,1.05fr)] lg:items-start lg:gap-10">
+          <div className="flex flex-col items-center gap-6">
+            <div className="w-full max-w-[300px] lg:max-w-[380px]">
+              <NogStage
+                scene={feedback?.kind === "sleepy" ? "dizzy" : "room"}
+                alt={`${nog.name} ready for a practice quiz`}
+                poster={
+                  feedback?.kind === "sleepy"
+                    ? "/nog/hatchling-dizzy.png"
+                    : "/nog/blob-closeup.png"
+                }
+                width={feedback?.kind === "sleepy" ? 1024 : 1254}
+                height={feedback?.kind === "sleepy" ? 1024 : 1254}
+                sizes="(min-width: 1024px) 380px, 300px"
+                priority
+                className="nog-bob w-full"
+              />
+            </div>
 
-                      return (
-                        <label
-                          key={topic.id}
-                          className={cn(
-                            "flex min-h-14 items-center justify-between gap-3 rounded-[22px] bg-[var(--noggin-white)] px-4 py-3.5 shadow-[0_6px_16px_var(--noggin-shadow)] transition-all duration-150 motion-reduce:transition-none",
-                            isPending
-                              ? "cursor-not-allowed opacity-70"
-                              : "cursor-pointer hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
-                            isSelected &&
-                              "bg-[var(--noggin-mint-light)] ring-2 ring-[var(--noggin-leaf-strong)]",
-                          )}
-                        >
-                          <span className="flex min-w-0 items-center gap-3">
+            {topics.length > 0 && (
+              <button
+                type="button"
+                disabled={!canStart}
+                onClick={onStart}
+                className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center gap-2.5 px-10 text-[1.125rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                <Play className="h-4 w-4 shrink-0 fill-current" aria-hidden="true" />
+                <span>Start Quiz</span>
+              </button>
+            )}
+          </div>
+
+          <div
+            aria-hidden="true"
+            className="hidden h-full min-h-[340px] w-[2px] rounded-full bg-[var(--noggin-leaf)] lg:block"
+          />
+
+          <div className="flex min-w-0 flex-col gap-5">
+            <h2 className="noggin-display text-[1.5rem] font-extrabold text-[var(--noggin-forest)]">
+              Topics
+            </h2>
+
+            {topics.length === 0 ? (
+              <div className="flex flex-col items-start gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_10px_26px_var(--noggin-shadow)]">
+                <p className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]">
+                  No topics to quiz yet
+                </p>
+                <p className="text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)]">
+                  Teach {nog.name} a lesson first, then come back to test what stuck.
+                </p>
+                <Link
+                  href={feedBaseHref}
+                  className="noggin-primary-pill noggin-display inline-flex min-h-11 items-center justify-center gap-2 px-6 text-[0.9375rem] font-bold"
+                >
+                  <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Teach a topic</span>
+                </Link>
+              </div>
+            ) : (
+              <fieldset className="flex flex-col gap-3 border-0 p-0">
+                <legend className="sr-only">Topics</legend>
+
+                <div className="flex flex-col gap-3">
+                  {topics.map((topic) => {
+                    const isPending = topic.status !== "ready";
+                    const isSelected = !isPending && selectedTopicId === topic.id;
+                    const questionLabel =
+                      topic.questionCount === 1
+                        ? "1 question"
+                        : `${topic.questionCount} questions`;
+
+                    return (
+                      <label
+                        key={topic.id}
+                        className={cn(
+                          "flex min-h-14 items-center justify-between gap-3 rounded-[var(--noggin-radius-pill)] border px-5 py-3 shadow-[0_6px_16px_var(--noggin-shadow)] transition-all duration-150 motion-reduce:transition-none",
+                          isPending
+                            ? "cursor-not-allowed border-[var(--noggin-sand)] bg-[var(--noggin-white)] opacity-70"
+                            : "cursor-pointer hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+                          isSelected
+                            ? "border-[var(--noggin-leaf-strong)] bg-[var(--noggin-sage)] ring-2 ring-[var(--noggin-leaf-strong)]"
+                            : !isPending &&
+                                "border-[var(--noggin-sage-strong)] bg-[var(--noggin-white)]",
+                        )}
+                      >
+                        <span className="flex min-w-0 items-center gap-3.5">
+                          <span className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center">
                             <input
                               type="radio"
                               name="quick-check-topic"
@@ -155,87 +193,56 @@ export function TopicSelectStep({
                               checked={isSelected}
                               disabled={isPending}
                               onChange={() => onSelectTopic(topic.id)}
-                              className="h-5 w-5 shrink-0 accent-[var(--noggin-leaf-strong)]"
+                              className="peer h-6 w-6 cursor-pointer appearance-none rounded-[8px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] transition-colors checked:bg-[var(--noggin-leaf-strong)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf)] disabled:cursor-not-allowed"
                             />
-                            <span className="noggin-display text-[1rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                              {topic.title}
-                            </span>
+                            <Check
+                              aria-hidden="true"
+                              className="pointer-events-none absolute h-3.5 w-3.5 text-[var(--noggin-white)] opacity-0 transition-opacity peer-checked:opacity-100"
+                              strokeWidth={3}
+                            />
                           </span>
+                          <span className="noggin-display text-[1rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+                            {topic.title}
+                          </span>
+                        </span>
 
-                          {isPending ? (
-                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-meter-mid-soft)] px-3 py-1 text-[0.75rem] font-semibold text-[var(--noggin-meter-mid-ink)]">
-                              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                              <span>Questions being written</span>
+                        {isPending ? (
+                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-meter-mid-soft)] px-3 py-1 text-[0.75rem] font-semibold text-[var(--noggin-meter-mid-ink)]">
+                            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span>Questions being written</span>
+                          </span>
+                        ) : (
+                          topic.questionCount > 0 && (
+                            <span
+                              className={cn(
+                                "inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] px-3 py-1 text-[0.75rem] font-semibold",
+                                isSelected
+                                  ? "bg-[var(--noggin-white)] text-[var(--noggin-forest)]"
+                                  : "bg-[var(--noggin-mint)] text-[var(--noggin-ink)]",
+                              )}
+                            >
+                              {questionLabel}
                             </span>
-                          ) : (
-                            topic.questionCount > 0 && (
-                              <span className="inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-3 py-1 text-[0.75rem] font-semibold text-[var(--noggin-ink)]">
-                                {questionLabel}
-                              </span>
-                            )
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-              )}
-
-              {feedback && (
-                <FeedbackBanner
-                  nogName={nog.name}
-                  feedback={feedback}
-                  feedBaseHref={feedBaseHref}
-                  onRetry={onRetry}
-                />
-              )}
-
-              {topics.length > 0 && (
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <button
-                    type="button"
-                    disabled={!canStart}
-                    onClick={onStart}
-                    className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-8 text-[1.0625rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
-                  >
-                    <Play className="h-4 w-4 shrink-0 fill-current" aria-hidden="true" />
-                    <span>Start</span>
-                  </button>
+                          )
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
+              </fieldset>
+            )}
 
-            <aside className="flex flex-col items-center gap-4 rounded-[28px] bg-[var(--noggin-white)] p-5 text-center shadow-[0_12px_28px_var(--noggin-shadow)]">
-              <div className="w-full rounded-[20px] bg-[var(--noggin-mint)] px-4 py-3 text-[0.875rem] font-medium leading-relaxed text-[var(--noggin-forest)]">
-                <span className="inline-flex items-center gap-1.5 font-semibold">
-                  <Sparkles className="h-4 w-4 shrink-0 text-[var(--noggin-leaf-strong)]" aria-hidden="true" />
-                  <span>Game-show check</span>
-                </span>
-                <p className="mt-1 text-[var(--noggin-ink)]">
-                  {nog.name} answers each question from its own notebook while you watch.
-                </p>
-              </div>
-
-              <div className="w-full max-w-[200px]">
-                <NogStage
-                  scene={feedback?.kind === "sleepy" ? "dizzy" : "room"}
-                  alt={`${nog.name} ready for a practice quiz`}
-                  poster={
-                    feedback?.kind === "sleepy"
-                      ? "/nog/hatchling-dizzy.png"
-                      : "/nog/blob-closeup.png"
-                  }
-                  width={feedback?.kind === "sleepy" ? 1024 : 1254}
-                  height={feedback?.kind === "sleepy" ? 1024 : 1254}
-                  sizes="200px"
-                  priority
-                  className="nog-bob"
-                />
-              </div>
-            </aside>
+            {feedback && (
+              <FeedbackBanner
+                nogName={nog.name}
+                feedback={feedback}
+                feedBaseHref={feedBaseHref}
+                onRetry={onRetry}
+              />
+            )}
           </div>
-        )}
-      </section>
+        </div>
+      )}
     </div>
   );
 }

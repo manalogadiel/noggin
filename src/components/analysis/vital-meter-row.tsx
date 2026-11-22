@@ -58,7 +58,7 @@ export function VitalMeterRow({ meter }: VitalMeterRowProps) {
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col gap-3 rounded-[24px] bg-[var(--noggin-white)] p-4 shadow-[0_6px_18px_var(--noggin-shadow)] sm:p-5"
+      className="relative flex flex-col gap-3 px-5 py-4 sm:px-7 sm:py-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">

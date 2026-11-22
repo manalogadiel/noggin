@@ -1,5 +1,10 @@
 import { countWords } from "../../domain/lesson";
-import { isConceptCovered, isQuestionCorrect } from "../../domain/quiz";
+import {
+  isConceptCovered,
+  isQuestionCorrect,
+  pickCheckQuestions,
+  QUICK_CHECK_SIZE,
+} from "../../domain/quiz";
 import {
   cardFreshness,
   nextReviewIntervalDays,
@@ -10,6 +15,7 @@ import type {
   AttemptRepository,
   CardCheckUpdate,
   CheckAttemptDraft,
+  CheckAttemptRecord,
   Clock,
   CurrentUser,
   LessonPage,
@@ -97,14 +103,23 @@ export type RunQuickCheckResult =
 
 export function computeNotebookFingerprint(
   pages: ReadonlyArray<Pick<LessonPage, "id" | "updatedAt">>,
+  selectedQuestionIds?: ReadonlyArray<string>,
 ): string {
-  return pages
+  const pagesPart = pages
     .map(
       (page) =>
         `${page.id.length}:${page.id}@${page.updatedAt.length}:${page.updatedAt}`,
     )
     .sort()
     .join("|");
+  if (!selectedQuestionIds || selectedQuestionIds.length === 0) {
+    return pagesPart;
+  }
+  const selectionPart = [...selectedQuestionIds]
+    .sort()
+    .map((id) => `${id.length}:${id}`)
+    .join(",");
+  return `${pagesPart}#q:${selectionPart}`;
 }
 
 export function selectContextPages(
@@ -280,31 +295,44 @@ export async function runQuickCheck(
       return { status: "not_taught" };
     }
 
-    const contextPages = selectContextPages(allPages);
-    const fingerprint = computeNotebookFingerprint(allPages);
+    const questions = await deps.questions.listByTopic(input.topicId);
+    if (questions.length === 0) {
+      return { status: "no_questions" };
+    }
 
+    const contextPages = selectContextPages(allPages);
     const previousAttempts = await deps.attempts.findLatest(
       input.nogId,
       input.topicId,
     );
+    const selectedQuestions = pickCheckQuestions(
+      questions,
+      previousAttempts,
+      QUICK_CHECK_SIZE,
+    );
+    const fingerprint = computeNotebookFingerprint(
+      allPages,
+      selectedQuestions.map((question) => question.id),
+    );
+
+    const previousByQuestion = new Map(
+      previousAttempts.map((attempt) => [attempt.questionId, attempt]),
+    );
+    const selectedPrevious = selectedQuestions
+      .map((question) => previousByQuestion.get(question.id))
+      .filter(
+        (attempt): attempt is CheckAttemptRecord => attempt !== undefined,
+      );
+
     if (
-      previousAttempts.length > 0 &&
-      previousAttempts.every(
+      selectedPrevious.length === selectedQuestions.length &&
+      selectedPrevious.every(
         (attempt) => attempt.notebookFingerprint === fingerprint,
       )
     ) {
-      const topicQuestions = await deps.questions.listByTopic(input.topicId);
       const promptById = new Map(
-        topicQuestions.map((question) => [question.id, question.prompt]),
+        questions.map((question) => [question.id, question.prompt]),
       );
-      const orderById = new Map(
-        topicQuestions.map((question, index) => [question.id, index]),
-      );
-      const orderedPrevious = [...previousAttempts].sort((a, b) => {
-        const orderA = orderById.get(a.questionId) ?? Number.MAX_SAFE_INTEGER;
-        const orderB = orderById.get(b.questionId) ?? Number.MAX_SAFE_INTEGER;
-        return orderA - orderB;
-      });
       const currentNogAttempts = deps.attempts.listByNog
         ? await deps.attempts.listByNog(input.nogId)
         : previousAttempts;
@@ -317,12 +345,12 @@ export async function runQuickCheck(
       const currentMeter = trainingMeter(mappedCurrent);
       const currentStage = computeNogStageFromAttempts(
         mappedCurrent,
-        new Map([[input.topicId, topicQuestions.length]]),
+        new Map([[input.topicId, questions.length]]),
       );
       return {
         status: "ok",
         reused: true,
-        attempts: orderedPrevious.map((attempt) => ({
+        attempts: selectedPrevious.map((attempt) => ({
           ...attempt,
           prompt: promptById.get(attempt.questionId) ?? "",
         })),
@@ -330,11 +358,6 @@ export async function runQuickCheck(
         meterAfter: currentMeter,
         stage: currentStage,
       };
-    }
-
-    const questions = await deps.questions.listByTopic(input.topicId);
-    if (questions.length === 0) {
-      return { status: "no_questions" };
     }
 
     const now = deps.clock.now();
@@ -360,7 +383,7 @@ export async function runQuickCheck(
       return { status: "tired_for_today" };
     }
 
-    const answerPrompts = questions.map((question) => ({
+    const answerPrompts = selectedQuestions.map((question) => ({
       id: question.id,
       prompt: question.prompt,
     }));
@@ -388,7 +411,7 @@ export async function runQuickCheck(
       gradeResult = await deps.grader.grade({
         topicId: input.topicId,
         pages: contextPages,
-        questions,
+        questions: selectedQuestions,
         answers: answerResult.answers,
       });
     } catch {
@@ -402,37 +425,39 @@ export async function runQuickCheck(
       gradeResult.grades.map((item) => [item.questionId, item.concepts]),
     );
 
-    const attemptDrafts: CheckAttemptDraft[] = questions.map((question) => {
-      const nogAnswer = answersByQuestion.get(question.id) ?? "";
-      const gradedConcepts = gradesByQuestion.get(question.id) ?? [];
-      const conceptsByName = new Map(
-        gradedConcepts.map((entry) => [entry.concept, entry]),
-      );
-      const normalizedConcepts = question.keyConcepts.map((concept) => {
-        const match = conceptsByName.get(concept);
-        return match
-          ? {
-              concept,
-              inAnswer: Boolean(match.inAnswer),
-              inPages: Boolean(match.inPages),
-              consistentWithReference: Boolean(match.consistentWithReference),
-            }
-          : {
-              concept,
-              inAnswer: false,
-              inPages: false,
-              consistentWithReference: false,
-            };
-      });
+    const attemptDrafts: CheckAttemptDraft[] = selectedQuestions.map(
+      (question) => {
+        const nogAnswer = answersByQuestion.get(question.id) ?? "";
+        const gradedConcepts = gradesByQuestion.get(question.id) ?? [];
+        const conceptsByName = new Map(
+          gradedConcepts.map((entry) => [entry.concept, entry]),
+        );
+        const normalizedConcepts = question.keyConcepts.map((concept) => {
+          const match = conceptsByName.get(concept);
+          return match
+            ? {
+                concept,
+                inAnswer: Boolean(match.inAnswer),
+                inPages: Boolean(match.inPages),
+                consistentWithReference: Boolean(match.consistentWithReference),
+              }
+            : {
+                concept,
+                inAnswer: false,
+                inPages: false,
+                consistentWithReference: false,
+              };
+        });
 
-      return {
-        questionId: question.id,
-        nogAnswer,
-        concepts: normalizedConcepts,
-        correct: isQuestionCorrect(normalizedConcepts),
-        notebookFingerprint: fingerprint,
-      };
-    });
+        return {
+          questionId: question.id,
+          nogAnswer,
+          concepts: normalizedConcepts,
+          correct: isQuestionCorrect(normalizedConcepts),
+          notebookFingerprint: fingerprint,
+        };
+      },
+    );
 
     const cardUpdates = buildCardCheckUpdates(activeCards, attemptDrafts, now);
 

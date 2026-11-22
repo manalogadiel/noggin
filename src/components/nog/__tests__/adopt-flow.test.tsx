@@ -187,6 +187,8 @@ describe("Nog collection cards", () => {
     expect(coralLink.querySelector("img")?.getAttribute("src")).toMatch(
       /blob-closeup\.png/,
     );
+    expect(coralLink).toHaveTextContent(/Lvl\.\s*1/);
+    expect(coralLink).not.toHaveTextContent("Hatchling");
 
     const packetLink = screen.getByRole("link", {
       name: "Packet, Networking, Sprout",
@@ -195,6 +197,8 @@ describe("Nog collection cards", () => {
     expect(packetLink.querySelector("img")?.getAttribute("src")).toMatch(
       /thinking\.png/,
     );
+    expect(packetLink).toHaveTextContent(/Lvl\.\s*2/);
+    expect(packetLink).not.toHaveTextContent("Sprout");
 
     expect(screen.getByRole("link", { name: "Hatch New" })).toHaveAttribute(
       "href",

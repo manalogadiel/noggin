@@ -56,6 +56,7 @@ export interface OpenAiCompatibleEndpoint {
 export interface OpenAiCompatibleConfig {
   primary: OpenAiCompatibleEndpoint;
   fallback?: OpenAiCompatibleEndpoint;
+  roleModels?: Partial<Record<LlmRole, string>>;
 }
 
 export interface LlmUsageEvent {
@@ -213,6 +214,23 @@ function isRetryableStatus(status: number): boolean {
   return status === 429 || (status >= 500 && status <= 599);
 }
 
+function isReasoningModel(model: string): boolean {
+  return /(^|\/)gpt-oss/i.test(model);
+}
+
+// Groq returns 400 json_validate_failed when its own JSON-mode generation fails; another model usually succeeds.
+async function isProviderJsonRejection(response: Response): Promise<boolean> {
+  if (response.status !== 400) {
+    return false;
+  }
+  try {
+    const body = (await response.json()) as { error?: { code?: unknown } };
+    return body?.error?.code === "json_validate_failed";
+  } catch {
+    return false;
+  }
+}
+
 function isTimeoutError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === "TimeoutError") {
     return true;
@@ -275,6 +293,8 @@ export function createOpenAiCompatibleAdapters(
       temperature: params.temperature,
       max_tokens: params.maxTokens,
       seed: DETERMINISTIC_SEED,
+      // Reasoning models spend most of the token budget thinking; low effort keeps them fast and within free limits.
+      ...(isReasoningModel(endpoint.model) ? { reasoning_effort: "low" } : {}),
     });
 
     let response: Response;
@@ -315,7 +335,9 @@ export function createOpenAiCompatibleAdapters(
       });
       return {
         ok: false,
-        retryable: isRetryableStatus(response.status),
+        retryable:
+          isRetryableStatus(response.status) ||
+          (await isProviderJsonRejection(response)),
         retryAfterMs,
       };
     }
@@ -354,11 +376,32 @@ export function createOpenAiCompatibleAdapters(
     };
   }
 
+  function resolveRoleEndpoints(role: LlmRole): {
+    primary: OpenAiCompatibleEndpoint;
+    fallback?: OpenAiCompatibleEndpoint;
+  } {
+    const override = config.roleModels?.[role]?.trim();
+    if (override && override.length > 0) {
+      return {
+        primary: {
+          ...config.primary,
+          model: override,
+        },
+        fallback: config.primary,
+      };
+    }
+    return {
+      primary: config.primary,
+      fallback: config.fallback,
+    };
+  }
+
   async function callWithFallback(
     messages: ChatMessage[],
     params: RoleRequestParams,
   ): Promise<TransportSuccess> {
-    const first = await postCompletion(config.primary, messages, params);
+    const { primary, fallback } = resolveRoleEndpoints(params.role);
+    const first = await postCompletion(primary, messages, params);
     if (first.ok) {
       return first;
     }
@@ -375,7 +418,11 @@ export function createOpenAiCompatibleAdapters(
       await sleep(first.retryAfterMs);
     }
 
-    const nextEndpoint = config.fallback ?? (first.retryAfterMs !== null && first.retryAfterMs <= MAX_RETRY_AFTER_MS ? config.primary : undefined);
+    const nextEndpoint =
+      fallback ??
+      (first.retryAfterMs !== null && first.retryAfterMs <= MAX_RETRY_AFTER_MS
+        ? primary
+        : undefined);
     if (!nextEndpoint) {
       throw new NogSleepyError();
     }
@@ -480,7 +527,7 @@ export function createOpenAiCompatibleAdapters(
           role: "answerer",
           promptVersion: ANSWERER_PROMPT_VERSION,
           temperature: 0.4,
-          maxTokens: 900,
+          maxTokens: 1600,
         },
         (data, model) => parseBrainAnswers(data, input.questions, model),
       );
@@ -506,7 +553,7 @@ export function createOpenAiCompatibleAdapters(
           role: "grader",
           promptVersion: GRADER_PROMPT_VERSION,
           temperature: 0,
-          maxTokens: 900,
+          maxTokens: 2000,
         },
         (data) => parseGraderResult(data, input.questions),
       );

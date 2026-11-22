@@ -99,6 +99,7 @@ describe("Nog analysis", () => {
     const { container } = await renderAnalysis();
 
     expect(getNogAnalysis).toHaveBeenCalledExactlyOnceWith({ nogId: analysis.nog.id });
+    expect(screen.getByRole("heading", { level: 1, name: "Nog Analysis" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Packet" })).toBeVisible();
     expect(screen.getByText(/Hatchling\s*·\s*Level\s*1/)).toBeVisible();
     expect(container.querySelector('[data-nog-scene="room"]')).toBeVisible();

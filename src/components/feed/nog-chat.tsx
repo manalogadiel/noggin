@@ -53,17 +53,17 @@ export function NogChat({
   return (
     <section
       aria-label={`${nogName} response`}
-      className="flex min-w-0 flex-col gap-4 rounded-[28px] bg-[var(--noggin-white)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-6"
+      className="flex min-w-0 flex-col items-center gap-4"
     >
-      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center lg:flex-col">
+      <div className="flex w-full flex-col items-center gap-4">
         <div
           role="status"
           aria-live="polite"
           className={cn(
-            "w-full rounded-[24px] px-4 py-3.5 text-[0.9375rem] leading-relaxed font-medium shadow-[0_6px_16px_var(--noggin-shadow)]",
+            "relative z-10 w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
             isDizzy
-              ? "bg-[var(--noggin-meter-low-soft)] text-[var(--noggin-danger)]"
-              : "bg-[var(--noggin-mint-light)] text-[var(--noggin-forest)]",
+              ? "border-2 border-[var(--noggin-danger)] bg-[var(--noggin-cream)] text-[var(--noggin-danger)]"
+              : "border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] text-[var(--noggin-forest)]",
           )}
         >
           <p className="[overflow-wrap:anywhere]">{bubbleText}</p>
@@ -79,9 +79,19 @@ export function NogChat({
               <span>Retry</span>
             </button>
           )}
+
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45",
+              isDizzy
+                ? "border-r-2 border-b-2 border-[var(--noggin-danger)] bg-[var(--noggin-cream)]"
+                : "border-r border-b border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
+            )}
+          />
         </div>
 
-        <div className="w-full max-w-[200px] shrink-0">
+        <div className="-mt-[22%] w-full max-w-[300px] shrink-0 lg:max-w-[380px]">
           {isDizzy ? (
             <NogStage
               scene="dizzy"
@@ -89,8 +99,8 @@ export function NogChat({
               poster="/nog/hatchling-dizzy.png"
               width={1024}
               height={1024}
-              sizes="200px"
-              className="nog-bob"
+              sizes="(min-width: 1024px) 380px, 300px"
+              className="nog-bob w-full"
             />
           ) : (
             <NogStage
@@ -99,8 +109,8 @@ export function NogChat({
               poster="/nog/blob-closeup.png"
               width={1254}
               height={1254}
-              sizes="200px"
-              className="nog-bob"
+              sizes="(min-width: 1024px) 380px, 300px"
+              className="nog-bob w-full"
             />
           )}
         </div>
@@ -109,14 +119,14 @@ export function NogChat({
       {alertMessage && (
         <p
           role="alert"
-          className="rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.875rem] font-medium text-[var(--noggin-danger)]"
+          className="w-full rounded-[18px] border border-[var(--noggin-danger)] bg-[var(--noggin-cream)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
         >
           {alertMessage}
         </p>
       )}
 
       {followUps.length > 0 && (
-        <div className="flex flex-col gap-3 border-t border-[var(--noggin-mint-light)] pt-4">
+        <div className="flex w-full flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]">
           <h2 className="noggin-display text-[1rem] font-extrabold text-[var(--noggin-forest)]">
             {nogName}&rsquo;s questions
           </h2>
@@ -132,7 +142,7 @@ export function NogChat({
               return (
                 <li
                   key={item.id}
-                  className="flex flex-col gap-2.5 rounded-[22px] bg-[var(--noggin-mint)] p-4"
+                  className="flex flex-col gap-2.5 rounded-[22px] bg-[var(--noggin-cream)] p-4 shadow-[0_4px_12px_var(--noggin-shadow)]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-[0.9375rem] font-semibold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
