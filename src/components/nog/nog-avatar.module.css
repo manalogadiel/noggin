@@ -1,0 +1,67 @@
+@keyframes nog-pet-giggle {
+  0% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.06, 0.93);
+  }
+  65% {
+    transform: scale(0.98, 1.03);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes nog-pet-tickle {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-4deg) scale(1.05, 0.95);
+  }
+  45% {
+    transform: rotate(4deg) scale(0.96, 1.04);
+  }
+  70% {
+    transform: rotate(-3deg) scale(1.03, 0.97);
+  }
+}
+
+@keyframes nog-pet-annoyed {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-7px);
+  }
+  45% {
+    transform: translateX(7px);
+  }
+  70% {
+    transform: translateX(-4px);
+  }
+}
+
+.giggle {
+  animation: nog-pet-giggle 320ms ease-out;
+}
+
+.tickle {
+  animation: nog-pet-tickle 420ms ease-in-out;
+}
+
+.annoyed {
+  animation: nog-pet-annoyed 360ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .giggle,
+  .tickle,
+  .annoyed {
+    animation: none;
+    transform: none;
+  }
+}

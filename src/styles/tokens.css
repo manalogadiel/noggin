@@ -1,0 +1,43 @@
+:root {
+  --noggin-mint-light: #cef2b1;
+  --noggin-cream: #fff4e5;
+  --noggin-mint: #eef8e4;
+  --noggin-leaf: #88b552;
+  --noggin-leaf-strong: #4f7a1a;
+  --noggin-leaf-title: #679526;
+  --noggin-forest: #355d07;
+  --noggin-ink: #546244;
+  --noggin-sage: #bfd38b;
+  --noggin-sage-strong: #a9c46d;
+  --noggin-panel: #bcd186;
+  --noggin-sand: #e2d6c6;
+  --noggin-sun-top: #fff4d9;
+  --noggin-sun-bottom: #f7e4c2;
+  --noggin-glass: rgb(255 255 255 / 0.62);
+  --noggin-glass-hover: rgb(255 255 255 / 0.8);
+  --noggin-card-glass: rgb(242 238 229 / 0.81);
+  --noggin-cream-translucent: rgb(255 244 229 / 0.91);
+  --noggin-white: #ffffff;
+  --noggin-shadow: rgb(53 93 7 / 0.22);
+  --noggin-shadow-strong: rgb(53 93 7 / 0.3);
+  --noggin-shadow-inset: rgb(0 0 0 / 0.18);
+  --noggin-danger: #b91c1c;
+  --noggin-danger-soft: rgb(185 28 28 / 0.08);
+  --noggin-meter-low: #d9534f;
+  --noggin-meter-mid: #e8a838;
+  --noggin-meter-high: #679526;
+  --noggin-meter-low-soft: rgb(217 83 79 / 0.14);
+  --noggin-meter-mid-soft: rgb(232 168 56 / 0.22);
+  --noggin-meter-mid-ink: #7c4a03;
+
+  --noggin-radius-pill: 9999px;
+  --noggin-radius-card: 40px;
+  --noggin-font-display: var(--font-poppins);
+  --noggin-font-body: var(--font-inter);
+}
+
+@media (max-width: 767px) {
+  :root {
+    --noggin-radius-card: 28px;
+  }
+}
