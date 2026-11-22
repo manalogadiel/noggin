@@ -413,7 +413,17 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       return { status: "saved", page };
     },
     async listPages(nogId: string, topicId: string) {
-      return pageStore.filter((p) => p.nogId === nogId && p.topicId === topicId);
+      return pageStore
+        .filter((p) => p.nogId === nogId && p.topicId === topicId)
+        .sort((a, b) => {
+          const timeA = Date.parse(a.createdAt);
+          const timeB = Date.parse(b.createdAt);
+          if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+            return timeA - timeB;
+          }
+          const isoDiff = a.createdAt.localeCompare(b.createdAt);
+          return isoDiff !== 0 ? isoDiff : a.id.localeCompare(b.id);
+        });
     },
     async countFollowUps(nogId: string, rootLessonId: string) {
       return pageStore.filter(
