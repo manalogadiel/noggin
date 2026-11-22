@@ -27,7 +27,9 @@ export function isQuestionCorrect(
   if (concepts.length === 0) {
     return false;
   }
-  return concepts.every(isConceptCovered);
+  // Two-thirds of the key ideas (rounded up) count as correct; missed ideas still go to Bath.
+  const covered = concepts.filter(isConceptCovered).length;
+  return covered >= Math.ceil((concepts.length * 2) / 3);
 }
 
 function toTimestampMs(value: Date | string | undefined): number {
