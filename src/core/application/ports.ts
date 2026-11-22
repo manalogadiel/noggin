@@ -567,9 +567,16 @@ export interface NogBrain {
   answer(input: AnswerInput): Promise<BrainAnswerResult>;
 }
 
+export interface GradeCardEvidence {
+  label: string;
+  paraphrase: string;
+  quote?: string;
+}
+
 export interface GradeInput {
   topicId: string;
   pages: LessonPage[];
+  cards?: GradeCardEvidence[];
   questions: QuestionRecord[];
   answers: BrainAnswerItem[];
 }
