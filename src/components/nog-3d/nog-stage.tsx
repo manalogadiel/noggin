@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-export type NogSceneName = "trio" | "flying" | "thinking" | "peek";
+export type NogSceneName = "trio" | "flying" | "thinking" | "peek" | "lean";
 
 // three.js stays out of every other page: this chunk loads only when a Nog nears the viewport.
 const NogCanvas = dynamic(() => import("./nog-rig"), { ssr: false });
