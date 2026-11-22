@@ -30,7 +30,11 @@ export function boundAnswer(raw: unknown): string | null {
   if (typeof raw !== "string") {
     return null;
   }
-  const answer = raw.trim().slice(0, ASK_ANSWER_MAX_CHARS).trim();
+  // Cut by code point so an emoji at the limit is never split in half.
+  const answer = Array.from(raw.trim())
+    .slice(0, ASK_ANSWER_MAX_CHARS)
+    .join("")
+    .trim();
   return answer.length > 0 ? answer : null;
 }
 
