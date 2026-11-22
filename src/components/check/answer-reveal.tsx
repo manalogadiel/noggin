@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  CheckCircle2,
-  X,
-  XCircle,
-} from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, X, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { SpeakButton } from "@/components/voice/speak-button";
@@ -25,6 +19,7 @@ function detectReducedMotion(): boolean {
 }
 
 export interface AnswerRevealProps {
+  nogId?: string;
   nogName: string;
   topicTitle: string;
   attempt: QuickCheckAttempt;
@@ -37,6 +32,7 @@ export interface AnswerRevealProps {
 }
 
 export function AnswerReveal({
+  nogId,
   nogName,
   topicTitle,
   attempt,
@@ -99,37 +95,49 @@ export function AnswerReveal({
   const isLastQuestion = questionNumber >= totalQuestions;
   const progressPercent =
     totalQuestions > 0 ? Math.round((questionNumber / totalQuestions) * 100) : 0;
+  const roomHref = `/nogs/${nogId ?? attempt.nogId}`;
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
-            {topicTitle}
-          </span>
-          <span className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-ink)]">
-            Question {questionNumber} of {totalQuestions}
-          </span>
-        </div>
+    <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+      <header className="flex flex-wrap items-center gap-3">
+        <Link
+          href={roomHref}
+          aria-label={`Back to ${nogName}'s room`}
+          className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        </Link>
+
+        <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
+          Play
+        </h1>
+
+        <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sage)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
+          {topicTitle}
+        </span>
+
+        <span className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-ink)]">
+          Question {questionNumber} of {totalQuestions}
+        </span>
       </header>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(240px,320px)] lg:items-start">
-        <section
-          aria-label={`Question ${questionNumber} of ${totalQuestions}`}
-          className="flex min-w-0 flex-col gap-5 rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-8"
-        >
-          <div className="flex flex-col gap-2">
-            <p className="text-[0.8125rem] font-semibold tracking-wide text-[var(--noggin-leaf-strong)] uppercase">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-start lg:gap-8">
+        <div className="flex min-w-0 flex-col gap-5">
+          <section
+            aria-label={`Question ${questionNumber}`}
+            className="flex min-h-[260px] flex-col justify-center gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8"
+          >
+            <p className="text-[0.8125rem] font-extrabold tracking-widest text-[var(--noggin-forest)] uppercase">
               Question {questionNumber}
             </p>
-            <h1 className="noggin-display text-[clamp(1.375rem,3vw,2rem)] font-bold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+            <h2 className="noggin-display text-[clamp(1.375rem,3vw,2rem)] font-bold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
               {attempt.prompt}
-            </h1>
-          </div>
+            </h2>
+          </section>
 
           <div
             data-attempt-id={attempt.id}
-            className="flex flex-col gap-4 rounded-[26px] bg-[var(--noggin-white)] p-5 shadow-[0_10px_26px_var(--noggin-shadow)] sm:p-6"
+            className="flex flex-col gap-4 rounded-[18px] border-2 border-[var(--noggin-leaf)] bg-[var(--noggin-white)] p-5 shadow-[0_10px_26px_var(--noggin-shadow)] sm:p-6"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="noggin-display text-[0.875rem] font-bold text-[var(--noggin-ink)]">
@@ -230,64 +238,63 @@ export function AnswerReveal({
               type="button"
               disabled={questionNumber <= 1}
               onClick={onPrevious}
-              className="noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50"
+              className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center px-7 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Previous</span>
+              Previous
             </button>
 
             <button
               type="button"
               onClick={onNext}
-              className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-7 text-[1rem] font-bold"
+              className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center px-7 text-[1rem] font-bold"
             >
-              <span>{isLastQuestion ? "See results" : "Next"}</span>
-              <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {isLastQuestion ? "See results →" : "Next →"}
             </button>
           </div>
-        </section>
+        </div>
 
-        <aside className="flex flex-col gap-5">
+        <aside className="flex flex-col items-center gap-6">
           <section
-            aria-label="Quiz progress"
-            className="flex flex-col gap-3 rounded-[28px] bg-[var(--noggin-white)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]"
+            aria-labelledby="quiz-progress-heading"
+            className="flex w-full flex-col items-center gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]"
           >
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="noggin-display text-[1rem] font-extrabold text-[var(--noggin-forest)]">
-                Quiz Progress
-              </h2>
-              <span className="text-[0.875rem] font-bold text-[var(--noggin-leaf-strong)]">
-                {questionNumber} / {totalQuestions}
-              </span>
-            </div>
+            <h2
+              id="quiz-progress-heading"
+              className="noggin-display text-center text-[1.0625rem] font-extrabold text-[var(--noggin-forest)]"
+            >
+              Quiz Progress
+            </h2>
 
             <div
               role="progressbar"
-              aria-label="Quiz progress"
+              aria-labelledby="quiz-progress-heading"
               aria-valuemin={0}
               aria-valuemax={totalQuestions}
               aria-valuenow={questionNumber}
-              className="h-3.5 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)]"
+              aria-valuetext={`Question ${questionNumber} of ${totalQuestions}`}
+              className="h-4 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] p-0.5 shadow-[inset_0_1px_4px_var(--noggin-shadow-inset)]"
             >
               <div
                 className="h-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-leaf-strong)] transition-[width] duration-200 motion-reduce:transition-none"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
+
+            <span className="text-[0.8125rem] font-bold tabular-nums text-[var(--noggin-forest)]">
+              {questionNumber} / {totalQuestions}
+            </span>
           </section>
 
-          <div className="flex flex-col items-center rounded-[28px] bg-[var(--noggin-white)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]">
-            <div className="w-full max-w-[190px]">
-              <NogStage
-                scene="room"
-                alt={`${nogName} answering question ${questionNumber}`}
-                poster="/nog/blob-closeup.png"
-                width={1254}
-                height={1254}
-                sizes="190px"
-                className="nog-bob"
-              />
-            </div>
+          <div className="w-full max-w-[300px] lg:max-w-[360px]">
+            <NogStage
+              scene="room"
+              alt={`${nogName} answering question ${questionNumber}`}
+              poster="/nog/blob-closeup.png"
+              width={1254}
+              height={1254}
+              sizes="(min-width: 1024px) 360px, 300px"
+              className="nog-bob w-full"
+            />
           </div>
         </aside>
       </div>
