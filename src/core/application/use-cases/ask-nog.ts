@@ -5,6 +5,7 @@ import {
   boundMood,
   checkQuestion,
   clampHistoryLimit,
+  DEFAULT_ASK_MOOD,
   NOT_TAUGHT_ANSWER,
 } from "../../domain/ask";
 import type {
@@ -249,7 +250,13 @@ export async function askNog(
   const mood = boundMood(output?.mood);
   const answer = boundAnswer(output?.answer);
   if (output?.knows !== true || citedCards.length === 0 || answer === null) {
-    return save(NOT_TAUGHT_ANSWER, mood, false, []);
+    // Keep the model's mood only when it admitted not knowing; an overridden claim resets it.
+    return save(
+      NOT_TAUGHT_ANSWER,
+      output?.knows === false ? mood : DEFAULT_ASK_MOOD,
+      false,
+      [],
+    );
   }
   return save(answer, mood, true, citedCards);
 }
