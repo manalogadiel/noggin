@@ -7,7 +7,9 @@ import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import { createActivityRepository } from "@/adapters/supabase/repositories/activity-repository";
 import { createProfileRepository } from "@/adapters/supabase/repositories/profile-repository";
+import { createProgressRepository } from "@/adapters/supabase/repositories/progress-repository";
 import { createServerSupabaseClient } from "@/adapters/supabase/server-client";
 import { createServiceSupabaseClient } from "@/adapters/supabase/service-client";
 import { createGeminiTts } from "@/adapters/voice/gemini-tts";
@@ -21,6 +23,7 @@ import {
   isWhisperCppFallbackEnabled,
 } from "@/adapters/voice/whisper-cpp-stt";
 import type {
+  ActivityRepository,
   AttemptRepository,
   Clock,
   CurrentUser,
@@ -28,6 +31,7 @@ import type {
   NotebookRepository,
   ProfileRepository,
   ProfileSettings,
+  ProgressRepository,
   QuestionWriter,
   SpeechToText,
   TextToSpeech,
@@ -50,6 +54,10 @@ import {
   type CustomizeNogResult,
 } from "@/core/application/use-cases/customize-nog";
 import {
+  getLearningProgress,
+  type GetLearningProgressResult,
+} from "@/core/application/use-cases/get-learning-progress";
+import {
   getNogAnalysis,
   type GetNogAnalysisInput,
   type GetNogAnalysisResult,
@@ -63,6 +71,11 @@ import {
   getProfileSettings,
   type GetProfileSettingsResult,
 } from "@/core/application/use-cases/get-profile-settings";
+import {
+  getRecentActivity,
+  type GetRecentActivityInput,
+  type GetRecentActivityResult,
+} from "@/core/application/use-cases/get-recent-activity";
 import {
   getTopicNotebook,
   type GetTopicNotebookInput,
@@ -119,6 +132,11 @@ import {
   transcribeLesson,
   type TranscribeLessonResult,
 } from "@/core/application/use-cases/transcribe-lesson";
+import {
+  updateDisplayName,
+  type UpdateDisplayNameInput,
+  type UpdateDisplayNameResult,
+} from "@/core/application/use-cases/update-profile";
 import {
   updateProfileSettings,
   type UpdateProfileSettingsResult,
@@ -472,14 +490,40 @@ async function readDisplayName(
   }
 }
 
+async function readEmail(session: SupabaseClient): Promise<string | null> {
+  if (typeof session.auth?.getUser !== "function") {
+    return null;
+  }
+
+  try {
+    const { data, error } = await session.auth.getUser();
+    if (error || !data?.user || typeof data.user.email !== "string") {
+      return null;
+    }
+    const trimmed = data.user.email.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface AppContainer {
   currentUser: CurrentUser;
+  clock?: Clock;
   getDisplayName: () => Promise<string | null>;
+  getEmail: () => Promise<string | null>;
   getFeatures: () => Promise<Record<string, boolean>>;
   getProfileSettings: () => Promise<GetProfileSettingsResult>;
   updateProfileSettings: (
     settings: ProfileSettings,
   ) => Promise<UpdateProfileSettingsResult>;
+  updateDisplayName: (
+    input: UpdateDisplayNameInput,
+  ) => Promise<UpdateDisplayNameResult>;
+  getLearningProgress: () => Promise<GetLearningProgressResult>;
+  getRecentActivity: (
+    input?: GetRecentActivityInput,
+  ) => Promise<GetRecentActivityResult>;
   listNogs: () => Promise<ListNogsResult>;
   hatchNog: (input: HatchNogInput) => Promise<HatchNogResult>;
   addTopic: (input: AddTopicInput) => Promise<AddTopicResult>;
@@ -516,9 +560,13 @@ export async function createContainer(): Promise<AppContainer> {
     return {
       currentUser: anonymousUser,
       getDisplayName: async () => null,
+      getEmail: async () => null,
       getFeatures: async () => ({}),
       getProfileSettings: async () => ({ status: "unauthenticated" }),
       updateProfileSettings: async () => ({ status: "unauthenticated" }),
+      updateDisplayName: async () => ({ status: "unauthenticated" }),
+      getLearningProgress: async () => ({ status: "unauthenticated" }),
+      getRecentActivity: async () => ({ status: "unauthenticated" }),
       listNogs: async () => ({ status: "unauthenticated" }),
       hatchNog: async () => ({ status: "unauthenticated" }),
       addTopic: async () => ({ status: "unauthenticated" }),
@@ -641,13 +689,26 @@ export async function createContainer(): Promise<AppContainer> {
 
   const profilesRepo: ProfileRepository =
     typeof repositories.profiles?.getSettings === "function" &&
-    typeof repositories.profiles?.saveSettings === "function"
+    typeof repositories.profiles?.saveSettings === "function" &&
+    typeof repositories.profiles?.updateDisplayName === "function"
       ? (repositories.profiles as ProfileRepository)
       : createProfileRepository({ session, userId });
 
+  const progressRepo: ProgressRepository =
+    typeof repositories.progress?.listMastery === "function"
+      ? repositories.progress
+      : createProgressRepository({ session, service, userId });
+
+  const activityRepo: ActivityRepository =
+    typeof repositories.activity?.listRecent === "function"
+      ? repositories.activity
+      : createActivityRepository({ session, service, userId });
+
   return {
     currentUser,
+    clock,
     getDisplayName: () => readDisplayName(session, userId),
+    getEmail: () => readEmail(session),
     getFeatures: () => readFeatureFlags(repositories, session),
     getProfileSettings: () =>
       getProfileSettings({
@@ -661,6 +722,29 @@ export async function createContainer(): Promise<AppContainer> {
           profiles: profilesRepo,
         },
         settings,
+      ),
+    updateDisplayName: (input) =>
+      updateDisplayName(
+        {
+          currentUser,
+          profiles: profilesRepo,
+        },
+        input,
+      ),
+    getLearningProgress: () =>
+      getLearningProgress({
+        currentUser,
+        nogs: repositories.nogs,
+        progress: progressRepo,
+      }),
+    getRecentActivity: (input) =>
+      getRecentActivity(
+        {
+          currentUser,
+          activity: activityRepo,
+          nogs: repositories.nogs,
+        },
+        input,
       ),
     listNogs: () =>
       listNogs({

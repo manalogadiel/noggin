@@ -14,6 +14,7 @@ export type UsageKind =
 
 export interface AuthenticatedUser {
   id: string;
+  email?: string | null;
 }
 
 export interface CurrentUser {
@@ -43,6 +44,44 @@ export interface ProfileRepository {
     userId: string,
     settings: ProfileSettings,
   ): Promise<ProfileSettings>;
+  updateDisplayName(userId: string, displayName: string): Promise<string>;
+}
+
+export interface TopicMasteryRow {
+  nogId: string;
+  topicId: string;
+  topicName: string;
+  mastered: number;
+  total: number;
+}
+
+export interface ProgressRepository {
+  listMastery(ownerId: string): Promise<TopicMasteryRow[]>;
+}
+
+export type ActivityEvent =
+  | {
+      kind: "lesson";
+      id: string;
+      nogId: string;
+      nogName: string;
+      topicName: string;
+      at: string;
+      followUp: boolean;
+    }
+  | {
+      kind: "check";
+      id: string;
+      nogId: string;
+      nogName: string;
+      topicName: string;
+      at: string;
+      correct: number;
+      total: number;
+    };
+
+export interface ActivityRepository {
+  listRecent(ownerId: string, limit?: number): Promise<ActivityEvent[]>;
 }
 
 export interface Clock {
