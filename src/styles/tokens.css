@@ -21,6 +21,12 @@
   --noggin-shadow-inset: rgb(0 0 0 / 0.18);
   --noggin-danger: #b91c1c;
   --noggin-danger-soft: rgb(185 28 28 / 0.08);
+  --noggin-meter-low: #d9534f;
+  --noggin-meter-mid: #e8a838;
+  --noggin-meter-high: #679526;
+  --noggin-meter-low-soft: rgb(217 83 79 / 0.14);
+  --noggin-meter-mid-soft: rgb(232 168 56 / 0.22);
+  --noggin-meter-mid-ink: #7c4a03;
 
   --noggin-radius-pill: 9999px;
   --noggin-radius-card: 40px;
