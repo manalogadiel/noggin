@@ -28,3 +28,26 @@ jobs:
           LLM_BASE_URL: http://127.0.0.1:11434/v1
           LLM_API_KEY: ci-placeholder
           LLM_MODEL: ci-placeholder
+
+  database:
+    # Runs the database tests against a throwaway local Supabase on GitHub's runner (Docker lives here, not on anyone's laptop).
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Start local Supabase (applies migrations and seed)
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+      - name: Point the tests at it
+        run: supabase status -o env > .env.test
+      - run: npm run test:db
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
