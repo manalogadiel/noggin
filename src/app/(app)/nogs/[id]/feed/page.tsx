@@ -4,6 +4,7 @@ import { FeedView } from "@/components/feed/feed-view";
 import { createContainer } from "@/composition/container";
 import type {
   LessonPage,
+  MicMode,
   ThoughtCardRecord,
   TopicSummary,
 } from "@/core/application/ports";
@@ -46,10 +47,16 @@ export default async function NogFeedPage({
   const requestedLessonId = readParam(resolvedSearchParams?.lesson);
 
   const container = await createContainer();
-  const [roomResult, topicsResult] = await Promise.all([
+  const [roomResult, topicsResult, settingsResult] = await Promise.all([
     container.getNogRoom({ nogId: id }),
     container.listTopics({ nogId: id }),
+    typeof container.getProfileSettings === "function"
+      ? container.getProfileSettings()
+      : Promise.resolve(null),
   ]);
+
+  const micMode: MicMode =
+    settingsResult?.status === "ok" ? settingsResult.settings.micMode : "tap";
 
   const nextUrl = `/login?next=${encodeURIComponent(`/nogs/${id}/feed`)}`;
   if (
@@ -129,6 +136,7 @@ export default async function NogFeedPage({
       fixingCard={fixingCard}
       initialDraft={initialDraft}
       reviseLessonId={reviseLessonId}
+      micMode={micMode}
     />
   );
 }

@@ -1,10 +1,26 @@
 "use client";
 
-import { Mic, Scissors, Utensils } from "lucide-react";
-import { useId } from "react";
-import type { ThoughtCardRecord, TopicSummary } from "@/core/application/ports";
+import { Scissors, Utensils } from "lucide-react";
+import { useEffect, useId, useRef } from "react";
+import { MicButton } from "@/components/voice/mic-button";
+import type {
+  MicMode,
+  ThoughtCardRecord,
+  TopicSummary,
+} from "@/core/application/ports";
 import { DEFAULT_LESSON_WORD_LIMIT } from "@/core/domain/lesson";
 import { cn } from "@/lib/utils";
+
+function appendTranscript(currentDraft: string, transcript: string): string {
+  const cleaned = transcript.trim();
+  if (!cleaned) {
+    return currentDraft;
+  }
+  if (currentDraft.trim().length === 0) {
+    return cleaned;
+  }
+  return `${currentDraft.trimEnd()} ${cleaned}`;
+}
 
 export interface LessonEditorProps {
   topic: TopicSummary;
@@ -16,6 +32,7 @@ export interface LessonEditorProps {
   fixingCard: ThoughtCardRecord | null;
   splitPartIndex: number;
   splitTotalParts: number;
+  micMode?: MicMode;
   onDraftChange: (value: string) => void;
   onFeed: () => void;
   onSplit: () => void;
@@ -31,12 +48,26 @@ export function LessonEditor({
   fixingCard,
   splitPartIndex,
   splitTotalParts,
+  micMode = "tap",
   onDraftChange,
   onFeed,
   onSplit,
 }: LessonEditorProps) {
   const editorId = useId();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const draftRef = useRef(draft);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
   const canFeed = wordCount > 0 && !isOverloaded && !isSaving;
+
+  function handleTranscript(transcript: string) {
+    const nextDraft = appendTranscript(draftRef.current, transcript);
+    draftRef.current = nextDraft;
+    onDraftChange(nextDraft);
+  }
 
   return (
     <section
@@ -91,6 +122,7 @@ export function LessonEditor({
         </div>
 
         <textarea
+          ref={textareaRef}
           id={editorId}
           aria-label="Your lesson"
           rows={8}
@@ -111,7 +143,7 @@ export function LessonEditor({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+      <div className="flex flex-wrap items-start justify-between gap-3 pt-1">
         <div className="flex flex-wrap items-center gap-2.5">
           {isOverloaded ? (
             <>
@@ -147,15 +179,12 @@ export function LessonEditor({
           )}
         </div>
 
-        <button
-          type="button"
-          disabled
-          title="Voice comes soon"
-          aria-label="Voice input (coming soon)"
-          className="inline-flex h-12 w-12 min-h-11 min-w-11 cursor-not-allowed items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-ink)] opacity-60 shadow-[0_6px_14px_var(--noggin-shadow)]"
-        >
-          <Mic className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <MicButton
+          mode={micMode}
+          onTranscript={handleTranscript}
+          disabled={isSaving}
+          declineFocusRef={textareaRef}
+        />
       </div>
     </section>
   );

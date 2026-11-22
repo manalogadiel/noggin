@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
+import { SpeakButton } from "@/components/voice/speak-button";
 import type { QuickCheckAttempt } from "@/core/application/ports";
 import { isConceptCovered } from "@/core/domain/quiz";
 import { cn } from "@/lib/utils";
@@ -135,7 +136,14 @@ export function AnswerReveal({
                 {nogName}&rsquo;s answer
               </p>
 
-              {!isComplete && (
+              {isComplete ? (
+                <SpeakButton
+                  key={attempt.id}
+                  attemptId={attempt.id}
+                  text={fullAnswer}
+                  nogName={nogName}
+                />
+              ) : (
                 <span className="text-[0.75rem] font-semibold text-[var(--noggin-leaf-strong)]">
                   Answering…
                 </span>
