@@ -79,9 +79,11 @@ export default async function NogRoomPage({ params }: NogRoomPageProps) {
   let roomResult;
   let masteredCount = 0;
   let initialSettings: ProfileSettings = DEFAULT_PROFILE_SETTINGS;
+  let now = new Date();
 
   try {
     const container = await createContainer();
+    now = container.clock?.now() ?? new Date();
     roomResult = await container.getNogRoom({ nogId: id });
 
     if (roomResult.status === "ok") {
@@ -121,6 +123,7 @@ export default async function NogRoomPage({ params }: NogRoomPageProps) {
       initialSettings={initialSettings}
       onSaveSettings={saveProfileSettingsAction}
       onPet={onPet}
+      now={now}
     />
   );
 }

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { groundQuote } from "../src/core/domain/quote-grounding";
 import type {
   AnswerInput,
   DigestOperation,
@@ -39,7 +40,10 @@ type GoldenCase = { id: string; required?: boolean } & (
         operation?: Partial<DigestOperation>;
         operationStatuses?: string[];
         minFollowUpQuestions?: number;
+        minCreateOps?: number;
+        allQuotesGrounded?: boolean;
         replyPatterns?: string[];
+        replyNotMatch?: string[];
         output?: ListenerDigest;
       };
     }
@@ -223,6 +227,15 @@ function evaluateListenerOutput(
     }
   }
 
+  if (expected.minCreateOps !== undefined) {
+    const createCount = actual.operations.filter(
+      (op) => op.type === "create",
+    ).length;
+    if (createCount < expected.minCreateOps) {
+      return { passed: false, reason: "insufficient create operations" };
+    }
+  }
+
   if (expected.replyPatterns !== undefined) {
     for (const pattern of expected.replyPatterns) {
       if (!new RegExp(pattern, "i").test(actual.reply)) {
@@ -231,11 +244,23 @@ function evaluateListenerOutput(
     }
   }
 
+  if (expected.replyNotMatch !== undefined) {
+    for (const pattern of expected.replyNotMatch) {
+      if (new RegExp(pattern, "i").test(actual.reply)) {
+        return { passed: false, reason: `reply matched forbidden pattern ${pattern}` };
+      }
+    }
+  }
+
+  if (expected.allQuotesGrounded && actual.operations.length === 0) {
+    return { passed: false, reason: "expected at least one grounded operation" };
+  }
+
   const ungrounded = actual.operations.some(
     (op) =>
       "quote" in op &&
       op.quote !== undefined &&
-      !testCase.input.page.body.includes(op.quote),
+      groundQuote(testCase.input.page.body, op.quote) === null,
   );
   if (ungrounded) {
     return { passed: false, reason: "operation quote not found in lesson page" };

@@ -11,7 +11,7 @@ import { parseBodyColor } from "@/core/domain/nog-colors";
 import { mapPostgrestError, SupabaseAdapterError } from "./errors";
 
 const NOG_COLUMNS =
-  "id, owner_id, subject_id, name, stage, mood, happiness, happiness_today, happiness_day, colors, subjects(name)";
+  "id, owner_id, subject_id, name, stage, mood, happiness, happiness_today, happiness_day, colors, rest_until, subjects(name)";
 
 interface SubjectJoinRow {
   name: string;
@@ -28,6 +28,7 @@ interface NogRow {
   happiness_today: number;
   happiness_day: string | null;
   colors?: unknown;
+  rest_until?: string | null;
   subjects?: SubjectJoinRow | SubjectJoinRow[] | null;
 }
 
@@ -72,6 +73,7 @@ function mapNogRow(row: NogRow): NogRecord {
     happinessToday: row.happiness_today,
     happinessDay: row.happiness_day ?? null,
     colors: mapNogColors(row.colors),
+    restUntil: row.rest_until ?? null,
   };
 }
 
@@ -210,6 +212,31 @@ export function createNogRepository(options: {
 
       if (error) {
         throw mapPostgrestError(error, "nogs.updateColors");
+      }
+      return data ? mapNogRow(data) : null;
+    },
+
+    async setRest(
+      ownerId: string,
+      nogId: string,
+      restUntil: string | null,
+    ): Promise<NogRecord | null> {
+      if (ownerId !== userId) {
+        return null;
+      }
+
+      const { data, error } = await session
+        .from("nogs")
+        .update({
+          rest_until: restUntil,
+        })
+        .eq("id", nogId)
+        .eq("owner_id", ownerId)
+        .select(NOG_COLUMNS)
+        .maybeSingle<NogRow>();
+
+      if (error) {
+        throw mapPostgrestError(error, "nogs.setRest");
       }
       return data ? mapNogRow(data) : null;
     },

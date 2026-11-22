@@ -1,182 +1,270 @@
 "use client";
 
-import { ArrowLeft, Moon, Pause, Play, RotateCcw, Sun } from "lucide-react";
-import Image from "next/image";
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useId, useState } from "react";
+import { NogStage } from "@/components/nog-3d/nog-stage";
 import { RoomRail } from "@/components/room/room-rail";
-import type { NogRecord } from "@/core/application/ports";
-import styles from "./rest-view.module.css";
+import { formatRestBackOnDate, isNogResting } from "@/lib/rest-schedule";
 
-const NAP_DURATION_SECONDS = 10 * 60;
-const RING_RADIUS = 72;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const REST_OPTIONS = [
+  { days: 1, label: "In 1 day" },
+  { days: 2, label: "In 2 days" },
+  { days: 3, label: "In 3 days" },
+  { days: 7, label: "In 1 week" },
+] as const;
 
 export interface RestViewProps {
-  nog: NogRecord;
+  nog: { id: string; name: string };
+  restUntil: string | null;
+  now?: Date;
+  onStartRest: (days: number) => unknown;
+  onWake: () => unknown;
 }
 
-function formatCountdown(totalSeconds: number): string {
-  const clamped = Math.max(0, Math.floor(totalSeconds));
-  const minutes = String(Math.floor(clamped / 60)).padStart(2, "0");
-  const seconds = String(clamped % 60).padStart(2, "0");
-  return `${minutes}:${seconds}`;
+function extractUpdatedRestUntil(
+  result: unknown,
+): { found: true; value: string | null } | { found: false } {
+  if (typeof result !== "object" || result === null) {
+    return { found: false };
+  }
+  const candidate = result as {
+    status?: unknown;
+    nog?: { restUntil?: string | null };
+  };
+  if (candidate.status === "ok" && candidate.nog) {
+    return { found: true, value: candidate.nog.restUntil ?? null };
+  }
+  return { found: false };
 }
 
-export function RestView({ nog }: RestViewProps) {
+function extractActionError(result: unknown): string | null {
+  if (typeof result !== "object" || result === null) {
+    return null;
+  }
+  const status = (result as { status?: unknown }).status;
+  if (status === "unauthenticated") {
+    return "Please log in again to update rest.";
+  }
+  if (status === "not_found") {
+    return "We couldn't find this Nog right now.";
+  }
+  if (status === "invalid") {
+    return "Choose one of the rest lengths listed.";
+  }
+  return null;
+}
+
+export function RestView({
+  nog,
+  restUntil,
+  now,
+  onStartRest,
+  onWake,
+}: RestViewProps) {
+  const selectId = useId();
+  const [fallbackNow] = useState<Date>(() => new Date());
+  const [selectedDays, setSelectedDays] = useState<number>(2);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [override, setOverride] = useState<{
+    base: string | null;
+    value: string | null;
+  } | null>(null);
+
+  const currentRestUntil =
+    override && override.base === restUntil ? override.value : restUntil;
+  const effectiveNow = now ?? fallbackNow;
+  const resting = isNogResting(currentRestUntil, effectiveNow);
+  const backOnDate =
+    resting && currentRestUntil ? formatRestBackOnDate(currentRestUntil) : "";
+
   const roomHref = `/nogs/${nog.id}`;
-  const [secondsLeft, setSecondsLeft] = useState(NAP_DURATION_SECONDS);
-  const [running, setRunning] = useState(true);
+  const notebookHref = `/nogs/${nog.id}/notebook`;
 
-  useEffect(() => {
-    if (!running) {
+  async function handleStartRest() {
+    if (pending) {
       return;
     }
+    setPending(true);
+    setError(null);
+    try {
+      const result = await onStartRest(selectedDays);
+      const updated = extractUpdatedRestUntil(result);
+      if (updated.found) {
+        setOverride({ base: restUntil, value: updated.value });
+      } else {
+        const message = extractActionError(result);
+        if (message) {
+          setError(message);
+        }
+      }
+    } catch {
+      setError("Couldn't start resting right now. Try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [running]);
-
-  const progress = secondsLeft / NAP_DURATION_SECONDS;
-  const strokeOffset = RING_CIRCUMFERENCE * (1 - progress);
-  const formattedTime = formatCountdown(secondsLeft);
-  const finished = secondsLeft === 0;
+  async function handleWake() {
+    if (pending) {
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      const result = await onWake();
+      const updated = extractUpdatedRestUntil(result);
+      if (updated.found) {
+        setOverride({ base: restUntil, value: updated.value });
+      } else {
+        const message = extractActionError(result);
+        if (message) {
+          setError(message);
+        }
+      }
+    } catch {
+      setError("Couldn't wake your Nog right now. Try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-5">
-        <div className="flex items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nog.name}'s room`}
-            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
-          <span className="inline-flex items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
-            <Moon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{nog.name} · Rest</span>
-          </span>
-        </div>
-
-        <section className="flex flex-col items-center rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 text-center shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-10">
-          <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
-            Nap time
+    <div className="relative min-w-0 lg:pr-16">
+      {resting ? (
+        <section className="mx-auto flex w-full max-w-[920px] flex-col items-center py-4 text-center sm:py-8">
+          <h1 className="noggin-display text-[clamp(3rem,8vw,7.5rem)] font-extrabold leading-[0.98] tracking-tight text-[var(--noggin-leaf-title)]">
+            Nog Resting
           </h1>
 
-          <p className="mt-2 max-w-[44ch] text-[1rem] leading-relaxed text-[var(--noggin-ink)]">
-            {nog.name} is resting. Lessons stick better after a break.
+          <div className="mt-6 w-full max-w-[480px] sm:mt-8">
+            <NogStage
+              scene="sleeping"
+              poster="/nog/sleeping-books.png"
+              alt={`${nog.name} curled up asleep next to a stack of books`}
+              width={908}
+              height={721}
+              sizes="(max-width: 768px) 88vw, 480px"
+              priority
+              className="mx-auto w-full"
+            />
+          </div>
+
+          <p
+            aria-live="polite"
+            className="mt-4 text-[1.125rem] font-semibold text-[var(--noggin-forest)]"
+          >
+            Back on {backOnDate}
           </p>
 
-          <div className="mt-7 grid w-full max-w-[560px] grid-cols-1 items-center gap-6 rounded-[32px] bg-[var(--noggin-white)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:grid-cols-2 sm:p-8">
-            <div className="mx-auto w-full max-w-[210px]">
-              <Image
-                src="/nog/hatchling-sleepy.png"
-                alt={`${nog.name} taking a quiet nap`}
-                width={1024}
-                height={1024}
-                unoptimized
-                priority
-                className={`h-auto w-full object-contain ${styles.sleepyBreathe}`}
-              />
-            </div>
+          {error && (
+            <p
+              role="alert"
+              className="mt-3 text-[0.9375rem] font-medium text-[var(--noggin-danger)]"
+            >
+              {error}
+            </p>
+          )}
 
-            <div className="flex flex-col items-center gap-4">
-              <div
-                className="relative inline-flex h-44 w-44 items-center justify-center"
-                role="timer"
-                aria-label="Rest timer"
-              >
-                <svg
-                  viewBox="0 0 176 176"
-                  className="h-44 w-44 -rotate-90"
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx="88"
-                    cy="88"
-                    r={RING_RADIUS}
-                    fill="none"
-                    stroke="var(--noggin-mint-light)"
-                    strokeWidth="12"
-                  />
-                  <circle
-                    cx="88"
-                    cy="88"
-                    r={RING_RADIUS}
-                    fill="none"
-                    stroke="var(--noggin-leaf-strong)"
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                    strokeDasharray={RING_CIRCUMFERENCE}
-                    strokeDashoffset={strokeOffset}
-                    className="transition-[stroke-dashoffset] duration-700 ease-linear motion-reduce:transition-none"
-                  />
-                </svg>
-
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="noggin-display text-[2rem] font-extrabold tabular-nums text-[var(--noggin-forest)]">
-                    {formattedTime}
-                  </span>
-                  <span className="text-[0.75rem] font-semibold uppercase tracking-wide text-[var(--noggin-ink)]">
-                    {finished ? "Rested" : running ? "Resting" : "Paused"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {!finished && (
-                  <button
-                    type="button"
-                    onClick={() => setRunning((prev) => !prev)}
-                    className="noggin-display inline-flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
-                  >
-                    {running ? (
-                      <>
-                        <Pause className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>Pause</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>Resume</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSecondsLeft(NAP_DURATION_SECONDS);
-                    setRunning(true);
-                  }}
-                  aria-label="Reset timer"
-                  className="inline-flex h-11 w-11 min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full bg-[var(--noggin-cream)] text-[var(--noggin-forest)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
-                >
-                  <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-7">
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3.5">
             <Link
               href={roomHref}
-              className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center gap-2 px-8 text-[1.0625rem] font-bold"
+              className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-7 text-[1.0625rem] font-bold"
             >
-              <Sun className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Wake up</span>
+              Return to Nog Room
             </Link>
+
+            <Link
+              href={notebookHref}
+              className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-7 text-[1.0625rem] font-bold"
+            >
+              View Notebook
+            </Link>
+
+            <button
+              type="button"
+              onClick={handleWake}
+              disabled={pending}
+              className="noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center rounded-[var(--noggin-radius-pill)] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-7 text-[1.0625rem] font-bold text-[var(--noggin-forest)] shadow-[0_8px_20px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            >
+              {pending ? "Waking…" : "Wake Nog"}
+            </button>
           </div>
         </section>
-      </div>
+      ) : (
+        <section className="mx-auto grid w-full max-w-[1160px] grid-cols-1 items-center gap-10 py-4 sm:py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-12">
+          <div className="flex min-w-0 flex-col items-start gap-7">
+            <h1 className="noggin-display text-[clamp(3.25rem,6.8vw,6rem)] font-extrabold leading-[0.96] tracking-tight text-[var(--noggin-leaf-title)]">
+              Take a{" "}
+              <br />
+              Rest!
+            </h1>
+
+            <div className="flex w-full max-w-[340px] flex-col gap-2.5">
+              <label
+                htmlFor={selectId}
+                className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]"
+              >
+                Return Later
+              </label>
+
+              <div className="relative">
+                <select
+                  id={selectId}
+                  value={String(selectedDays)}
+                  onChange={(event) => {
+                    setSelectedDays(Number(event.target.value));
+                  }}
+                  disabled={pending}
+                  className="h-13 min-h-12 w-full cursor-pointer appearance-none rounded-[18px] border border-[var(--noggin-leaf)] bg-[var(--noggin-white)] px-4 pr-11 text-[1.0625rem] font-semibold text-[var(--noggin-forest)] shadow-[0_8px_20px_var(--noggin-shadow)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {REST_OPTIONS.map((option) => (
+                    <option key={option.days} value={String(option.days)}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 right-4 h-5 w-5 -translate-y-1/2 text-[var(--noggin-leaf-strong)]"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p
+                role="alert"
+                className="text-[0.9375rem] font-medium text-[var(--noggin-danger)]"
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleStartRest}
+              disabled={pending}
+              className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center px-9 text-[1.1875rem] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? "Starting…" : "Start Resting →"}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center">
+            <NogStage
+              scene="sleeping"
+              poster="/nog/sleeping-books.png"
+              alt={`${nog.name} curled up asleep next to a stack of books`}
+              width={908}
+              height={721}
+              sizes="(max-width: 1024px) 90vw, 560px"
+              priority
+              className="mx-auto w-full max-w-[540px]"
+            />
+          </div>
+        </section>
+      )}
 
       <RoomRail nogId={nog.id} />
     </div>

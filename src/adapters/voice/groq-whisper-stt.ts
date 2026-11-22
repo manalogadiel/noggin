@@ -87,6 +87,10 @@ export function createGroqWhisperStt(): GroqWhisperStt {
       form.set("file", file);
       form.set("model", model!);
       form.set("response_format", "verbose_json");
+      const hint = input.hint?.trim();
+      if (hint) {
+        form.set("prompt", hint);
+      }
 
       let response: Response;
       try {

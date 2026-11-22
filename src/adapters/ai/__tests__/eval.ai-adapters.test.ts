@@ -27,7 +27,10 @@ type GoldenCase = { id: string; required?: boolean } & (
       operation?: Partial<DigestOperation>;
       operationStatuses?: string[];
       minFollowUpQuestions?: number;
+      minCreateOps?: number;
+      allQuotesGrounded?: boolean;
       replyPatterns?: string[];
+      replyNotMatch?: string[];
       output?: ListenerDigest;
     };
   }
@@ -54,14 +57,22 @@ const runnerModules = import.meta.glob("../../../../scripts/eval.ts");
 async function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: boolean) {
   switch (testCase.port) {
     case "listener": {
-      const { operation, operationStatuses, replyPatterns, output } = testCase.expected;
+      const { operation, operationStatuses, minCreateOps, replyPatterns, output } = testCase.expected;
       const quote = testCase.input.page.body;
+      const createCount = Math.max(1, minCreateOps ?? 1);
+      const baseOp = digest.operations[0];
+      const baseLabel = "label" in baseOp && baseOp.label ? baseOp.label : "SYN";
       return output ?? {
         ...digest,
         reply: replyPatterns ? "Gets ko na, SYN muna!" : digest.reply,
         operations: operation?.type === "conflict"
           ? [{ ...operation, quote }]
-          : [{ ...digest.operations[0], quote, status: operationStatuses?.[0] ?? "understood" }],
+          : Array.from({ length: createCount }, (_, index) => ({
+            ...baseOp,
+            label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
+            quote,
+            status: operationStatuses?.[0] ?? "understood",
+          })),
       };
     }
     case "answerer":

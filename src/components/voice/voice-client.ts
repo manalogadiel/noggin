@@ -166,6 +166,7 @@ export async function transcribeAudio(
   audio: Blob,
   durationSeconds: number,
   signal?: AbortSignal,
+  hint?: string,
 ): Promise<TranscribeAudioResult> {
   const formData = new FormData();
   const ext = fileExtensionForMime(audio.type || "audio/webm");
@@ -175,6 +176,10 @@ export async function transcribeAudio(
     Math.max(0.5, Number(durationSeconds.toFixed(2))),
   );
   formData.append("durationSeconds", String(boundedDuration));
+  const cleanedHint = hint?.trim();
+  if (cleanedHint) {
+    formData.append("hint", cleanedHint);
+  }
 
   let response: Response;
   try {
