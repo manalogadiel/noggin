@@ -25,6 +25,7 @@ export interface RecorderFeedback {
 export interface UseRecorderOptions {
   onTranscript: (text: string) => void;
   reducedMotion: boolean;
+  hint?: string;
 }
 
 export interface UseRecorderResult {
@@ -67,6 +68,7 @@ function sampleLevelsFromAnalyser(analyser: AnalyserNode): number[] {
 export function useRecorder({
   onTranscript,
   reducedMotion,
+  hint,
 }: UseRecorderOptions): UseRecorderResult {
   const [phase, setPhase] = useState<RecorderPhase>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -76,12 +78,16 @@ export function useRecorder({
 
   const onTranscriptRef = useRef(onTranscript);
   const reducedMotionRef = useRef(reducedMotion);
+  const hintRef = useRef(hint);
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
   useEffect(() => {
     reducedMotionRef.current = reducedMotion;
   }, [reducedMotion]);
+  useEffect(() => {
+    hintRef.current = hint;
+  }, [hint]);
 
   const mountedRef = useRef(true);
   const startingRef = useRef(false);
@@ -332,6 +338,7 @@ export function useRecorder({
         blob,
         durationMs / 1000,
         controller.signal,
+        hintRef.current,
       );
 
       if (transcribeAbortRef.current === controller) {

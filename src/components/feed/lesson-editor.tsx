@@ -184,6 +184,7 @@ export function LessonEditor({
           onTranscript={handleTranscript}
           disabled={isSaving}
           declineFocusRef={textareaRef}
+          hint={topic.title}
         />
       </div>
     </section>

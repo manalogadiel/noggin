@@ -1,7 +1,7 @@
 import type { ListenInput, NogStageSlug } from "@/core/application/ports";
 import { sanitizeUntrustedTagData } from "../schemas";
 
-export const PROMPT_VERSION = "listener-v1";
+export const PROMPT_VERSION = "listener-v2";
 
 export interface NogPersona {
   nogName: string;
@@ -66,16 +66,26 @@ export function buildListenerMessages(
     '- create: { "type": "create", "label": string (<=80), "paraphrase": string (<=280), "status": "understood"|"shaky"|"confused", "quote": string (<=300, EXACT verbatim substring copied from the page) }',
     '- update: { "type": "update", "cardId": string, "label"?: string, "paraphrase"?: string, "status"?: "understood"|"shaky"|"confused", "quote"?: string (exact substring) }',
     '- conflict: { "type": "conflict", "cardId": string, "paraphrase"?: string, "quote"?: string (exact substring) }',
+    "How to read a lesson:",
+    "- Lessons may be typed notes or spoken transcripts; ignore spoken fillers (uhm, uh, like, parang, ano, bale) and false starts.",
+    '- When the student self-corrects ("no wait", "I mean", "ay mali", "hindi pala"), trust the corrected statement and quote it.',
+    "- Judge meaning, not grammar, spelling, or typos — run-on sentences and missing punctuation are fine.",
+    "- Split a lesson into one card per distinct idea (max 8).",
+    "- Record what the student says even if it seems factually wrong — you only know what you are taught, never correct facts from outside knowledge (status reflects clarity, not truth).",
+    "- A follow-up question targets the biggest gap or the vaguest part.",
+    "- Quote rule: copy a short exact clause from the page (5–25 words) — keep the student's own words, fillers included.",
     "Digestion rules:",
     "- Clear, specific explanation -> create/update card with status 'understood'.",
     "- Vague or incomplete explanation -> status 'shaky' or 'confused' plus 1-2 concrete follow-up questions.",
     "- Direct contradiction with an existing card -> emit a 'conflict' op referencing that exact cardId and ask a follow-up to resolve it.",
-    "- Every 'quote' must be copied verbatim from the page.",
+    "- Every 'quote' must be copied verbatim from the page (fillers included).",
     "Examples:",
     'Clear input: "The client sends SYN first. The server sends SYN-ACK back. The client sends ACK." -> {"reply":"Clean! SYN, SYN-ACK, then ACK locks it in.","mood":"happy","followUpQuestions":["Why does the client need that final ACK?"],"operations":[{"type":"create","label":"TCP 3-way handshake","paraphrase":"Client sends SYN, server replies SYN-ACK, client finishes with ACK.","status":"understood","quote":"The client sends SYN first."}]}',
     'Vague input: "TCP does some packet thing somehow." -> {"reply":"Some packet thing somehow? My brain is buffering!","mood":"confused","followUpQuestions":["Which exact packet does the client send first?"],"operations":[{"type":"create","label":"TCP connection setup","paraphrase":"Packets go back and forth to start a connection, details unclear.","status":"confused","quote":"TCP does some packet thing somehow."}]}',
     'Taglish input: "Sa TCP handshake, client muna ang magse-send ng SYN." -> {"reply":"Gets ko na! Client muna ang nagse-send ng SYN, tapos ano next?","mood":"excited","followUpQuestions":["Ano ang sinasagot ng server pagkatapos ng SYN?"],"operations":[{"type":"create","label":"SYN start","paraphrase":"Client muna ang nagse-send ng SYN para magsimula ang handshake.","status":"understood","quote":"client muna ang magse-send ng SYN."}]}',
     'Conflict against card-1 ("Client sends SYN first"): "Actually the server sends SYN first." -> {"reply":"Wait lang, sabi mo kanina client ang una, ngayon server?","mood":"shocked","followUpQuestions":["Sino talaga ang nagse-send ng unang SYN: client o server?"],"operations":[{"type":"conflict","cardId":"card-1","paraphrase":"Contradicts earlier note about who sends the first SYN.","quote":"Actually the server sends SYN first."}]}',
+    'Spoken Taglish transcript with fillers and self-correction: "Uhm parang the client sends SYN muna to start, tapos the server replies ACK... ay mali, hindi pala, uhm the server sends SYN-ACK with its own sequence number." -> {"reply":"Gets ko na! Client sends SYN muna, tapos SYN-ACK pala ang sagot ng server — buti na-catch mo!","mood":"happy","followUpQuestions":["Ano ang huling packet na ise-send ng client pagkatapos ng SYN-ACK?"],"operations":[{"type":"create","label":"Client starts with SYN","paraphrase":"Client muna ang nagse-send ng SYN para magsimula ang connection.","status":"understood","quote":"Uhm parang the client sends SYN muna to start"},{"type":"create","label":"Server replies SYN-ACK","paraphrase":"Server ang sumasagot ng SYN-ACK kasama ang sarili nitong sequence number.","status":"understood","quote":"uhm the server sends SYN-ACK with its own sequence number."}]}',
+    'Run-on typed lesson with typos and two ideas: "mitocondria makes atp energy for the cell using oxygn and glucose and then the nucleous holds the dna instructions that tell the cell what proteens to build" -> {"reply":"Nice, two big ones! Mitochondria makes ATP energy and the nucleus holds the DNA instructions.","mood":"excited","followUpQuestions":["Where inside the cell do those protein instructions get read?"],"operations":[{"type":"create","label":"Mitochondria makes ATP","paraphrase":"Mitochondria produces ATP energy for the cell using oxygen and glucose.","status":"understood","quote":"mitocondria makes atp energy for the cell using oxygn and glucose"},{"type":"create","label":"Nucleus holds DNA","paraphrase":"The nucleus stores DNA instructions that tell the cell which proteins to build.","status":"understood","quote":"the nucleous holds the dna instructions that tell the cell what proteens to build"}]}',
   ].filter(Boolean);
 
   const compactCards = input.existingCards.map((card) => ({

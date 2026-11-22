@@ -36,6 +36,7 @@ export interface MicButtonProps {
   onTranscript: (text: string) => void;
   disabled?: boolean;
   declineFocusRef?: RefObject<HTMLElement | null>;
+  hint?: string;
 }
 
 export function MicButton({
@@ -43,6 +44,7 @@ export function MicButton({
   onTranscript,
   disabled = false,
   declineFocusRef,
+  hint,
 }: MicButtonProps) {
   const normalizedMode: MicMode =
     mode === "hold" || mode === "push_to_talk" ? "hold" : "tap";
@@ -82,6 +84,7 @@ export function MicButton({
   } = useRecorder({
     onTranscript,
     reducedMotion,
+    hint,
   });
 
   function ensureConsentThenStart(): boolean {

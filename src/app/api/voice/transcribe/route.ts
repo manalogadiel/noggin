@@ -182,11 +182,19 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const rawHint = formData.get("hint");
+  const cleanedHint =
+    typeof rawHint === "string"
+      ? rawHint.replace(/\p{Cc}/gu, "").trim().slice(0, 120).trim()
+      : "";
+  const hint = cleanedHint.length > 0 ? cleanedHint : undefined;
+
   try {
     const result = await container.transcribeLesson({
       audio: audioBytes,
       mimeType,
       durationSeconds,
+      ...(hint !== undefined ? { hint } : {}),
     });
 
     switch (result.status) {
