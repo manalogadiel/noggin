@@ -256,10 +256,10 @@ describe("Nog analysis", () => {
   });
 });
 
-it("adds the rail and a See analysis link to the Nog Room", async () => {
+it("omits the RoomRail and in-room See analysis link on the Nog Room page", async () => {
   window.history.replaceState(null, "", roomHref);
   render(await NogRoomPage({ params: Promise.resolve({ id: analysis.nog.id }) }));
 
-  expectRoomRail();
-  expect(screen.getByRole("link", { name: "See analysis" })).toHaveAttribute("href", analysisHref);
+  expect(screen.queryByRole("navigation", { name: /nog room sections/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "See analysis" })).not.toBeInTheDocument();
 });

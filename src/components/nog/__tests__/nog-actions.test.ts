@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 describe("hatchNogAction", () => {
-  it("revalidates and redirects to the new Nog room on success", async () => {
+  it("revalidates and redirects to the new Nog customize screen on success", async () => {
     hatchNog.mockResolvedValueOnce({
       status: "ok",
       nog: {
@@ -63,7 +63,7 @@ describe("hatchNogAction", () => {
 
     await expect(
       hatchNogAction({}, makeFormData("Marine Biology", "Coral")),
-    ).rejects.toThrow("NEXT_REDIRECT:/nogs/nog-123");
+    ).rejects.toThrow("NEXT_REDIRECT:/nogs/nog-123/customize");
 
     expect(hatchNog).toHaveBeenCalledWith({
       subjectName: "Marine Biology",
