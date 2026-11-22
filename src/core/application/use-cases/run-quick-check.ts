@@ -10,7 +10,6 @@ import type {
   AttemptRepository,
   CardCheckUpdate,
   CheckAttemptDraft,
-  CheckAttemptRecord,
   Clock,
   CurrentUser,
   LessonPage,
@@ -19,6 +18,7 @@ import type {
   NogStageSlug,
   NotebookRepository,
   QuestionBank,
+  QuickCheckAttempt,
   ThoughtCardRecord,
   ThoughtCardRepository,
   TopicRepository,
@@ -86,7 +86,14 @@ export type RunQuickCheckResult =
   | { status: "no_questions" }
   | { status: "tired_for_today" }
   | { status: "sleepy" }
-  | { status: "ok"; reused: boolean; attempts: CheckAttemptRecord[] };
+  | {
+      status: "ok";
+      reused: boolean;
+      attempts: QuickCheckAttempt[];
+      meterBefore: number;
+      meterAfter: number;
+      stage: NogStageSlug;
+    };
 
 export function computeNotebookFingerprint(
   pages: ReadonlyArray<Pick<LessonPage, "id" | "updatedAt">>,
@@ -286,7 +293,43 @@ export async function runQuickCheck(
         (attempt) => attempt.notebookFingerprint === fingerprint,
       )
     ) {
-      return { status: "ok", reused: true, attempts: previousAttempts };
+      const topicQuestions = await deps.questions.listByTopic(input.topicId);
+      const promptById = new Map(
+        topicQuestions.map((question) => [question.id, question.prompt]),
+      );
+      const orderById = new Map(
+        topicQuestions.map((question, index) => [question.id, index]),
+      );
+      const orderedPrevious = [...previousAttempts].sort((a, b) => {
+        const orderA = orderById.get(a.questionId) ?? Number.MAX_SAFE_INTEGER;
+        const orderB = orderById.get(b.questionId) ?? Number.MAX_SAFE_INTEGER;
+        return orderA - orderB;
+      });
+      const currentNogAttempts = deps.attempts.listByNog
+        ? await deps.attempts.listByNog(input.nogId)
+        : previousAttempts;
+      const mappedCurrent = currentNogAttempts.map((attempt) => ({
+        questionId: attempt.questionId,
+        topicId: attempt.topicId ?? input.topicId,
+        attemptedAt: attempt.createdAt,
+        correct: attempt.correct,
+      }));
+      const currentMeter = trainingMeter(mappedCurrent);
+      const currentStage = computeNogStageFromAttempts(
+        mappedCurrent,
+        new Map([[input.topicId, topicQuestions.length]]),
+      );
+      return {
+        status: "ok",
+        reused: true,
+        attempts: orderedPrevious.map((attempt) => ({
+          ...attempt,
+          prompt: promptById.get(attempt.questionId) ?? "",
+        })),
+        meterBefore: currentMeter,
+        meterAfter: currentMeter,
+        stage: currentStage,
+      };
     }
 
     const questions = await deps.questions.listByTopic(input.topicId);
@@ -397,13 +440,15 @@ export async function runQuickCheck(
     const priorNogAttempts = deps.attempts.listByNog
       ? await deps.attempts.listByNog(input.nogId)
       : previousAttempts;
+    const mappedPrior = priorNogAttempts.map((attempt) => ({
+      questionId: attempt.questionId,
+      topicId: attempt.topicId ?? input.topicId,
+      attemptedAt: attempt.createdAt,
+      correct: attempt.correct,
+    }));
+    const meterBefore = trainingMeter(mappedPrior);
     const combinedAttempts = [
-      ...priorNogAttempts.map((attempt) => ({
-        questionId: attempt.questionId,
-        topicId: attempt.topicId ?? input.topicId,
-        attemptedAt: attempt.createdAt,
-        correct: attempt.correct,
-      })),
+      ...mappedPrior,
       ...attemptDrafts.map((draft) => ({
         questionId: draft.questionId,
         topicId: input.topicId,
@@ -411,6 +456,7 @@ export async function runQuickCheck(
         correct: draft.correct,
       })),
     ];
+    const meterAfter = trainingMeter(combinedAttempts);
     const nextStage = computeNogStageFromAttempts(
       combinedAttempts,
       new Map([[input.topicId, questions.length]]),
@@ -426,7 +472,21 @@ export async function runQuickCheck(
       model: answerResult.model,
     });
 
-    return { status: "ok", reused: false, attempts: recorded };
+    const promptById = new Map(
+      questions.map((question) => [question.id, question.prompt]),
+    );
+
+    return {
+      status: "ok",
+      reused: false,
+      attempts: recorded.map((attempt) => ({
+        ...attempt,
+        prompt: promptById.get(attempt.questionId) ?? "",
+      })),
+      meterBefore,
+      meterAfter,
+      stage: nextStage,
+    };
   };
 
   if (deps.attempts.withCheckReservation) {
