@@ -26,6 +26,8 @@ import type {
   NotebookRepository,
   OwnedCheckAttempt,
   OwnedMessage,
+  ProfileRepository,
+  ProfileSettings,
   QuestionBank,
   QuestionRecord,
   QuestionWriter,
@@ -61,6 +63,7 @@ export interface InMemoryPortsOptions {
   messages?: OwnedMessage[];
   questions?: QuestionRecord[];
   attempts?: CheckAttemptRecord[];
+  profileSettings?: Record<string, ProfileSettings>;
   listenerDigest?: ListenerDigest;
   generatedQuestions?: GeneratedQuestionDraft[];
   transcript?: string;
@@ -89,6 +92,12 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   const messageStore = [...(options.messages ?? [])];
   const questionStore = [...(options.questions ?? [])];
   const attemptStore = [...(options.attempts ?? [])];
+  const profileSettingsStore = new Map<string, ProfileSettings>(
+    Object.entries(options.profileSettings ?? {}).map(([key, value]) => [
+      key,
+      { ...value },
+    ]),
+  );
   const usageCounts = new Map<string, number>();
   const voiceCacheStore = new Map<string, SynthesizedAudio>();
   const appliedDigests = new Map<string, SavedDigestRecord>();
@@ -816,10 +825,23 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
   };
 
+  const profiles: ProfileRepository = {
+    async getSettings(userId: string) {
+      const stored = profileSettingsStore.get(userId);
+      return stored ? { ...stored } : null;
+    },
+    async saveSettings(userId: string, settings: ProfileSettings) {
+      const next: ProfileSettings = { ...settings };
+      profileSettingsStore.set(userId, next);
+      return { ...next };
+    },
+  };
+
   return {
     deps: {
       currentUser,
       clock,
+      profiles,
       subjects,
       topics: options.topics !== undefined ? topics : undefined,
       nogs,
@@ -837,6 +859,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       voiceCache,
     },
     stores: {
+      profiles: profileSettingsStore,
       subjects: subjectStore,
       topics: topicStore,
       nogs: nogStore,

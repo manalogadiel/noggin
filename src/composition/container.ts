@@ -7,6 +7,7 @@ import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import { createProfileRepository } from "@/adapters/supabase/repositories/profile-repository";
 import { createServerSupabaseClient } from "@/adapters/supabase/server-client";
 import { createServiceSupabaseClient } from "@/adapters/supabase/service-client";
 import { createGeminiTts } from "@/adapters/voice/gemini-tts";
@@ -25,6 +26,8 @@ import type {
   CurrentUser,
   NogRecord,
   NotebookRepository,
+  ProfileRepository,
+  ProfileSettings,
   QuestionWriter,
   SpeechToText,
   TextToSpeech,
@@ -51,6 +54,10 @@ import {
   type GetNogRoomInput,
   type GetNogRoomResult,
 } from "@/core/application/use-cases/get-nog-room";
+import {
+  getProfileSettings,
+  type GetProfileSettingsResult,
+} from "@/core/application/use-cases/get-profile-settings";
 import {
   hatchNog,
   type HatchNogInput,
@@ -94,6 +101,10 @@ import {
   transcribeLesson,
   type TranscribeLessonResult,
 } from "@/core/application/use-cases/transcribe-lesson";
+import {
+  updateProfileSettings,
+  type UpdateProfileSettingsResult,
+} from "@/core/application/use-cases/update-profile-settings";
 
 const ENV_KEYS = [
   "NODE_ENV",
@@ -265,7 +276,7 @@ function validateContainerEnv(): ContainerEnv {
 }
 
 interface OptionalAuxRepositories {
-  profiles?: {
+  profiles?: Partial<ProfileRepository> & {
     findById?: (
       id: string,
     ) => Promise<{ grillMode?: unknown; grill_mode?: unknown } | null>;
@@ -421,6 +432,10 @@ async function readDisplayName(
 export interface AppContainer {
   currentUser: CurrentUser;
   getDisplayName: () => Promise<string | null>;
+  getProfileSettings: () => Promise<GetProfileSettingsResult>;
+  updateProfileSettings: (
+    settings: ProfileSettings,
+  ) => Promise<UpdateProfileSettingsResult>;
   listNogs: () => Promise<ListNogsResult>;
   hatchNog: (input: HatchNogInput) => Promise<HatchNogResult>;
   addTopic: (input: AddTopicInput) => Promise<AddTopicResult>;
@@ -451,6 +466,8 @@ export async function createContainer(): Promise<AppContainer> {
     return {
       currentUser: anonymousUser,
       getDisplayName: async () => null,
+      getProfileSettings: async () => ({ status: "unauthenticated" }),
+      updateProfileSettings: async () => ({ status: "unauthenticated" }),
       listNogs: async () => ({ status: "unauthenticated" }),
       hatchNog: async () => ({ status: "unauthenticated" }),
       addTopic: async () => ({ status: "unauthenticated" }),
@@ -567,9 +584,28 @@ export async function createContainer(): Promise<AppContainer> {
     },
   };
 
+  const profilesRepo: ProfileRepository =
+    typeof repositories.profiles?.getSettings === "function" &&
+    typeof repositories.profiles?.saveSettings === "function"
+      ? (repositories.profiles as ProfileRepository)
+      : createProfileRepository({ session, userId });
+
   return {
     currentUser,
     getDisplayName: () => readDisplayName(session, userId),
+    getProfileSettings: () =>
+      getProfileSettings({
+        currentUser,
+        profiles: profilesRepo,
+      }),
+    updateProfileSettings: (settings) =>
+      updateProfileSettings(
+        {
+          currentUser,
+          profiles: profilesRepo,
+        },
+        settings,
+      ),
     listNogs: () =>
       listNogs({
         currentUser,

@@ -12,7 +12,8 @@ export type NogSceneName =
   | "peek"
   | "lean"
   | "egg"
-  | "hatched";
+  | "hatched"
+  | "room";
 
 // three.js stays out of every other page: this chunk loads only when a Nog nears the viewport.
 const NogCanvas = dynamic(() => import("./nog-rig"), { ssr: false });

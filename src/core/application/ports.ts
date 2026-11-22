@@ -20,6 +20,31 @@ export interface CurrentUser {
   get(): Promise<AuthenticatedUser | null>;
 }
 
+export type GrillMode = "roast" | "gentle";
+export type MicMode = "tap" | "hold";
+
+export interface ProfileSettings {
+  grillMode: GrillMode;
+  micMode: MicMode;
+  voiceEnabled: boolean;
+  soundsEnabled: boolean;
+}
+
+export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
+  grillMode: "roast",
+  micMode: "tap",
+  voiceEnabled: true,
+  soundsEnabled: true,
+};
+
+export interface ProfileRepository {
+  getSettings(userId: string): Promise<ProfileSettings | null>;
+  saveSettings(
+    userId: string,
+    settings: ProfileSettings,
+  ): Promise<ProfileSettings>;
+}
+
 export interface Clock {
   now(): Date;
 }
