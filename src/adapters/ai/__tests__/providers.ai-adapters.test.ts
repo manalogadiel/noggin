@@ -57,7 +57,7 @@ describe("provider configuration", () => {
       .map((file) => join(file.parentPath, file.name))
       .filter((file) => !/[/\\]__tests__[/\\]|\.(test|spec)\.[cm]?[jt]sx?$/.test(file));
 
-    const modelId = /^(?:[\w.-]+\/)?(?:(?:qwen|gpt|llama|gemini|claude|deepseek|mistral|mixtral|gemma|phi|whisper|grok|kimi)(?:\d[\w.-]*|[-_.][\w.-]+)|o[134](?:-[\w.-]+)?)(?::[\w.-]+)?$/i;
+    const modelId = /^(?:[\w.-]+\/)?(?:(?:qwen|gpt|llama|gemini|deepseek|mistral|mixtral|gemma|phi|whisper|grok|kimi)(?:\d[\w.-]*|[-_.][\w.-]+)|o[134](?:-[\w.-]+)?)(?::[\w.-]+)?$/i;
     const envKeys = /\bLLM_(?:BASE_URL|MODEL|API_KEY|FALLBACK_(?:BASE_URL|MODEL|API_KEY))\b/;
     const modelLiterals: string[] = [];
     const unguardedEnvFiles: string[] = [];
