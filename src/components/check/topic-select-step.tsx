@@ -44,6 +44,90 @@ export function TopicSelectStep({
   const feedBaseHref = `${roomHref}/feed`;
   const hasReadyTopic = topics.some((topic) => topic.status === "ready");
   const canStart = Boolean(selectedTopicId) && hasReadyTopic && !isThinking;
+  const selectedTopic =
+    topics.find((topic) => topic.id === selectedTopicId) ?? null;
+
+  if (isThinking) {
+    return (
+      <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+        <header className="flex flex-wrap items-center gap-3">
+          <Link
+            href={roomHref}
+            aria-label={`Back to ${nog.name}'s room`}
+            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+          </Link>
+
+          <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
+            Play
+          </h1>
+
+          {selectedTopic && (
+            <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sage)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
+              {selectedTopic.title}
+            </span>
+          )}
+        </header>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-start lg:gap-8">
+          <div className="flex min-w-0 flex-col gap-5">
+            <div
+              aria-hidden="true"
+              className="flex min-h-[260px] flex-col justify-center gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8"
+            >
+              <div className="h-3.5 w-28 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)]/80 motion-safe:animate-pulse" />
+              <div className="h-6 w-5/6 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)]/90 motion-safe:animate-pulse" />
+              <div className="h-6 w-2/3 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)]/80 motion-safe:animate-pulse" />
+            </div>
+
+            <div
+              aria-hidden="true"
+              className="flex flex-col gap-3 rounded-[18px] border-2 border-[var(--noggin-leaf)] bg-[var(--noggin-white)] p-5 shadow-[0_10px_26px_var(--noggin-shadow)] sm:p-6"
+            >
+              <div className="h-3.5 w-32 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] motion-safe:animate-pulse" />
+              <div className="h-4 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] motion-safe:animate-pulse" />
+              <div className="h-4 w-3/4 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] motion-safe:animate-pulse" />
+            </div>
+          </div>
+
+          <aside className="flex flex-col items-center gap-5">
+            <div
+              role="status"
+              aria-live="polite"
+              className="relative w-full rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] px-6 py-4 text-center text-[1rem] font-semibold text-[var(--noggin-forest)] shadow-[0_10px_24px_var(--noggin-shadow)]"
+            >
+              <p className="noggin-display font-bold">Hmm, let me think…</p>
+              <div
+                aria-hidden="true"
+                className="mx-auto mt-3 flex max-w-[220px] flex-col gap-2"
+              >
+                <div className="h-2.5 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
+                <div className="mx-auto h-2.5 w-3/4 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
+              </div>
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rotate-45 border-r border-b border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]"
+              />
+            </div>
+
+            <div className="w-full max-w-[300px] lg:max-w-[360px]">
+              <NogStage
+                scene="room"
+                alt={`${nog.name} thinking through the quiz questions`}
+                poster="/nog/blob-closeup.png"
+                width={1254}
+                height={1254}
+                sizes="(min-width: 1024px) 360px, 300px"
+                priority
+                className="nog-bob w-full"
+              />
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
@@ -68,38 +152,7 @@ export function TopicSelectStep({
         </p>
       </header>
 
-      {isThinking ? (
-        <div className="mt-2 flex flex-col items-center gap-6 py-4 text-center">
-          <div
-            role="status"
-            aria-live="polite"
-            className="relative w-full max-w-[440px] rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] px-6 py-4 text-[1rem] font-semibold text-[var(--noggin-forest)] shadow-[0_10px_24px_var(--noggin-shadow)]"
-          >
-            <p className="noggin-display font-bold">Hmm, let me think…</p>
-            <div
-              aria-hidden="true"
-              className="mx-auto mt-3 flex max-w-[260px] flex-col gap-2"
-            >
-              <div className="h-2.5 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
-              <div className="mx-auto h-2.5 w-3/4 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
-            </div>
-          </div>
-
-          <div className="w-full max-w-[300px] lg:max-w-[380px]">
-            <NogStage
-              scene="room"
-              alt={`${nog.name} thinking through the quiz questions`}
-              poster="/nog/blob-closeup.png"
-              width={1254}
-              height={1254}
-              sizes="(min-width: 1024px) 380px, 300px"
-              priority
-              className="nog-bob w-full"
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(360px,0.95fr)_2px_minmax(0,1.05fr)] lg:items-start lg:gap-10">
+      <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(360px,0.95fr)_2px_minmax(0,1.05fr)] lg:items-start lg:gap-10">
           <div className="flex flex-col items-center gap-6">
             <div className="w-full max-w-[300px] lg:max-w-[380px]">
               <NogStage
@@ -242,7 +295,6 @@ export function TopicSelectStep({
             )}
           </div>
         </div>
-      )}
     </div>
   );
 }

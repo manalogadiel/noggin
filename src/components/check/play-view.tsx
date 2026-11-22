@@ -170,6 +170,7 @@ export function PlayView({ nog, topics, initialTopicId }: PlayViewProps) {
         {step === "quiz" && checkData && currentAttempt && (
           <AnswerReveal
             key={currentAttempt.id}
+            nogId={nog.id}
             nogName={nog.name}
             topicTitle={checkData.topic.title}
             attempt={currentAttempt}
