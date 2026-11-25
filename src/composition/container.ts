@@ -14,7 +14,9 @@ import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import { createSandboxPaymentGateway } from "@/adapters/billing/sandbox-payment-gateway";
 import { createActivityRepository } from "@/adapters/supabase/repositories/activity-repository";
+import { createBillingRepository } from "@/adapters/supabase/repositories/billing-repository";
 import { createEconomyRepository } from "@/adapters/supabase/repositories/economy-repository";
 import { createProfileRepository } from "@/adapters/supabase/repositories/profile-repository";
 import { createProgressRepository } from "@/adapters/supabase/repositories/progress-repository";
@@ -33,6 +35,7 @@ import {
 import type {
   ActivityRepository,
   AttemptRepository,
+  BillingRepository,
   Clock,
   CurrentUser,
   EconomyPreferencesPatch,
@@ -40,6 +43,7 @@ import type {
   NogAsker,
   NogRecord,
   NotebookRepository,
+  PaymentGateway,
   ProfileRepository,
   ProfileSettings,
   ProgressRepository,
@@ -59,6 +63,16 @@ import {
   type AnswerFollowUpInput,
   type AnswerFollowUpResult,
 } from "@/core/application/use-cases/answer-follow-up";
+import {
+  cancelNogginPlus,
+  type CancelSubscriptionResult,
+  checkoutCoinPack,
+  type CheckoutProductInput,
+  type CheckoutProductResult,
+  getBillingSummary,
+  type GetBillingSummaryResult,
+  subscribeNogginPlus,
+} from "@/core/application/use-cases/billing";
 import {
   customizeNog,
   type CustomizeNogInput,
@@ -365,6 +379,7 @@ interface OptionalAuxRepositories {
     getFeatures?: () => Promise<Record<string, unknown> | null>;
   };
   economy?: EconomyRepository;
+  billing?: BillingRepository;
 }
 
 function parseGrillMode(raw: unknown): "roast" | "gentle" {
@@ -609,6 +624,14 @@ export interface AppContainer {
   updatePlayerPreferences: (
     patch: EconomyPreferencesPatch,
   ) => Promise<UpdatePlayerPreferencesResult>;
+  getBillingSummary: () => Promise<GetBillingSummaryResult>;
+  checkoutCoinPack: (
+    input: CheckoutProductInput,
+  ) => Promise<CheckoutProductResult>;
+  subscribeNogginPlus: (
+    input: CheckoutProductInput,
+  ) => Promise<CheckoutProductResult>;
+  cancelNogginPlus: () => Promise<CancelSubscriptionResult>;
 }
 
 /** Used when no answering model is configured; the ask flow reports brain fog. */
@@ -667,6 +690,10 @@ export async function createContainer(): Promise<AppContainer> {
       claimDailyTask: async () => ({ status: "unauthenticated" }),
       useStreakRestore: async () => ({ status: "unauthenticated" }),
       updatePlayerPreferences: async () => ({ status: "unauthenticated" }),
+      getBillingSummary: async () => ({ status: "unauthenticated" }),
+      checkoutCoinPack: async () => ({ status: "unauthenticated" }),
+      subscribeNogginPlus: async () => ({ status: "unauthenticated" }),
+      cancelNogginPlus: async () => ({ status: "unauthenticated" }),
     };
   }
 
@@ -791,6 +818,13 @@ export async function createContainer(): Promise<AppContainer> {
     typeof repositories.economy?.getOrInit === "function"
       ? repositories.economy
       : createEconomyRepository({ session, userId });
+
+  const billingRepo: BillingRepository =
+    typeof repositories.billing?.listProducts === "function"
+      ? repositories.billing
+      : createBillingRepository({ session, userId });
+
+  const paymentGateway: PaymentGateway = createSandboxPaymentGateway();
 
   return {
     currentUser,
@@ -1130,5 +1164,19 @@ export async function createContainer(): Promise<AppContainer> {
       useStreakRestore({ currentUser, economy: economyRepo }),
     updatePlayerPreferences: (patch) =>
       updatePlayerPreferences({ currentUser, economy: economyRepo }, patch),
+    getBillingSummary: () =>
+      getBillingSummary({ currentUser, billing: billingRepo }),
+    checkoutCoinPack: (input) =>
+      checkoutCoinPack(
+        { currentUser, billing: billingRepo, paymentGateway },
+        input,
+      ),
+    subscribeNogginPlus: (input) =>
+      subscribeNogginPlus(
+        { currentUser, billing: billingRepo, paymentGateway },
+        input,
+      ),
+    cancelNogginPlus: () =>
+      cancelNogginPlus({ currentUser, billing: billingRepo }),
   };
 }

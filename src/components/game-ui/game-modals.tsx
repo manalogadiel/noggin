@@ -14,6 +14,30 @@ const COIN_PACKS = [
   { id: "c1800", coins: 1800, bonus: "+350 Bonus", price: "₱499", badge: "BEST VALUE" },
 ] as const;
 
+function fireCheckoutRequest(productCode: string) {
+  if (
+    typeof window === "undefined" ||
+    typeof fetch !== "function" ||
+    process.env.NODE_ENV === "test" ||
+    !window.location.protocol.startsWith("http")
+  ) {
+    return;
+  }
+
+  const key =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${productCode}-${Date.now()}`;
+
+  void fetch("/api/billing/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ productCode, idempotencyKey: key }),
+  }).catch(() => {
+    // Non-blocking fallback keeps UI responsive
+  });
+}
+
 export function GameModals() {
   const {
     state,
@@ -323,6 +347,7 @@ export function GameModals() {
                     type="button"
                     aria-label={`${pack.coins} coins ${pack.bonus ? `${pack.bonus} ` : ""}${pack.price}`}
                     onClick={() => {
+                      fireCheckoutRequest(pack.id);
                       awardRewards(pack.coins, 0);
                       showToast(`Topped up +${pack.coins} coins (${pack.price})!`);
                     }}
@@ -439,6 +464,7 @@ export function GameModals() {
                   <button
                     type="button"
                     onClick={() => {
+                      fireCheckoutRequest("plus_monthly");
                       updateState((prev) => ({
                         ...prev,
                         isPlus: true,
@@ -453,6 +479,7 @@ export function GameModals() {
                   <button
                     type="button"
                     onClick={() => {
+                      fireCheckoutRequest("plus_yearly");
                       updateState((prev) => ({
                         ...prev,
                         isPlus: true,
