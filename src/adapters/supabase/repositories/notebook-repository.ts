@@ -99,6 +99,14 @@ function serializeDigestOperation(
       ...(operation.quote !== undefined ? { quote: operation.quote } : {}),
     };
   }
+  if (operation.type === "reinforce") {
+    return {
+      type: "reinforce",
+      card_id: operation.cardId,
+      quote: operation.quote,
+      ...(operation.status !== undefined ? { status: operation.status } : {}),
+    };
+  }
   return {
     type: "conflict",
     card_id: operation.cardId,
@@ -113,7 +121,10 @@ export type SupabaseNotebookRepository = NotebookRepository &
   Required<
     Pick<
       NotebookRepository,
-      "findPageByIdempotencyKey" | "findSavedDigest" | "countIssuedQuestions"
+      | "findPageByIdempotencyKey"
+      | "findSavedDigest"
+      | "countIssuedQuestions"
+      | "findPagesByIds"
     >
   >;
 
@@ -282,6 +293,31 @@ export function createNotebookRepository(options: {
           ? data.digest_card_ids
           : [],
       };
+    },
+
+    async findPagesByIds(
+      nogId: string,
+      lessonIds: string[],
+    ): Promise<LessonPage[]> {
+      const ids = [...new Set(lessonIds)];
+      if (ids.length === 0) {
+        return [];
+      }
+      const { data, error } = await session
+        .from("lessons")
+        .select(LESSON_COLUMNS)
+        .eq("nog_id", nogId)
+        .in("id", ids)
+        .returns<LessonRow[]>();
+
+      if (error) {
+        throw mapPostgrestError(error, "notebook.findPagesByIds");
+      }
+      const byId = new Map((data ?? []).map((row) => [row.id, row]));
+      return ids.flatMap((id) => {
+        const row = byId.get(id);
+        return row ? [mapLessonRow(row)] : [];
+      });
     },
 
     async listPages(nogId: string, topicId: string): Promise<LessonPage[]> {

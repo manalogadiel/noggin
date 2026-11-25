@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type {
   AnswerQuestionPrompt,
+  AskOutput,
   BrainAnswerResult,
   DigestOperation,
   GeneratedQuestionDraft,
@@ -70,12 +71,13 @@ function questionPlainTextString(minTrimmedLength: number, maxLength: number) {
     );
 }
 
+const nonBlankString = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0, "must not be blank");
+
 function nonBlankQuoteString(maxLength: number) {
-  return z
-    .string()
-    .min(1)
-    .max(maxLength)
-    .refine((value) => value.trim().length > 0, "must not be blank");
+  return nonBlankString.max(maxLength);
 }
 
 const thoughtCardStatusSchema = z.enum(THOUGHT_CARD_STATUSES);
@@ -86,6 +88,13 @@ const createOperationSchema = z.object({
   paraphrase: plainTextString(280),
   status: thoughtCardStatusSchema,
   quote: nonBlankQuoteString(300),
+});
+
+const reinforceOperationSchema = z.object({
+  type: z.literal("reinforce"),
+  cardId: nonBlankString,
+  quote: nonBlankQuoteString(300),
+  status: thoughtCardStatusSchema.optional(),
 });
 
 const updateOperationSchema = z.object({
@@ -106,6 +115,7 @@ const conflictOperationSchema = z.object({
 
 export const digestOperationSchema = z.discriminatedUnion("type", [
   createOperationSchema,
+  reinforceOperationSchema,
   updateOperationSchema,
   conflictOperationSchema,
 ]);
@@ -115,7 +125,15 @@ export const listenerDigestSchema = z.object({
   mood: z.enum(LISTENER_MOODS),
   followUpQuestions: z.array(plainTextString(200)).max(2),
   operations: z.array(digestOperationSchema).max(8),
+  offTopic: z.boolean().optional(),
 });
+
+export const askerResponseSchema = z.object({
+  answer: plainTextString(600),
+  mood: plainTextString(20),
+  knows: z.boolean(),
+  citedCardIds: z.array(nonBlankString).max(8),
+}).strict();
 
 export const brainAnswerResponseSchema = z.object({
   answers: z.array(
@@ -199,7 +217,10 @@ function formatZodIssues(error: z.ZodError): string {
     .slice(0, 3)
     .map((issue) => {
       const path = issue.path.length > 0 ? issue.path.join(".") : "root";
-      return `${path}: ${issue.message}`;
+      const message = issue.code === "unrecognized_keys"
+        ? "unexpected fields"
+        : issue.message;
+      return `${path}: ${message}`;
     })
     .join("; ");
 }
@@ -212,6 +233,14 @@ function cleanOperation(operation: z.infer<typeof digestOperationSchema>): Diges
       paraphrase: operation.paraphrase,
       status: operation.status,
       quote: operation.quote,
+    };
+  }
+  if (operation.type === "reinforce") {
+    return {
+      type: "reinforce",
+      cardId: operation.cardId,
+      quote: operation.quote,
+      ...(operation.status === undefined ? {} : { status: operation.status }),
     };
   }
   if (operation.type === "update") {
@@ -247,8 +276,18 @@ export function parseListenerDigest(data: unknown): ParseResult<ListenerDigest> 
       mood: parsed.data.mood,
       followUpQuestions: [...parsed.data.followUpQuestions],
       operations: parsed.data.operations.map(cleanOperation),
+      ...(parsed.data.offTopic === undefined ? {} : { offTopic: parsed.data.offTopic }),
     },
   };
+}
+
+export function parseAskerOutput(data: unknown): ParseResult<AskOutput> {
+  const parsed = askerResponseSchema.safeParse(data);
+  if (!parsed.success) {
+    return { ok: false, error: formatZodIssues(parsed.error) };
+  }
+  const { answer, mood, knows, citedCardIds } = parsed.data;
+  return { ok: true, value: { answer, mood, knows, citedCardIds } };
 }
 
 export function parseBrainAnswers(

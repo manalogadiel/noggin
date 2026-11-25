@@ -5,6 +5,8 @@ import { isDeepStrictEqual } from "node:util";
 import { groundQuote } from "../src/core/domain/quote-grounding";
 import type {
   AnswerInput,
+  AskInput,
+  AskOutput,
   DigestOperation,
   GenerateQuestionsInput,
   GradeInput,
@@ -20,6 +22,7 @@ import {
   type LlmUsageEvent,
 } from "../src/adapters/ai/openai-compatible-llm";
 import { PROMPT_VERSION as ANSWERER_PROMPT_VERSION } from "../src/adapters/ai/prompts/answerer";
+import { PROMPT_VERSION as ASKER_PROMPT_VERSION } from "../src/adapters/ai/prompts/asker";
 import { PROMPT_VERSION as GRADER_PROMPT_VERSION } from "../src/adapters/ai/prompts/grader";
 import {
   PROMPT_VERSION as LISTENER_PROMPT_VERSION,
@@ -39,6 +42,7 @@ type GoldenCase = { id: string; required?: boolean } & (
       expected: {
         operation?: Partial<DigestOperation>;
         operationStatuses?: string[];
+        offTopic?: boolean;
         minFollowUpQuestions?: number;
         minCreateOps?: number;
         allQuotesGrounded?: boolean;
@@ -56,6 +60,11 @@ type GoldenCase = { id: string; required?: boolean } & (
       port: "answerer";
       input: AnswerInput;
       expected: { answers: { questionId: string; nogAnswerPattern: string }[] };
+    }
+  | {
+      port: "asker";
+      input: AskInput;
+      expected: { knows: boolean; citedCardIds: string[]; answerPattern?: string };
     }
   | {
       port: "question-writer";
@@ -114,7 +123,9 @@ function buildEvalAdapters(onUsage: (event: LlmUsageEvent) => void): {
   modelId: string;
 } {
   const provider = readEnv("LLM_PROVIDER")?.toLowerCase();
-  if (provider === "fake") {
+  const offlineByDefault =
+    !provider && !process.argv.includes("--live") && !readEnv("LLM_BASE_URL");
+  if (provider === "fake" || offlineByDefault) {
     if (process.env.NODE_ENV === "production") {
       throw new LlmConfigError(
         "LLM_PROVIDER=fake cannot be enabled when NODE_ENV is production.",
@@ -132,6 +143,7 @@ function buildEvalAdapters(onUsage: (event: LlmUsageEvent) => void): {
   const baseUrl = readEnv("LLM_BASE_URL");
   const apiKey = readEnv("LLM_API_KEY");
   const model = readEnv("LLM_MODEL");
+  const askerModel = readEnv("LLM_ASKER_MODEL");
   const missing = [
     !baseUrl ? "LLM_BASE_URL" : null,
     !apiKey ? "LLM_API_KEY" : null,
@@ -166,6 +178,7 @@ function buildEvalAdapters(onUsage: (event: LlmUsageEvent) => void): {
           model: model!,
         },
         fallback,
+        ...(askerModel ? { roleModels: { asker: askerModel } } : {}),
       },
       {
         getPersona: async () => EVAL_PERSONA,
@@ -195,6 +208,10 @@ function evaluateListenerOutput(
   actual: ListenerDigest,
 ): { passed: boolean; reason?: string } {
   const { expected } = testCase;
+
+  if (expected.offTopic !== undefined && (actual.offTopic ?? false) !== expected.offTopic) {
+    return { passed: false, reason: "unexpected topic fit verdict" };
+  }
 
   if (expected.output !== undefined) {
     if (!isDeepStrictEqual(actual, expected.output)) {
@@ -269,6 +286,25 @@ function evaluateListenerOutput(
   return { passed: true };
 }
 
+function evaluateAskerOutput(
+  { expected }: Extract<GoldenCase, { port: "asker" }>,
+  { knows, citedCardIds, answer }: AskOutput,
+): { passed: boolean; reason?: string } {
+  if (knows !== expected.knows) {
+    return { passed: false, reason: "unexpected knowledge verdict" };
+  }
+  const validCitations = knows
+    ? citedCardIds.length > 0 && citedCardIds.every((id) => expected.citedCardIds.includes(id))
+    : citedCardIds.length === 0;
+  if (!validCitations) {
+    return { passed: false, reason: "unexpected citations" };
+  }
+  if (expected.answerPattern && !new RegExp(expected.answerPattern, "i").test(answer)) {
+    return { passed: false, reason: "answer did not match expected pattern" };
+  }
+  return { passed: true };
+}
+
 export async function runEval(): Promise<boolean> {
   const goldenPath = new URL("../evals/golden.json", import.meta.url);
   const suite = JSON.parse(readFileSync(goldenPath, "utf8")) as GoldenSuite;
@@ -289,7 +325,7 @@ export async function runEval(): Promise<boolean> {
 
   console.log(`Model: ${modelId}`);
   console.log(
-    `Prompt versions: listener=${LISTENER_PROMPT_VERSION}, answerer=${ANSWERER_PROMPT_VERSION}, grader=${GRADER_PROMPT_VERSION}, questionWriter=${QUESTION_WRITER_PROMPT_VERSION}`,
+    `Prompt versions: listener=${LISTENER_PROMPT_VERSION}, answerer=${ANSWERER_PROMPT_VERSION}, asker=${ASKER_PROMPT_VERSION}, grader=${GRADER_PROMPT_VERSION}, questionWriter=${QUESTION_WRITER_PROMPT_VERSION}`,
   );
 
   const graderResults = new Map<string, GraderResult>();
@@ -318,6 +354,25 @@ export async function runEval(): Promise<boolean> {
         }
 
         const check = evaluateListenerOutput(testCase, digest);
+        outcomes.push({ id: testCase.id, required, ...check });
+        console.log(
+          check.passed
+            ? `PASS ${testCase.id}`
+            : `FAIL ${testCase.id} — ${check.reason ?? "failed"}`,
+        );
+      } else if (testCase.port === "asker") {
+        if (!adapters.asker) {
+          outcomes.push({
+            id: testCase.id,
+            required,
+            passed: false,
+            reason: "asker adapter not configured",
+          });
+          console.log(`FAIL ${testCase.id} — asker adapter not configured`);
+          continue;
+        }
+        const result = await adapters.asker.ask(testCase.input);
+        const check = evaluateAskerOutput(testCase, result);
         outcomes.push({ id: testCase.id, required, ...check });
         console.log(
           check.passed
@@ -418,7 +473,8 @@ export async function runEval(): Promise<boolean> {
   const passRate = totalCount > 0 ? passedCount / totalCount : 0;
   const requiredOutcomes = outcomes.filter((item) => item.required);
   const requiredPassed = requiredOutcomes.every((item) => item.passed);
-  const overallPassed = requiredPassed && passRate >= OVERALL_PASS_THRESHOLD;
+  const threshold = modelId === "fake" ? 1 : OVERALL_PASS_THRESHOLD;
+  const overallPassed = requiredPassed && passRate >= threshold;
   const avgTokens =
     totals.calls > 0 ? Math.round(totals.totalTokens / totals.calls) : 0;
   const inputRatePerMillion = readNonNegativeNumberEnv("LLM_INPUT_COST_PER_1M");
@@ -456,7 +512,7 @@ function isDirectEntryPoint(): boolean {
 
 if (isDirectEntryPoint()) {
   void runEval().catch((error) => {
-    const message = error instanceof Error ? error.message : "Eval failed";
+    const message = error instanceof LlmConfigError ? error.message : "Eval failed";
     console.error(message);
     process.exitCode = 1;
   });

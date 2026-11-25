@@ -3,19 +3,25 @@ import type {
   ApplyDigestResult,
   CurrentUser,
   LessonPage,
+  ListenContext,
   ListenerDigest,
   NogListener,
   NogRepository,
   NotebookRepository,
   ThoughtCardRepository,
+  TopicRepository,
   UsageRepository,
 } from "../ports";
 import { EntitlementService } from "../services/entitlement";
 import {
+  applyOffTopicStatus,
   buildDigestMessages,
+  dedupeCreateOperations,
+  extractReinforcedCardIds,
   filterGroundedOperations,
   matchesReplayPage,
   MAX_FOLLOW_UP_QUESTIONS,
+  selectListenerCards,
   withThreadDigestLock,
 } from "./teach-lesson";
 
@@ -24,6 +30,7 @@ export const MAX_FOLLOW_UPS_PER_LESSON = 2;
 export interface AnswerFollowUpDeps {
   currentUser: CurrentUser;
   nogs: Pick<NogRepository, "findOwned">;
+  topics?: Pick<TopicRepository, "findById">;
   notebook: Pick<
     NotebookRepository,
     | "findPage"
@@ -64,6 +71,8 @@ export type AnswerFollowUpResult =
       page: LessonPage;
       digest: ListenerDigest;
       applied: ApplyDigestResult;
+      reinforcedCardIds?: string[];
+      offTopic?: boolean;
     };
 
 const followUpSaveLocks = new Map<string, Promise<void>>();
@@ -276,6 +285,10 @@ export async function answerFollowUp(
       page: saveOutcome.page,
       digest: saveOutcome.digest,
       applied: saveOutcome.applied,
+      reinforcedCardIds: extractReinforcedCardIds(
+        saveOutcome.digest.operations,
+      ),
+      ...(saveOutcome.digest.offTopic ? { offTopic: true } : {}),
     };
   }
 
@@ -288,23 +301,50 @@ export async function answerFollowUp(
     input.nogId,
     rootLesson.topicId,
   );
+  const listenerCards = selectListenerCards(existingCards, page.body);
+
+  let topicTitle: string | undefined;
+  if (deps.topics) {
+    const topic = await deps.topics.findById(rootLesson.topicId);
+    if (topic) {
+      topicTitle = topic.title;
+    }
+  }
+
+  const rootSavedDigest = deps.notebook.findSavedDigest
+    ? await deps.notebook.findSavedDigest(input.nogId, rootLesson.idempotencyKey)
+    : null;
+  const rootQuestions = (rootSavedDigest?.digest.followUpQuestions ?? [])
+    .map((question) => question.trim())
+    .filter((question) => question.length > 0);
+  const context: ListenContext = {
+    rootLesson: rootLesson.body,
+    ...(rootQuestions.length > 0
+      ? { nogQuestion: rootQuestions.join("\n") }
+      : {}),
+  };
 
   let rawDigest: ListenerDigest;
   try {
     rawDigest = await deps.listener.listen({
       nogId: input.nogId,
       topicId: rootLesson.topicId,
+      ...(topicTitle !== undefined ? { topicTitle } : {}),
       page,
-      existingCards,
+      existingCards: listenerCards,
+      context,
     });
   } catch {
     return { status: "brain_fog", page };
   }
 
-  const groundedOperations = filterGroundedOperations(
+  const dedupedOperations = dedupeCreateOperations(
     rawDigest.operations,
-    page.body,
     existingCards,
+  );
+  const groundedOperations = applyOffTopicStatus(
+    filterGroundedOperations(dedupedOperations, page.body, existingCards),
+    rawDigest.offTopic,
   );
 
   const { sanitizedDigest, applied } = await withThreadDigestLock(
@@ -359,6 +399,8 @@ export async function answerFollowUp(
         page,
         digest: saved,
         applied,
+        reinforcedCardIds: extractReinforcedCardIds(saved.operations),
+        ...(saved.offTopic ? { offTopic: true } : {}),
       };
     }
     return {
@@ -371,6 +413,7 @@ export async function answerFollowUp(
         operations: [],
       },
       applied,
+      reinforcedCardIds: [],
     };
   }
 
@@ -379,5 +422,7 @@ export async function answerFollowUp(
     page,
     digest: sanitizedDigest,
     applied,
+    reinforcedCardIds: extractReinforcedCardIds(sanitizedDigest.operations),
+    ...(sanitizedDigest.offTopic ? { offTopic: true } : {}),
   };
 }

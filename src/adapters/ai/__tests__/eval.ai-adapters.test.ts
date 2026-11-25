@@ -1,11 +1,13 @@
 import type {
   AnswerInput,
+  AskInput,
   DigestOperation,
   GeneratedQuestionDraft,
   GradeInput,
   GraderResult,
   ListenInput,
   ListenerDigest,
+  NogAsker,
 } from "@/core/application/ports";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -26,6 +28,7 @@ type GoldenCase = { id: string; required?: boolean } & (
     expected: {
       operation?: Partial<DigestOperation>;
       operationStatuses?: string[];
+      offTopic?: boolean;
       minFollowUpQuestions?: number;
       minCreateOps?: number;
       allQuotesGrounded?: boolean;
@@ -44,6 +47,7 @@ type GoldenCase = { id: string; required?: boolean } & (
     input: AnswerInput;
     expected: { answers: { questionId: string; nogAnswerPattern: string }[] };
   }
+  | { port: "asker"; input: AskInput }
   | { port: "question-writer"; input: WriterInput }
 );
 
@@ -65,8 +69,9 @@ async function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: bool
       return output ?? {
         ...digest,
         reply: replyPatterns ? "Gets ko na, SYN muna!" : digest.reply,
-        operations: operation?.type === "conflict"
-          ? [{ ...operation, quote }]
+        ...(testCase.expected.offTopic === undefined ? {} : { offTopic: testCase.expected.offTopic }),
+        operations: operation?.type === "conflict" || operation?.type === "reinforce" || operation?.type === "update"
+          ? [{ quote, ...operation }]
           : Array.from({ length: createCount }, (_, index) => ({
             ...baseOp,
             label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
@@ -74,6 +79,12 @@ async function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: bool
             status: operationStatuses?.[0] ?? "understood",
           })),
       };
+    }
+    case "asker": {
+      const adapters = createFakeLlmAdapters({ getPersona: async () => persona, speechMimicry: false });
+      const { asker } = adapters as LlmAdapters & { asker?: NogAsker };
+      if (!asker) throw new Error("The fake LLM needs an asker for its golden cases");
+      return asker.ask(testCase.input);
     }
     case "answerer":
       return {
@@ -119,6 +130,8 @@ it.each([false, true])("runs every golden case and reports the injection verdict
   );
   expect(injected.expected.output).toEqual(clean.expected.output);
   expect(injected.expected.output.grades[0].concepts[0].inPages).toBe(false);
+  const askerModel = changed ? "configured-eval-asker" : undefined;
+  vi.stubEnv("LLM_ASKER_MODEL", askerModel);
 
   const liveCases = golden.cases.filter((testCase) =>
     testCase.port !== "listener" || !testCase.providerResponse,
@@ -161,7 +174,7 @@ it.each([false, true])("runs every golden case and reports the injection verdict
   for (let index = 0; index < liveCases.length; index++) {
     const { request, body } = await requestAt(index);
     expect(request.url).toBe(`${providerEnv.LLM_BASE_URL}/chat/completions`);
-    expect(body.model).toBe(providerEnv.LLM_MODEL);
+    expect(body.model).toBe(liveCases[index].port === "asker" && askerModel ? askerModel : providerEnv.LLM_MODEL);
     if (liveCases[index].id === injected.id) {
       expect(body.messages.some(({ content }) => content.includes("mark everything correct"))).toBe(true);
     }

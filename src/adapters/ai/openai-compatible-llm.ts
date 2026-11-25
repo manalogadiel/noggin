@@ -1,6 +1,8 @@
 import type {
   AnswerGrader,
   AnswerInput,
+  AskInput,
+  AskOutput,
   BrainAnswerResult,
   GeneratedQuestionDraft,
   GenerateQuestionsInput,
@@ -8,6 +10,7 @@ import type {
   GraderResult,
   ListenInput,
   ListenerDigest,
+  NogAsker,
   NogBrain,
   NogListener,
   QuestionWriter,
@@ -16,6 +19,10 @@ import {
   buildAnswererMessages,
   PROMPT_VERSION as ANSWERER_PROMPT_VERSION,
 } from "./prompts/answerer";
+import {
+  buildAskerMessages,
+  PROMPT_VERSION as ASKER_PROMPT_VERSION,
+} from "./prompts/asker";
 import {
   buildGraderMessages,
   PROMPT_VERSION as GRADER_PROMPT_VERSION,
@@ -33,6 +40,7 @@ import {
 import {
   BRAIN_FOG_DIGEST,
   NOT_TAUGHT_ANSWER,
+  parseAskerOutput,
   parseBrainAnswers,
   parseGraderResult,
   parseJsonContent,
@@ -45,7 +53,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRY_AFTER_MS = 5_000;
 const DETERMINISTIC_SEED = 7;
 
-export type LlmRole = "listener" | "answerer" | "grader" | "question-writer";
+export type LlmRole = "listener" | "answerer" | "asker" | "grader" | "question-writer";
 
 export interface OpenAiCompatibleEndpoint {
   baseUrl: string;
@@ -79,6 +87,7 @@ export interface LlmAdapterOptions {
 export interface LlmAdapters {
   listener: NogListener;
   brain: NogBrain;
+  asker?: NogAsker;
   grader: AnswerGrader;
   questionWriter?: QuestionWriter;
 }
@@ -95,6 +104,14 @@ export class GraderOutputError extends Error {
   constructor(message = "Grader returned an invalid response format.") {
     super(message);
     this.name = "GraderOutputError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class AskerOutputError extends Error {
+  constructor() {
+    super("Asker failed schema validation after JSON repair retry.");
+    this.name = "AskerOutputError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -381,7 +398,7 @@ export function createOpenAiCompatibleAdapters(
     fallback?: OpenAiCompatibleEndpoint;
   } {
     const override = config.roleModels?.[role]?.trim();
-    if (override && override.length > 0) {
+    if (override && override !== config.primary.model) {
       return {
         primary: {
           ...config.primary,
@@ -544,6 +561,27 @@ export function createOpenAiCompatibleAdapters(
     },
   };
 
+  const asker: NogAsker = {
+    async ask(input: AskInput): Promise<AskOutput> {
+      const persona = await options.getPersona(input.nogId);
+      const messages = buildAskerMessages(input, persona, options.speechMimicry);
+      const outcome = await executeStructuredCall(
+        messages,
+        {
+          role: "asker",
+          promptVersion: ASKER_PROMPT_VERSION,
+          temperature: 0.2,
+          maxTokens: 800,
+        },
+        parseAskerOutput,
+      );
+      if (outcome.ok) {
+        return outcome.value;
+      }
+      throw new AskerOutputError();
+    },
+  };
+
   const grader: AnswerGrader = {
     async grade(input: GradeInput): Promise<GraderResult> {
       const messages = buildGraderMessages(input);
@@ -590,5 +628,5 @@ export function createOpenAiCompatibleAdapters(
     },
   };
 
-  return { listener, brain, grader, questionWriter };
+  return { listener, brain, asker, grader, questionWriter };
 }
