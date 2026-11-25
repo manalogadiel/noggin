@@ -109,276 +109,306 @@ export function NogCollection({ nogs }: NogCollectionProps) {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border-2 border-[var(--ng-c-d7c9a3)] bg-[var(--ng-c-f9f2df)] shadow-[0_22px_50px_rgb(24_42_8_/_0.22)]">
-      {/* Spotlight Stage Backdrop */}
+    <div className="game-world cs-world">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/game/bg/select-stage.jpg"
         alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-28"
+        className="cs-bg-img"
       />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[rgb(255_253_245_/_0.78)] via-[rgb(238_244_223_/_0.72)] to-[rgb(198_224_156_/_0.65)]"
-      />
+      <div className="cs-spotlight-overlay" aria-hidden="true" />
 
-      <div className="relative z-10 grid grid-cols-1 gap-6 p-5 md:p-7 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-        {/* LEFT: Storybook Parchment Roster Board */}
-        <section
-          aria-label="Nog roster"
-          className="rounded-3xl border-2 border-[var(--ng-c-e3d6b4)] bg-[rgb(255_253_245_/_0.9)] p-4 shadow-md backdrop-blur-sm md:p-5"
-        >
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--ng-c-e8f6d2)] px-3.5 py-1 text-xs font-black tracking-wide text-[var(--noggin-forest)]">
-              <span>OWNED:</span>
-              <span>{nogs.length} / 9</span>
-            </div>
+      <div className="charselect-layout">
+        {/* LEFT: Sculpted Parchment Roster Board */}
+        <div className="cs-board-shell">
+          <Link
+            href="/home"
+            className="cs-side-close"
+            aria-label="Return to Home"
+          >
+            <span aria-hidden="true" className="text-2xl font-black leading-none">
+              ‹
+            </span>
+          </Link>
 
-            <div
-              role="radiogroup"
-              aria-label="View"
-              className="inline-flex items-center gap-1 rounded-full border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-1 shadow-sm"
-            >
-              <button
-                type="button"
-                role="radio"
-                aria-label="Grid view"
-                aria-checked={view === "grid"}
-                onClick={() => persistView("grid")}
-                onKeyDown={handleRadioKeyDown}
-                className={cn(
-                  "inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition-colors",
-                  view === "grid"
-                    ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow"
-                    : "text-[var(--noggin-forest)] hover:bg-[var(--noggin-mint-light)]",
-                )}
-              >
-                <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-              </button>
+          <svg className="cs-charm cs-charm--tl" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <path
+              d="M32 8c-9 8-14 18-10 28 8 4 19 0 24-11-3-8-8-14-14-17z"
+              fill="var(--ng-c-8bb955)"
+            />
+            <path
+              d="M22 36c6-7 13-13 21-17"
+              stroke="var(--ng-c-537d23)"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+          </svg>
+          <svg className="cs-charm cs-charm--tr" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <path
+              d="M32 6l6.2 14.4L54 22l-11.8 10.6L45 48l-13-7.6L19 48l2.8-15.4L10 22l15.8-1.6L32 6z"
+              fill="var(--ng-c-ffe074)"
+              stroke="var(--ng-c-d69312)"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+          </svg>
 
-              <button
-                type="button"
-                role="radio"
-                aria-label="List view"
-                aria-checked={view === "list"}
-                onClick={() => persistView("list")}
-                onKeyDown={handleRadioKeyDown}
-                className={cn(
-                  "inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition-colors",
-                  view === "list"
-                    ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow"
-                    : "text-[var(--noggin-forest)] hover:bg-[var(--noggin-mint-light)]",
-                )}
-              >
-                <List className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          {view === "grid" ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {nogs.map((nog) => {
-                const isSelected = nog.id === selected?.id;
-                const level = nogLevelForStage(nog.stage);
-                const stageLabel = formatNogStage(nog.stage);
-                const imageSrc = nogRenderForStage(nog.stage);
-                return (
-                  <div
-                    key={nog.id}
-                    onMouseEnter={() => setSelectedId(nog.id)}
-                    onFocus={() => setSelectedId(nog.id)}
-                    className={cn(
-                      "group relative flex flex-col items-center rounded-2xl border-2 p-2.5 text-center transition",
-                      isSelected
-                        ? "border-[var(--ng-c-f5be2c)] bg-[var(--ng-c-fffdf5)] shadow-[0_6px_0_rgb(194_134_10_/_0.35)]"
-                        : "border-[var(--ng-c-e3d6b4)] bg-white/85 hover:-translate-y-0.5 hover:border-[var(--noggin-leaf)]",
-                    )}
-                  >
-                    <Link
-                      href={`/nogs/${nog.id}`}
-                      aria-label={`${nog.name}, ${nog.subjectName}, ${stageLabel}, Lvl. ${level}`}
-                      className="flex w-full flex-col items-center gap-1"
-                    >
-                      <Image
-                        src={imageSrc}
-                        alt=""
-                        width={84}
-                        height={84}
-                        className="h-20 w-20 object-contain"
-                      />
-                      <span className="noggin-display truncate text-sm font-black text-[var(--noggin-forest)]">
-                        {nog.name}
-                      </span>
-                      <span className="rounded-full bg-[var(--ng-c-e8f6d2)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--noggin-forest)]">
-                        Lvl. {level}
-                      </span>
-                      <span className="truncate text-[11px] font-semibold text-[var(--noggin-ink)]">
-                        {nog.subjectName}
-                      </span>
-                    </Link>
-                  </div>
-                );
-              })}
-
-              <Link
-                href="/adopt"
-                className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-[var(--noggin-leaf-strong)] bg-[rgb(232_246_210_/_0.55)] p-3 text-center transition hover:-translate-y-0.5"
-              >
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--noggin-leaf-strong)] text-white shadow">
-                  <Plus className="h-6 w-6" aria-hidden="true" />
+          <section aria-label="Nog roster" className="charselect-roster">
+            <div className="charselect-roster__head">
+              <div className="flex items-baseline gap-2.5">
+                <h1 id="my-nogs-heading" className="cs-owned-count m-0">
+                  My Nogs
+                </h1>
+                <span className="cs-owned-count text-[14px]">
+                  <strong>{nogs.length}</strong> / 9
                 </span>
-                <span className="noggin-display text-sm font-black text-[var(--noggin-forest)]">
-                  Hatch New
-                </span>
-                <span className="text-[11px] font-semibold text-[var(--noggin-ink)]">
-                  + Subject
-                </span>
-              </Link>
+              </div>
 
-              {LOCKED_SLOTS.map((slot) => (
-                <div
-                  key={slot.label}
-                  aria-label={`${slot.label} (${slot.sash})`}
-                  className="relative flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-[var(--ng-c-e3d6b4)] bg-[rgb(235_227_204_/_0.7)] p-2.5 text-center opacity-70 grayscale-[40%]"
+              <div
+                role="radiogroup"
+                aria-label="View"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--noggin-mint-light)] p-1 shadow-sm"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-label="Grid view"
+                  aria-checked={view === "grid"}
+                  onClick={() => persistView("grid")}
+                  onKeyDown={handleRadioKeyDown}
+                  className={cn(
+                    "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors",
+                    view === "grid"
+                      ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow"
+                      : "text-[var(--noggin-forest)] hover:bg-[var(--noggin-sage-soft)]",
+                  )}
                 >
-                  <span className="absolute top-2 right-2 rounded-full bg-[var(--ng-c-4a2e00)] px-1.5 py-0.5 text-[9px] font-black text-[var(--ng-c-ffe588)]">
-                    {slot.sash}
-                  </span>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={slot.img} alt="" className="h-14 w-14 object-contain opacity-65" />
-                  <span className="inline-flex items-center gap-1 text-xs font-extrabold text-[var(--noggin-ink)]">
-                    <Lock className="h-3 w-3" aria-hidden="true" />
-                    {slot.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <ul aria-label="Nogs" className="flex flex-col gap-2.5">
-              {nogs.map((nog) => {
-                const stageLabel = formatNogStage(nog.stage);
-                const level = nogLevelForStage(nog.stage);
-                const imageSrc = nogRenderForStage(nog.stage);
+                  <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                </button>
 
-                return (
-                  <li key={nog.id}>
-                    <Link
-                      href={`/nogs/${nog.id}`}
-                      aria-label={`${nog.name}, ${nog.subjectName}, ${stageLabel}`}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-label="List view"
+                  aria-checked={view === "list"}
+                  onClick={() => persistView("list")}
+                  onKeyDown={handleRadioKeyDown}
+                  className={cn(
+                    "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors",
+                    view === "list"
+                      ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow"
+                      : "text-[var(--noggin-forest)] hover:bg-[var(--noggin-sage-soft)]",
+                  )}
+                >
+                  <List className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+
+            {view === "grid" ? (
+              <div className="cs-grid">
+                {nogs.map((nog, idx) => {
+                  const isSelected = nog.id === selected?.id;
+                  const level = nogLevelForStage(nog.stage);
+                  const stageLabel = formatNogStage(nog.stage);
+                  const imageSrc = nogRenderForStage(nog.stage);
+                  const isBaby = nog.stage === "hatchling";
+                  const isMeadow = idx % 2 === 1;
+                  return (
+                    <div
+                      key={nog.id}
                       onMouseEnter={() => setSelectedId(nog.id)}
-                      className="group flex items-center gap-3.5 rounded-2xl border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-sm transition hover:-translate-y-0.5"
+                      onFocus={() => setSelectedId(nog.id)}
+                      className={cn("cs-card-wrap", isSelected && "is-selected-wrap")}
                     >
-                      <Image
-                        src={imageSrc}
-                        alt=""
-                        width={56}
-                        height={56}
-                        className="h-14 w-14 shrink-0 object-contain"
-                      />
+                      <Link
+                        href={`/nogs/${nog.id}`}
+                        aria-label={`${nog.name}, ${nog.subjectName}, ${stageLabel}, Lvl. ${level}`}
+                        className={cn(
+                          "cs-card",
+                          isMeadow && "cs-card--meadow",
+                          isSelected && "is-selected",
+                        )}
+                      >
+                        <div className="cs-card__bg" aria-hidden="true" />
+                        <Image
+                          src={imageSrc}
+                          alt=""
+                          width={152}
+                          height={152}
+                          className={cn("cs-card__img", isBaby && "cs-card__img--baby")}
+                        />
+                        <span className="cs-card__ribbon">
+                          <span>{nog.name}</span>{" "}
+                          <span className="text-[11px] opacity-90">Lvl. {level}</span>
+                        </span>
+                      </Link>
+                    </div>
+                  );
+                })}
 
-                      <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-                        <span className="noggin-display truncate text-lg font-extrabold text-[var(--noggin-forest)]">
-                          {nog.name}
-                        </span>
-                        <span className="noggin-display shrink-0 text-sm font-bold text-[var(--noggin-forest)]">
-                          Lvl. {level}
-                        </span>
-                        <span className="truncate text-xs font-medium text-[var(--noggin-forest)]">
-                          {nog.subjectName}
-                        </span>
+                <div className="cs-card-wrap">
+                  <Link href="/adopt" className="cs-card cs-card--hatch">
+                    <div className="cs-card__bg" aria-hidden="true" />
+                    <span
+                      className="mynog-hatch-plus relative z-[3] my-auto flex h-14 w-14 items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      <Plus className="h-7 w-7" />
+                    </span>
+                    <span className="cs-card__ribbon">Hatch New</span>
+                  </Link>
+                </div>
+
+                {LOCKED_SLOTS.map((slot) => (
+                  <div key={slot.label} className="cs-card-wrap is-locked-wrap">
+                    <div
+                      aria-label={`${slot.label} (${slot.sash})`}
+                      className="cs-card cs-card--locked"
+                    >
+                      <div className="cs-card__bg">
+                        <span className="cs-card__sash">{slot.sash}</span>
                       </div>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={slot.img} alt="" className="cs-card__img" />
+                      <span className="cs-card__lock" aria-hidden="true">
+                        <Lock className="h-4 w-4" />
+                      </span>
+                      <span className="cs-card__ribbon">{slot.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ul aria-label="Nogs" className="flex flex-col gap-2.5">
+                {nogs.map((nog) => {
+                  const stageLabel = formatNogStage(nog.stage);
+                  const level = nogLevelForStage(nog.stage);
+                  const imageSrc = nogRenderForStage(nog.stage);
 
-                      <ChevronRight
-                        aria-hidden="true"
-                        className="h-5 w-5 shrink-0 text-[var(--noggin-leaf-strong)]"
-                      />
-                    </Link>
-                  </li>
-                );
-              })}
+                  return (
+                    <li key={nog.id}>
+                      <Link
+                        href={`/nogs/${nog.id}`}
+                        aria-label={`${nog.name}, ${nog.subjectName}, ${stageLabel}`}
+                        onMouseEnter={() => setSelectedId(nog.id)}
+                        className="group flex items-center gap-3.5 rounded-2xl border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-sm transition hover:-translate-y-0.5"
+                      >
+                        <Image
+                          src={imageSrc}
+                          alt=""
+                          width={56}
+                          height={56}
+                          className="h-14 w-14 shrink-0 object-contain"
+                        />
 
-              <li>
-                <Link
-                  href="/adopt"
-                  className="flex items-center gap-3.5 rounded-2xl border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-sm transition hover:-translate-y-0.5"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-sage)] text-[var(--noggin-leaf-strong)]"
+                        <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                          <span className="noggin-display truncate text-lg font-extrabold text-[var(--noggin-forest)]">
+                            {nog.name}
+                          </span>
+                          <span className="noggin-display shrink-0 text-sm font-bold text-[var(--noggin-forest)]">
+                            Lvl. {level}
+                          </span>
+                          <span className="truncate text-xs font-medium text-[var(--noggin-forest)]">
+                            {nog.subjectName}
+                          </span>
+                        </div>
+
+                        <ChevronRight
+                          aria-hidden="true"
+                          className="h-5 w-5 shrink-0 text-[var(--noggin-leaf-strong)]"
+                        />
+                      </Link>
+                    </li>
+                  );
+                })}
+
+                <li>
+                  <Link
+                    href="/adopt"
+                    className="flex items-center gap-3.5 rounded-2xl border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-sm transition hover:-translate-y-0.5"
                   >
-                    <Plus className="h-6 w-6" strokeWidth={2.75} />
-                  </span>
+                    <span
+                      aria-hidden="true"
+                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-sage)] text-[var(--noggin-leaf-strong)]"
+                    >
+                      <Plus className="h-6 w-6" strokeWidth={2.75} />
+                    </span>
 
-                  <span className="noggin-display min-w-0 flex-1 text-lg font-extrabold text-[var(--noggin-forest)]">
-                    Hatch New
-                  </span>
+                    <span className="noggin-display min-w-0 flex-1 text-lg font-extrabold text-[var(--noggin-forest)]">
+                      Hatch New
+                    </span>
 
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="h-5 w-5 shrink-0 text-[var(--noggin-leaf-strong)]"
-                  />
-                </Link>
-              </li>
-            </ul>
-          )}
-        </section>
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0 text-[var(--noggin-leaf-strong)]"
+                    />
+                  </Link>
+                </li>
+              </ul>
+            )}
+          </section>
+        </div>
 
         {/* RIGHT: Open Spotlight Hero Stage with 3D Clay Books Pedestal */}
         {selected && (
-          <section
-            aria-label="Selected Nog showcase"
-            className="flex flex-col items-center text-center"
-          >
-            <div className="inline-flex items-center gap-2 rounded-full bg-[rgb(255_253_245_/_0.92)] px-4 py-1.5 text-xs font-black tracking-wide text-[var(--noggin-forest)] shadow">
-              <Sparkles className="h-3.5 w-3.5 text-[var(--noggin-leaf-strong)]" aria-hidden="true" />
+          <section aria-label="Selected Nog showcase" className="cs-hero">
+            <div className="cs-hero-crest">
+              <span className="cs-hero-crest__badge" aria-hidden="true">
+                <Sparkles className="h-3.5 w-3.5" />
+              </span>
               <span>
                 Lvl. {nogLevelForStage(selected.stage)} · {formatNogStage(selected.stage)}
               </span>
             </div>
 
-            <h2
-              className="mt-2 text-3xl font-black tracking-wide text-[var(--noggin-forest)] uppercase md:text-4xl"
-              style={{ fontFamily: "var(--noggin-font-display), sans-serif" }}
-            >
-              {selected.name}
-            </h2>
-            <p className="mt-0.5 text-xs font-bold text-[var(--noggin-ink)]">
-              {selected.subjectName} · {equippedAccCount} equipped
-            </p>
+            <h2 className="cs-hero__name">{selected.name}</h2>
 
-            <div className="relative mt-3 flex flex-col items-center">
-              <div className="nog-bob relative z-10 -mb-6">
-                <Image
-                  src={nogRenderForStage(selected.stage)}
-                  alt={`${selected.name} standing on 3D stacked books`}
-                  width={220}
-                  height={220}
-                  className="h-44 w-44 object-contain drop-shadow-[0_14px_24px_rgb(30_48_10_/_0.26)] md:h-52 md:w-52"
-                />
+            <div className="cs-stage-group">
+              <div className="cs-pedestal-wrap">
+                <div
+                  className={cn(
+                    "cs-pedestal-bob nog-bob",
+                    selected.stage === "hatchling" && "cs-pedestal-bob--baby",
+                  )}
+                >
+                  <Image
+                    src={nogRenderForStage(selected.stage)}
+                    alt={`${selected.name} standing on 3D stacked books`}
+                    width={316}
+                    height={316}
+                    className={cn(
+                      "cs-pedestal-wrap__nog",
+                      selected.stage === "hatchling" && "cs-pedestal-wrap__nog--baby",
+                    )}
+                  />
+                </div>
+                <div className="cs-books-3d-wrap">
+                  <div className="cs-nog-book-shadow" aria-hidden="true" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/game/ui/books-pedestal-3d.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="cs-books-3d"
+                  />
+                </div>
               </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/game/ui/books-pedestal-3d.png"
-                alt=""
-                aria-hidden="true"
-                className="relative z-0 w-56 object-contain md:w-64"
-              />
-            </div>
 
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href={`/nogs/${selected.id}`}
-                className="ng-btn ng-btn--leaf px-6 py-3 text-sm"
-              >
-                <span>Open Sanctuary</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-              <Link
-                href={`/nogs/${selected.id}/customize`}
-                className="ng-btn ng-btn--gold px-5 py-3 text-sm"
-              >
-                <span>Dress Up</span>
-              </Link>
+              <div className="charselect-vitals-row">
+                <span className="charselect-vitals-chip">{selected.subjectName}</span>
+                <span className="charselect-vitals-chip">{equippedAccCount} equipped</span>
+              </div>
+
+              <div className="cs-action-row">
+                <Link href={`/nogs/${selected.id}`} className="cs-select-btn-3d">
+                  <span>Open Sanctuary</span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+                <Link href={`/nogs/${selected.id}/customize`} className="cs-customize-btn-3d">
+                  Dress Up
+                </Link>
+              </div>
             </div>
           </section>
         )}
