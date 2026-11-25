@@ -107,9 +107,10 @@ function mapSubscriptionRow(row: SubscriptionRow): SubscriptionRecord {
 
 export function createBillingRepository(options: {
   session: SupabaseClient;
+  service?: SupabaseClient;
   userId: string;
 }): BillingRepository {
-  const { session, userId } = options;
+  const { session, service, userId } = options;
 
   function assertOwner(targetUserId: string, operation: string) {
     if (targetUserId !== userId) {
@@ -205,6 +206,23 @@ export function createBillingRepository(options: {
       return mapOrderRow(data);
     },
 
+    async attachProviderRef(input): Promise<BillingOrder> {
+      assertOwner(input.userId, "billing.attachProviderRef");
+
+      const { data, error } = await session
+        .rpc("attach_billing_order_provider_ref", {
+          p_order_id: input.orderId,
+          p_provider_ref: input.providerRef,
+        })
+        .single<BillingOrderRow>();
+
+      if (error) {
+        throw mapPostgrestError(error, "billing.attachProviderRef");
+      }
+
+      return mapOrderRow(data);
+    },
+
     async fulfillOrder(input): Promise<BillingOrder> {
       assertOwner(input.userId, "billing.fulfillOrder");
 
@@ -220,6 +238,29 @@ export function createBillingRepository(options: {
       }
 
       return mapOrderRow(data);
+    },
+
+    async fulfillOrderByProviderRef(
+      providerRef: string,
+    ): Promise<BillingOrder | null> {
+      if (!service) {
+        throw new SupabaseAdapterError(
+          "DATABASE_ERROR",
+          "Service client is required for billing.fulfillOrderByProviderRef.",
+        );
+      }
+
+      const { data, error } = await service
+        .rpc("fulfill_billing_order_by_provider_ref", {
+          p_provider_ref: providerRef,
+        })
+        .maybeSingle<BillingOrderRow>();
+
+      if (error) {
+        throw mapPostgrestError(error, "billing.fulfillOrderByProviderRef");
+      }
+
+      return data ? mapOrderRow(data) : null;
     },
 
     async cancelSubscription(

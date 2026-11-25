@@ -14,6 +14,7 @@ import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import { createPaymongoPaymentGateway } from "@/adapters/billing/paymongo-payment-gateway";
 import { createSandboxPaymentGateway } from "@/adapters/billing/sandbox-payment-gateway";
 import { createActivityRepository } from "@/adapters/supabase/repositories/activity-repository";
 import { createBillingRepository } from "@/adapters/supabase/repositories/billing-repository";
@@ -822,9 +823,14 @@ export async function createContainer(): Promise<AppContainer> {
   const billingRepo: BillingRepository =
     typeof repositories.billing?.listProducts === "function"
       ? repositories.billing
-      : createBillingRepository({ session, userId });
+      : createBillingRepository({ session, service, userId });
 
-  const paymentGateway: PaymentGateway = createSandboxPaymentGateway();
+  const paymongoSecret = process.env.PAYMONGO_SECRET_KEY?.trim() ?? "";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
+  const paymentGateway: PaymentGateway = paymongoSecret
+    ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
+    : createSandboxPaymentGateway();
 
   return {
     currentUser,

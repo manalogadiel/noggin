@@ -33,9 +33,17 @@ function fireCheckoutRequest(productCode: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ productCode, idempotencyKey: key }),
-  }).catch(() => {
-    // Non-blocking fallback keeps UI responsive
-  });
+  })
+    .then(async (res) => {
+      if (!res.ok) return;
+      const payload = (await res.json()) as { checkoutUrl?: string | null };
+      if (payload.checkoutUrl && typeof window !== "undefined") {
+        window.location.assign(payload.checkoutUrl);
+      }
+    })
+    .catch(() => {
+      // Non-blocking fallback keeps UI responsive
+    });
 }
 
 export function GameModals() {
