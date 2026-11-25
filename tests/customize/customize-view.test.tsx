@@ -283,7 +283,8 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
     );
   });
 
-  it("renders the Accessories section with disabled tiles, a Soon chip, and helper text", async () => {
+  it("renders the interactive Accessories section with owned packs, equip toggle buttons, and shop link", async () => {
+    const user = userEvent.setup();
     await renderCustomize();
 
     const accessoriesHeading = screen.getByRole("heading", {
@@ -291,17 +292,17 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
       name: /accessories/i,
     });
     expect(accessoriesHeading).toBeVisible();
-    expect(screen.getAllByText(/^soon$/i).length).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getByText(/hats and bows are coming soon\./i),
-    ).toBeVisible();
+    expect(screen.getByRole("tablist", { name: /owned skin packages/i })).toBeVisible();
 
-    const accessoriesSection =
-      accessoriesHeading.closest("section, div") ?? document.body;
-    const disabledControls = accessoriesSection.querySelectorAll(
-      "button:disabled, [aria-disabled='true']",
+    const beanieBtn = screen.getByRole("button", { name: /sprout beanie/i });
+    expect(beanieBtn).toHaveAttribute("aria-pressed", "false");
+    await user.click(beanieBtn);
+    expect(beanieBtn).toHaveAttribute("aria-pressed", "true");
+
+    expect(screen.getByRole("link", { name: /open shop for more accessories/i })).toHaveAttribute(
+      "href",
+      "/profile/shop",
     );
-    expect(disabledControls.length).toBeGreaterThanOrEqual(4);
   });
 
   it("navigates back to the room without calling customizeNog when Done is clicked with no color change", async () => {
