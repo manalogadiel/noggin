@@ -14,7 +14,10 @@ import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import { createSandboxPaymentGateway } from "@/adapters/billing/sandbox-payment-gateway";
 import { createActivityRepository } from "@/adapters/supabase/repositories/activity-repository";
+import { createBillingRepository } from "@/adapters/supabase/repositories/billing-repository";
+import { createEconomyRepository } from "@/adapters/supabase/repositories/economy-repository";
 import { createProfileRepository } from "@/adapters/supabase/repositories/profile-repository";
 import { createProgressRepository } from "@/adapters/supabase/repositories/progress-repository";
 import { createServerSupabaseClient } from "@/adapters/supabase/server-client";
@@ -32,11 +35,15 @@ import {
 import type {
   ActivityRepository,
   AttemptRepository,
+  BillingRepository,
   Clock,
   CurrentUser,
+  EconomyPreferencesPatch,
+  EconomyRepository,
   NogAsker,
   NogRecord,
   NotebookRepository,
+  PaymentGateway,
   ProfileRepository,
   ProfileSettings,
   ProgressRepository,
@@ -57,10 +64,37 @@ import {
   type AnswerFollowUpResult,
 } from "@/core/application/use-cases/answer-follow-up";
 import {
+  cancelNogginPlus,
+  type CancelSubscriptionResult,
+  checkoutCoinPack,
+  type CheckoutProductInput,
+  type CheckoutProductResult,
+  getBillingSummary,
+  type GetBillingSummaryResult,
+  subscribeNogginPlus,
+} from "@/core/application/use-cases/billing";
+import {
   customizeNog,
   type CustomizeNogInput,
   type CustomizeNogResult,
 } from "@/core/application/use-cases/customize-nog";
+import {
+  claimDailyTask,
+  type ClaimDailyTaskInput,
+  type ClaimDailyTaskResult,
+  expandNotebookPages,
+  type ExpandNotebookPagesInput,
+  type ExpandNotebookPagesResult,
+  getPlayerEconomy,
+  type GetPlayerEconomyResult,
+  purchaseShopItem,
+  type PurchaseShopItemInput,
+  type PurchaseShopItemResult,
+  updatePlayerPreferences,
+  type UpdatePlayerPreferencesResult,
+  useStreakRestore,
+  type UseStreakRestoreResult,
+} from "@/core/application/use-cases/economy";
 import {
   getLearningProgress,
   type GetLearningProgressResult,
@@ -344,6 +378,8 @@ interface OptionalAuxRepositories {
   appConfig?: {
     getFeatures?: () => Promise<Record<string, unknown> | null>;
   };
+  economy?: EconomyRepository;
+  billing?: BillingRepository;
 }
 
 function parseGrillMode(raw: unknown): "roast" | "gentle" {
@@ -574,6 +610,28 @@ export interface AppContainer {
   runQuickCheck: (input: RunQuickCheckInput) => Promise<RunQuickCheckResult>;
   transcribeLesson: (input: TranscribeInput) => Promise<TranscribeLessonResult>;
   speakAnswer: (input: SpeakAnswerInput) => Promise<SpeakAnswerResult>;
+  getPlayerEconomy: (input?: {
+    ledgerLimit?: number;
+  }) => Promise<GetPlayerEconomyResult>;
+  purchaseShopItem: (
+    input: PurchaseShopItemInput,
+  ) => Promise<PurchaseShopItemResult>;
+  expandNotebookPages: (
+    input: ExpandNotebookPagesInput,
+  ) => Promise<ExpandNotebookPagesResult>;
+  claimDailyTask: (input: ClaimDailyTaskInput) => Promise<ClaimDailyTaskResult>;
+  useStreakRestore: () => Promise<UseStreakRestoreResult>;
+  updatePlayerPreferences: (
+    patch: EconomyPreferencesPatch,
+  ) => Promise<UpdatePlayerPreferencesResult>;
+  getBillingSummary: () => Promise<GetBillingSummaryResult>;
+  checkoutCoinPack: (
+    input: CheckoutProductInput,
+  ) => Promise<CheckoutProductResult>;
+  subscribeNogginPlus: (
+    input: CheckoutProductInput,
+  ) => Promise<CheckoutProductResult>;
+  cancelNogginPlus: () => Promise<CancelSubscriptionResult>;
 }
 
 /** Used when no answering model is configured; the ask flow reports brain fog. */
@@ -626,6 +684,16 @@ export async function createContainer(): Promise<AppContainer> {
       runQuickCheck: async () => ({ status: "unauthenticated" }),
       transcribeLesson: async () => ({ status: "unauthenticated" }),
       speakAnswer: async () => ({ status: "unauthenticated" }),
+      getPlayerEconomy: async () => ({ status: "unauthenticated" }),
+      purchaseShopItem: async () => ({ status: "unauthenticated" }),
+      expandNotebookPages: async () => ({ status: "unauthenticated" }),
+      claimDailyTask: async () => ({ status: "unauthenticated" }),
+      useStreakRestore: async () => ({ status: "unauthenticated" }),
+      updatePlayerPreferences: async () => ({ status: "unauthenticated" }),
+      getBillingSummary: async () => ({ status: "unauthenticated" }),
+      checkoutCoinPack: async () => ({ status: "unauthenticated" }),
+      subscribeNogginPlus: async () => ({ status: "unauthenticated" }),
+      cancelNogginPlus: async () => ({ status: "unauthenticated" }),
     };
   }
 
@@ -745,6 +813,18 @@ export async function createContainer(): Promise<AppContainer> {
     typeof repositories.activity?.listRecent === "function"
       ? repositories.activity
       : createActivityRepository({ session, service, userId });
+
+  const economyRepo: EconomyRepository =
+    typeof repositories.economy?.getOrInit === "function"
+      ? repositories.economy
+      : createEconomyRepository({ session, userId });
+
+  const billingRepo: BillingRepository =
+    typeof repositories.billing?.listProducts === "function"
+      ? repositories.billing
+      : createBillingRepository({ session, userId });
+
+  const paymentGateway: PaymentGateway = createSandboxPaymentGateway();
 
   return {
     currentUser,
@@ -1072,5 +1152,31 @@ export async function createContainer(): Promise<AppContainer> {
         input,
       );
     },
+    getPlayerEconomy: (input) =>
+      getPlayerEconomy({ currentUser, economy: economyRepo }, input),
+    purchaseShopItem: (input) =>
+      purchaseShopItem({ currentUser, economy: economyRepo }, input),
+    expandNotebookPages: (input) =>
+      expandNotebookPages({ currentUser, economy: economyRepo }, input),
+    claimDailyTask: (input) =>
+      claimDailyTask({ currentUser, economy: economyRepo }, input),
+    useStreakRestore: () =>
+      useStreakRestore({ currentUser, economy: economyRepo }),
+    updatePlayerPreferences: (patch) =>
+      updatePlayerPreferences({ currentUser, economy: economyRepo }, patch),
+    getBillingSummary: () =>
+      getBillingSummary({ currentUser, billing: billingRepo }),
+    checkoutCoinPack: (input) =>
+      checkoutCoinPack(
+        { currentUser, billing: billingRepo, paymentGateway },
+        input,
+      ),
+    subscribeNogginPlus: (input) =>
+      subscribeNogginPlus(
+        { currentUser, billing: billingRepo, paymentGateway },
+        input,
+      ),
+    cancelNogginPlus: () =>
+      cancelNogginPlus({ currentUser, billing: billingRepo }),
   };
 }
