@@ -1271,6 +1271,29 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       billingOrderStore.unshift(order);
       return order;
     },
+    async attachProviderRef(input): Promise<BillingOrder> {
+      const order = billingOrderStore.find(
+        (o) => o.id === input.orderId && o.userId === input.userId,
+      );
+      if (!order) {
+        throw new Error(`Order not found: ${input.orderId}`);
+      }
+      if (order.status === "pending") {
+        order.providerRef = input.providerRef;
+      }
+      return order;
+    },
+    async fulfillOrderByProviderRef(providerRef: string): Promise<BillingOrder | null> {
+      const order = billingOrderStore.find((o) => o.providerRef === providerRef);
+      if (!order) {
+        return null;
+      }
+      return billing.fulfillOrder({
+        userId: order.userId,
+        orderId: order.id,
+        providerRef,
+      });
+    },
     async fulfillOrder(input): Promise<BillingOrder> {
       const order = billingOrderStore.find(
         (o) => o.id === input.orderId && o.userId === input.userId,

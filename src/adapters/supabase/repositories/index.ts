@@ -85,6 +85,6 @@ export function createSupabaseRepositories(
     usage: createUsageRepository({ service, userId }),
     askHistory: createAskHistoryRepository({ session, service, userId }),
     economy: createEconomyRepository({ session, userId }),
-    billing: createBillingRepository({ session, userId }),
+    billing: createBillingRepository({ session, service, userId }),
   };
 }

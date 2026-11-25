@@ -75,5 +75,7 @@ export async function POST(request: Request): Promise<Response> {
     order: result.order,
     coinsAdded: result.coinsAdded,
     planCode: result.planCode,
+    checkoutUrl: result.checkoutUrl ?? null,
+    pendingPayment: Boolean(result.pendingPayment),
   });
 }

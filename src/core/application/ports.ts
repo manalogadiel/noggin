@@ -717,6 +717,8 @@ import type {
 export interface PaymentIntentResult {
   provider: string;
   providerRef: string;
+  checkoutUrl?: string | null;
+  requiresRedirect?: boolean;
 }
 
 export interface PaymentGateway {
@@ -725,6 +727,7 @@ export interface PaymentGateway {
     userId: string;
     product: SalesProduct;
     idempotencyKey: string;
+    orderId?: string;
   }): Promise<PaymentIntentResult>;
 }
 
@@ -738,10 +741,16 @@ export interface BillingRepository {
     idempotencyKey: string;
     provider: string;
   }): Promise<BillingOrder>;
+  attachProviderRef(input: {
+    userId: string;
+    orderId: string;
+    providerRef: string;
+  }): Promise<BillingOrder>;
   fulfillOrder(input: {
     userId: string;
     orderId: string;
     providerRef: string;
   }): Promise<BillingOrder>;
+  fulfillOrderByProviderRef(providerRef: string): Promise<BillingOrder | null>;
   cancelSubscription(userId: string): Promise<SubscriptionRecord | null>;
 }

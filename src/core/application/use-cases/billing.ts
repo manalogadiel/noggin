@@ -64,6 +64,8 @@ export type CheckoutProductResult =
       order: BillingOrder;
       coinsAdded: number;
       planCode: "free" | "plus";
+      checkoutUrl?: string | null;
+      pendingPayment?: boolean;
     };
 
 async function runProductCheckout(
@@ -122,7 +124,25 @@ async function runProductCheckout(
     userId: user.id,
     product,
     idempotencyKey: key,
+    orderId: created.id,
   });
+
+  if (intent.requiresRedirect && intent.checkoutUrl) {
+    const attached = await deps.billing.attachProviderRef({
+      userId: user.id,
+      orderId: created.id,
+      providerRef: intent.providerRef,
+    });
+
+    return {
+      status: "ok",
+      order: attached,
+      coinsAdded: 0,
+      planCode: expectedKind === "subscription" ? "plus" : "free",
+      checkoutUrl: intent.checkoutUrl,
+      pendingPayment: true,
+    };
+  }
 
   const fulfilled = await deps.billing.fulfillOrder({
     userId: user.id,
