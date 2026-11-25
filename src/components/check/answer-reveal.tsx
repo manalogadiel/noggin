@@ -98,7 +98,7 @@ export function AnswerReveal({
   const roomHref = `/nogs/${nogId ?? attempt.nogId}`;
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+    <div className="flex min-w-0 flex-col gap-6">
       <header className="flex flex-wrap items-center gap-3">
         <Link
           href={roomHref}
@@ -125,11 +125,16 @@ export function AnswerReveal({
         <div className="flex min-w-0 flex-col gap-5">
           <section
             aria-label={`Question ${questionNumber}`}
-            className="flex min-h-[260px] flex-col justify-center gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8"
+            className="flex min-h-[240px] flex-col justify-center gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8"
           >
-            <p className="text-[0.8125rem] font-extrabold tracking-widest text-[var(--noggin-forest)] uppercase">
-              Question {questionNumber}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[0.8125rem] font-extrabold tracking-widest text-[var(--noggin-forest)] uppercase">
+                Question {questionNumber}
+              </p>
+              <span className="rounded-full bg-[var(--ng-c-ffe26a)] px-2.5 py-0.5 text-[11px] font-black text-[var(--ng-c-4a2e00)]">
+                Professor Owl
+              </span>
+            </div>
             <h2 className="noggin-display text-[clamp(1.375rem,3vw,2rem)] font-bold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
               {attempt.prompt}
             </h2>
@@ -202,10 +207,7 @@ export function AnswerReveal({
                 </div>
 
                 {attempt.concepts.length > 0 && (
-                  <ul
-                    aria-label="Checked concepts"
-                    className="flex flex-wrap gap-2"
-                  >
+                  <ul aria-label="Checked concepts" className="flex flex-wrap gap-2">
                     {attempt.concepts.map((item) => {
                       const covered = isConceptCovered(item);
                       return (
@@ -285,16 +287,25 @@ export function AnswerReveal({
             </span>
           </section>
 
-          <div className="w-full max-w-[300px] lg:max-w-[360px]">
-            <NogStage
-              scene="room"
-              alt={`${nogName} answering question ${questionNumber}`}
-              poster="/nog/blob-closeup.png"
-              width={1254}
-              height={1254}
-              sizes="(min-width: 1024px) 360px, 300px"
-              className="nog-bob w-full"
+          <div className="flex items-end justify-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/game/ui/host-owl-clay.svg"
+              alt=""
+              aria-hidden="true"
+              className="hidden h-28 w-28 object-contain drop-shadow sm:block"
             />
+            <div className="w-full max-w-[260px]">
+              <NogStage
+                scene="room"
+                alt={`${nogName} answering question ${questionNumber}`}
+                poster="/nog/blob-closeup.png"
+                width={1254}
+                height={1254}
+                sizes="(min-width: 1024px) 260px, 240px"
+                className="nog-bob w-full"
+              />
+            </div>
           </div>
         </aside>
       </div>
