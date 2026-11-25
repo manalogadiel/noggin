@@ -67,14 +67,11 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
     : passwordHelpId;
 
   return (
-    <form action={formAction} className="mt-7 flex flex-col gap-4 sm:mt-8 sm:gap-5">
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor={nameId}
-          className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)] sm:text-[1.25rem]"
-        >
+    <form action={formAction} className="mt-1 flex flex-col gap-3">
+      <div>
+        <label htmlFor={nameId} className="figma-auth-label">
           Your name{" "}
-          <span aria-hidden="true" className="text-[var(--noggin-danger)]">
+          <span aria-hidden="true" style={{ color: "var(--game-coral)" }}>
             *
           </span>
         </label>
@@ -89,17 +86,14 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           onChange={(event) => setDisplayName(event.target.value)}
           aria-invalid={isFormError || undefined}
           aria-describedby={isFormError ? errorId : undefined}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="figma-auth-input"
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor={emailId}
-          className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)] sm:text-[1.25rem]"
-        >
+      <div>
+        <label htmlFor={emailId} className="figma-auth-label">
           Email{" "}
-          <span aria-hidden="true" className="text-[var(--noggin-danger)]">
+          <span aria-hidden="true" style={{ color: "var(--game-coral)" }}>
             *
           </span>
         </label>
@@ -113,17 +107,14 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           onChange={(event) => setEmail(event.target.value)}
           aria-invalid={isFormError || undefined}
           aria-describedby={isFormError ? errorId : undefined}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="figma-auth-input"
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor={passwordId}
-          className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)] sm:text-[1.25rem]"
-        >
+      <div>
+        <label htmlFor={passwordId} className="figma-auth-label">
           Password{" "}
-          <span aria-hidden="true" className="text-[var(--noggin-danger)]">
+          <span aria-hidden="true" style={{ color: "var(--game-coral)" }}>
             *
           </span>
         </label>
@@ -136,20 +127,17 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           required
           aria-invalid={isFormError || undefined}
           aria-describedby={passwordDescribedBy}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="figma-auth-input"
         />
-        <p id={passwordHelpId} className="text-[0.875rem] text-[var(--noggin-ink)]">
+        <p id={passwordHelpId} className="mt-1 text-[12px] text-[var(--noggin-ink)]">
           At least 8 characters
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor={birthdayId}
-          className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)] sm:text-[1.25rem]"
-        >
+      <div>
+        <label htmlFor={birthdayId} className="figma-auth-label">
           Birthday{" "}
-          <span aria-hidden="true" className="text-[var(--noggin-danger)]">
+          <span aria-hidden="true" style={{ color: "var(--game-coral)" }}>
             *
           </span>
         </label>
@@ -164,36 +152,31 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           onChange={(event) => setBirthDate(event.target.value)}
           aria-invalid={isBirthdayError || undefined}
           aria-describedby={birthdayDescribedBy}
-          className="h-14 w-full rounded-[20px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-4 text-[1.125rem] text-[var(--noggin-forest)] transition-colors focus:outline-[3px] focus:outline-offset-2 focus:outline-[var(--noggin-leaf-strong)] lg:h-16 lg:px-5"
+          className="figma-auth-input"
         />
-        <p id={birthdayHelpId} className="text-[0.875rem] text-[var(--noggin-ink)]">
-          Noggin is for ages 16 and up. If you&apos;re 16–17, a guardian will
-          need to say OK.
+        <p id={birthdayHelpId} className="mt-1 text-[12px] text-[var(--noggin-ink)]">
+          Noggin is for ages 16 and up. If you&apos;re 16–17, a guardian will need to say OK.
         </p>
         {needsGuardianNotice && (
-          <p className="rounded-xl bg-[var(--noggin-meter-mid-soft)] px-3 py-2 text-[0.8125rem] font-medium text-[var(--noggin-meter-mid-ink)]">
+          <p className="mt-1 rounded-xl bg-[var(--noggin-meter-mid-soft)] px-3 py-2 text-[12px] font-medium text-[var(--noggin-meter-mid-ink)]">
             Age {computedAge} detected: public publishing and public Arena lobbies stay locked until a guardian approves.
           </p>
         )}
       </div>
 
-      <div className="flex items-start gap-2 pt-1">
+      <label className="auth-age13-check">
         <input
           id={`${privacyId}-age`}
           name="age_confirmed"
           type="checkbox"
           defaultChecked
-          className="mt-1 h-5 w-5 shrink-0 cursor-pointer accent-[var(--noggin-leaf-strong)]"
         />
-        <label
-          htmlFor={`${privacyId}-age`}
-          className="cursor-pointer text-[0.9375rem] leading-[1.45] text-[var(--noggin-forest)]"
-        >
-          I confirm I am eligible to create a Noggin account (ages 16+ or 16–17 with guardian approval).
-        </label>
-      </div>
+        <span>
+          I confirm I am eligible to create a Noggin account (<strong>ages 16+</strong> or 16–17 with guardian approval).
+        </span>
+      </label>
 
-      <div className="flex items-start gap-2 pt-1">
+      <div className="flex items-start gap-2 pt-0.5">
         <label
           htmlFor={privacyId}
           className="relative -ml-2 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
@@ -225,13 +208,10 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
 
         <label
           htmlFor={privacyId}
-          className="cursor-pointer pt-2 text-[0.9375rem] leading-[1.45] text-[var(--noggin-forest)]"
+          className="cursor-pointer pt-2 text-[13px] leading-[1.45] text-[var(--noggin-charcoal)]"
         >
           I&apos;ve read the{" "}
-          <Link
-            href="/privacy"
-            className="font-semibold text-[var(--noggin-forest)] underline decoration-2 underline-offset-4 transition-opacity hover:opacity-80"
-          >
+          <Link href="/privacy" className="figma-auth-link">
             Privacy notice
           </Link>{" "}
           and agree to Noggin saving my lessons and progress.
@@ -244,29 +224,26 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           id={errorId}
           role="alert"
           tabIndex={-1}
-          className="rounded-2xl bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.9375rem] font-medium text-[var(--noggin-danger)] focus:outline-none focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-danger)]"
+          className="pill pill--coral justify-center rounded-[14px] px-3.5 py-2.5 text-[0.9375rem]"
         >
           {state.error}
         </div>
       ) : null}
 
-      <div className="mt-2 flex justify-center">
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 4 }}>
         <button
           type="submit"
           disabled={pending}
           aria-busy={pending}
-          className="noggin-primary-pill noggin-display inline-flex h-[60px] min-h-11 w-full max-w-[372px] cursor-pointer items-center justify-center px-8 text-[1.25rem] font-bold disabled:cursor-not-allowed disabled:opacity-70"
+          className="pub-cta-pill pub-cta-pill--md w-full max-w-[290px]"
         >
           {pending ? "Hatching your Nog…" : "Hatch my Nog"}
         </button>
       </div>
 
-      <p className="mt-1 text-center text-[1rem] text-[var(--noggin-forest)]">
+      <p style={{ margin: "2px 0 0", textAlign: "center", fontSize: 13.5, color: "var(--noggin-charcoal)" }}>
         Already have a Nog?{" "}
-        <Link
-          href="/login"
-          className="inline-flex min-h-11 items-center font-semibold text-[var(--noggin-forest)] underline decoration-2 underline-offset-4 transition-opacity hover:opacity-80"
-        >
+        <Link href="/login" className="figma-auth-link">
           Log in
         </Link>
       </p>

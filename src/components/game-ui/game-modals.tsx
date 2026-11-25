@@ -107,23 +107,23 @@ export function GameModals() {
     <>
       {activeNonRoomModal?.type === "streak" && (
         <div
-          className="ng-modal-backdrop"
+          className="streak-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
           <div
-            className="ng-shell ng-shell--coral max-w-[820px]"
+            className="qs-sc-shell qs-sc-shell--streak"
             role="dialog"
             aria-modal="true"
             aria-label="Study Streak"
           >
-            <header className="ng-shell__head">
-              <span className="ng-shell__badge">🪙 {state.coins} COINS</span>
-              <h2 className="ng-shell__title">STUDY STREAK</h2>
+            <header className="qs-sc-header">
+              <span className="qs-sc-badge tnum">🪙 {state.coins} COINS</span>
+              <h2 className="qs-sc-title">STUDY STREAK</h2>
               <button
                 type="button"
-                className="ng-shell__close"
+                className="qs-sc-close"
                 aria-label="Close study streak modal"
                 onClick={closeModal}
               >
@@ -131,11 +131,11 @@ export function GameModals() {
               </button>
             </header>
 
-            <div className="ng-shell__body grid grid-cols-1 gap-5 md:grid-cols-[1.25fr_0.85fr]">
-              <section className="flex flex-col gap-3.5">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--ng-c-fff5d6)] shadow-[0_5px_0_rgb(230_184_122)]">
-                    <svg width="40" height="40" viewBox="0 0 36 36" aria-hidden="true">
+            <div className="qs-sc-body streak-sc-body">
+              <section className="streak-left">
+                <div className="streak-hero-row">
+                  <div className="streak-flame-disc">
+                    <svg width="42" height="42" viewBox="0 0 36 36" aria-hidden="true">
                       <circle cx="18" cy="18" r="16" fill="var(--ng-c-f3827a)" />
                       <path
                         d="M18.5 8.5c2.2 3.8 5.5 5.6 5.5 10.2a6 6 0 1 1-12 0c0-2.6 1.2-4.8 2.8-6.4.2 1.8 1.2 2.8 2.2 3.1-.4-2.8.1-5.1 1.5-6.9z"
@@ -144,26 +144,20 @@ export function GameModals() {
                     </svg>
                   </div>
                   <div>
-                    <div
-                      className="text-4xl leading-none font-black text-[var(--noggin-forest)]"
-                      style={{ fontFamily: "var(--noggin-font-display), sans-serif" }}
-                    >
-                      {blocked2d ? "0" : state.streakDays}{" "}
-                      <span className="text-base text-[var(--ng-c-bf4a46)]">DAYS</span>
+                    <div className="streak-big-num tnum">
+                      {blocked2d ? "0" : state.streakDays} <span>DAYS</span>
                     </div>
-                    <div className="mt-0.5 text-xs font-bold text-[var(--noggin-ink)]">
-                      Best Streak: 14 days
-                    </div>
+                    <div className="streak-best">Best Streak: 14 days</div>
                   </div>
                 </div>
 
                 <div
-                  className={`rounded-xl px-3.5 py-2.5 text-xs font-semibold ${
+                  className={`streak-status ${
                     missed === 0
-                      ? "bg-[var(--ng-c-e8f6d2)] text-[var(--noggin-forest)]"
+                      ? "streak-status--ok"
                       : missed === 1
-                        ? "bg-[var(--ng-c-fff0c2)] text-[var(--ng-c-5b3b00)]"
-                        : "bg-[rgb(255_224_222)] text-[rgb(143_36_36)]"
+                        ? "streak-status--warn"
+                        : "streak-status--lock"
                   }`}
                 >
                   {missed === 0 ? (
@@ -181,7 +175,7 @@ export function GameModals() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1.5" aria-label="This week streak">
+                <div className="streak-week" aria-label="This week streak">
                   {WEEK_DAYS.map((day, idx) => {
                     const isLit =
                       (missed === 0 && idx < 6) ||
@@ -193,17 +187,17 @@ export function GameModals() {
                     return (
                       <div
                         key={day}
-                        className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-extrabold ${
+                        className={`streak-day ${
                           isLit
-                            ? "bg-[rgb(255_228_194)] text-[rgb(138_52_24)] shadow-[0_3px_0_rgb(226_184_134)]"
+                            ? "is-lit"
                             : isMissed
-                              ? "bg-[rgb(255_212_210)] text-[rgb(156_38_38)] shadow-[0_3px_0_rgb(222_156_154)]"
+                              ? "is-missed"
                               : isToday
-                                ? "bg-[var(--ng-c-e5f5cc)] text-[var(--noggin-forest)] shadow-[0_3px_0_var(--ng-c-a9d172)]"
-                                : "bg-[rgb(239_227_196)] text-[var(--ng-c-5b513a)]"
+                                ? "is-today"
+                                : ""
                         }`}
                       >
-                        <span className="text-base leading-none">
+                        <span className="streak-day__dot" aria-hidden="true">
                           {isLit ? "🔥" : isMissed ? "✕" : "●"}
                         </span>
                         <span>{day}</span>
@@ -212,43 +206,34 @@ export function GameModals() {
                   })}
                 </div>
 
-                <div className="flex flex-col gap-1.5 rounded-xl bg-[rgb(239_227_196)] p-3">
-                  <div className="flex justify-between text-xs font-extrabold text-[var(--noggin-forest)]">
+                <div className="streak-milestone">
+                  <div className="streak-milestone__head">
                     <span>Next Milestone: 7-Day Flame</span>
-                    <strong className="text-[var(--ng-c-c2860a)]">+50 Coins</strong>
+                    <strong>+50 Coins</strong>
                   </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-[var(--ng-c-e6dcc0)]">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-[var(--ng-c-f3827a)] to-[var(--ng-c-f5be22)] transition-[width] duration-300"
-                      style={{ width: `${streakPct}%` }}
-                    />
+                  <div className="meter">
+                    <i style={{ width: `${streakPct}%` }} />
                   </div>
                 </div>
               </section>
 
-              <aside className="flex flex-col justify-between gap-3 rounded-2xl bg-[rgb(239_227_196)] p-4 shadow-inner">
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex items-center gap-2.5">
+              <aside className="streak-right">
+                <div className={`streak-restore-card ${blocked2d ? "is-locked" : ""}`}>
+                  <div className="streak-restore-head">
                     <span className="text-2xl" aria-hidden="true">
                       🛡️
                     </span>
                     <div>
-                      <strong className="block text-sm font-black text-[var(--noggin-forest)]">
-                        Streak Restore
-                      </strong>
-                      <span className="text-xs font-bold text-[var(--ng-c-318fd6)]">
-                        Owned: {state.streakRestores} / 2
-                      </span>
+                      <strong>Streak Restore</strong>
+                      <span>Owned: {state.streakRestores} / 2</span>
                     </div>
                   </div>
-                  <p className="m-0 text-xs leading-relaxed text-[var(--noggin-ink)]">
+                  <p className="streak-restore-desc">
                     {blocked2d
                       ? "Unavailable when 2 or more days are missed."
                       : "Saves a 1-day missed streak. Only valid for 1 missed day."}
                   </p>
-                </div>
 
-                <div className="flex flex-col gap-2">
                   <button
                     type="button"
                     disabled={!canUseRestore}
@@ -260,15 +245,17 @@ export function GameModals() {
                       }));
                       showToast(`Streak restored! Your ${state.streakDays}-day flame is safe`);
                     }}
-                    className="ng-btn ng-btn--leaf w-full py-2.5 text-xs"
+                    className="qs-pop-cta streak-use-btn"
                   >
-                    {blocked2d
-                      ? "Locked (2+ Days)"
-                      : missed === 1
-                        ? state.streakRestores > 0
-                          ? "Use Streak Restore"
-                          : "Buy Restore First"
-                        : "Streak Safe ✓"}
+                    <span>
+                      {blocked2d
+                        ? "Locked (2+ Days)"
+                        : missed === 1
+                          ? state.streakRestores > 0
+                            ? "Use Streak Restore"
+                            : "Buy Restore First"
+                          : "Streak Safe ✓"}
+                    </span>
                   </button>
 
                   <button
@@ -289,7 +276,7 @@ export function GameModals() {
                         },
                       });
                     }}
-                    className="ng-btn ng-btn--gold w-full py-2.5 text-xs"
+                    className="streak-buy-btn"
                   >
                     {blocked2d
                       ? "Cannot Buy (2+ Days)"
@@ -309,7 +296,7 @@ export function GameModals() {
                         }));
                         showToast("Started fresh Day 1 streak!");
                       }}
-                      className="text-center text-xs font-extrabold text-[var(--noggin-forest)] underline underline-offset-4"
+                      className="qs-replay-link"
                     >
                       Start Fresh Day 1 Streak
                     </button>
@@ -323,23 +310,23 @@ export function GameModals() {
 
       {activeNonRoomModal?.type === "topup" && (
         <div
-          className="ng-modal-backdrop"
+          className="streak-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
           <div
-            className="ng-shell ng-shell--gold max-w-[740px]"
+            className="qs-sc-shell qs-sc-shell--pages"
             role="dialog"
             aria-modal="true"
             aria-label="Top Up Coins"
           >
-            <header className="ng-shell__head">
-              <span className="ng-shell__badge">🪙 {state.coins} COINS</span>
-              <h2 className="ng-shell__title">TOP UP COINS</h2>
+            <header className="qs-sc-header">
+              <span className="qs-sc-badge tnum">🪙 {state.coins} COINS</span>
+              <h2 className="qs-sc-title">TOP UP COINS</h2>
               <button
                 type="button"
-                className="ng-shell__close"
+                className="qs-sc-close"
                 aria-label="Close top up coins modal"
                 onClick={closeModal}
               >
@@ -347,8 +334,8 @@ export function GameModals() {
               </button>
             </header>
 
-            <div className="ng-shell__body flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="qs-sc-body qs-sc-body--topup">
+              <div className="topup-grid">
                 {COIN_PACKS.map((pack) => (
                   <button
                     key={pack.id}
@@ -359,39 +346,25 @@ export function GameModals() {
                       awardRewards(pack.coins, 0);
                       showToast(`Topped up +${pack.coins} coins (${pack.price})!`);
                     }}
-                    className={`relative flex flex-col items-center gap-1.5 rounded-2xl border-2 px-3 py-4 text-center transition hover:-translate-y-0.5 ${
-                      pack.badge
-                        ? "border-[var(--ng-c-f5be2c)] bg-[var(--ng-c-fffdf5)] shadow-md"
-                        : "border-[var(--ng-c-e3d6b4)] bg-white/90 shadow-sm"
-                    }`}
+                    className={`topup-card ${pack.badge ? "is-featured" : ""}`}
                   >
-                    {pack.badge && (
-                      <span className="rounded-full bg-[var(--ng-c-f5be2c)] px-2 py-0.5 text-[10px] font-black text-[var(--ng-c-4a2e00)]">
-                        {pack.badge}
-                      </span>
-                    )}
-                    <span className="text-2xl" aria-hidden="true">
+                    {pack.badge && <span className="topup-card__tag">{pack.badge}</span>}
+                    <span className="topup-card__ico" aria-hidden="true">
                       🪙
                     </span>
-                    <strong className="text-2xl font-black text-[var(--noggin-forest)]">
-                      {pack.coins}
-                    </strong>
-                    <span className="text-[11px] font-bold text-[var(--noggin-ink)]">
-                      {pack.bonus || "Instant Coins"}
-                    </span>
-                    <span className="mt-1 rounded-full bg-[var(--ng-c-e8f6d2)] px-3 py-1 text-xs font-black text-[var(--noggin-forest)]">
-                      {pack.price}
-                    </span>
+                    <span className="topup-card__amt tnum">{pack.coins}</span>
+                    <span className="topup-card__sub">{pack.bonus || "Instant Coins"}</span>
+                    <span className="topup-card__price">{pack.price}</span>
                   </button>
                 ))}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[var(--ng-c-efe7cf)] px-4 py-3 text-xs font-bold text-[var(--noggin-forest)]">
+              <div className="topup-plus-bar">
                 <span>Want unlimited notebooks, pages &amp; 2× streak shields?</span>
                 <button
                   type="button"
                   onClick={() => openModal({ type: "plus" })}
-                  className="ng-btn ng-btn--leaf px-4 py-1.5 text-xs"
+                  className="nb-expand-btn nb-expand-btn--sm"
                 >
                   View Noggin Plus →
                 </button>
@@ -403,23 +376,23 @@ export function GameModals() {
 
       {activeNonRoomModal?.type === "plus" && (
         <div
-          className="ng-modal-backdrop"
+          className="streak-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
           <div
-            className="ng-shell ng-shell--plus max-w-[740px]"
+            className="qs-sc-shell qs-sc-shell--plus"
             role="dialog"
             aria-modal="true"
             aria-label="Noggin Plus"
           >
-            <header className="ng-shell__head">
-              <span className="ng-shell__badge">👑 PLUS PASS</span>
-              <h2 className="ng-shell__title">NOGGIN PLUS</h2>
+            <header className="qs-sc-header">
+              <span className="qs-sc-badge">👑 PLUS PASS</span>
+              <h2 className="qs-sc-title">NOGGIN PLUS</h2>
               <button
                 type="button"
-                className="ng-shell__close"
+                className="qs-sc-close"
                 aria-label="Close Noggin Plus modal"
                 onClick={closeModal}
               >
@@ -427,48 +400,32 @@ export function GameModals() {
               </button>
             </header>
 
-            <div className="ng-shell__body flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl bg-white/90 p-3.5 shadow-sm">
-                  <strong className="block text-sm font-black text-[var(--noggin-forest)]">
-                    📚 Unlimited Notebooks
-                  </strong>
-                  <span className="text-xs text-[var(--noggin-ink)]">
-                    No 5-book cap + 60 max pages each
-                  </span>
+            <div className="qs-sc-body qs-sc-body--topup">
+              <div className="plus-perks-grid">
+                <div className="plus-perk">
+                  <strong>📚 Unlimited Notebooks</strong>
+                  <span>No 5-book cap + 60 max pages each</span>
                 </div>
-                <div className="rounded-2xl bg-white/90 p-3.5 shadow-sm">
-                  <strong className="block text-sm font-black text-[var(--noggin-forest)]">
-                    🎨 All Skin Packs
-                  </strong>
-                  <span className="text-xs text-[var(--noggin-ink)]">
-                    Unlock Pastel, Neon, Dark &amp; Sunset
-                  </span>
+                <div className="plus-perk">
+                  <strong>🎨 All Skin Packs</strong>
+                  <span>Unlock Pastel, Neon, Dark &amp; Sunset</span>
                 </div>
-                <div className="rounded-2xl bg-white/90 p-3.5 shadow-sm">
-                  <strong className="block text-sm font-black text-[var(--noggin-forest)]">
-                    🛡️ 2× Streak Shields
-                  </strong>
-                  <span className="text-xs text-[var(--noggin-ink)]">
-                    Free monthly Streak Restore refills
-                  </span>
+                <div className="plus-perk">
+                  <strong>🛡️ 2× Streak Shields</strong>
+                  <span>Free monthly Streak Restore refills</span>
                 </div>
-                <div className="rounded-2xl bg-white/90 p-3.5 shadow-sm">
-                  <strong className="block text-sm font-black text-[var(--noggin-forest)]">
-                    ⚡ Higher Nog Context
-                  </strong>
-                  <span className="text-xs text-[var(--noggin-ink)]">
-                    Longer lessons &amp; bonus Quiz EXP
-                  </span>
+                <div className="plus-perk">
+                  <strong>⚡ Higher Nog Context</strong>
+                  <span>Longer lessons &amp; bonus Quiz EXP</span>
                 </div>
               </div>
 
               {state.isPlus ? (
-                <div className="rounded-2xl bg-[var(--ng-c-e8f6d2)] p-3.5 text-center text-sm font-bold text-[var(--noggin-forest)]">
+                <div className="streak-status streak-status--ok justify-center text-center">
                   👑 Noggin Plus is Active! Thank you for supporting your Nogs.
                 </div>
               ) : (
-                <div className="flex flex-wrap items-center justify-center gap-3">
+                <div className="plus-plan-row">
                   <button
                     type="button"
                     onClick={() => {
@@ -480,7 +437,7 @@ export function GameModals() {
                       }));
                       showToast("Welcome to Noggin Plus (Monthly · ₱249/mo)!");
                     }}
-                    className="ng-btn ng-btn--leaf flex-1 py-3 text-sm"
+                    className="streak-btn streak-btn--leaf"
                   >
                     Monthly · ₱249 / mo
                   </button>
@@ -495,7 +452,7 @@ export function GameModals() {
                       }));
                       showToast("Welcome to Noggin Plus (Yearly · ₱1,990/yr)!");
                     }}
-                    className="ng-btn ng-btn--gold flex-1 py-3 text-sm"
+                    className="streak-btn streak-btn--gold"
                   >
                     Yearly · ₱1,990 / yr (Save 33%)
                   </button>
@@ -513,23 +470,23 @@ export function GameModals() {
         const pct = Math.min(100, Math.round((curMax / MAX_NOTEBOOK_PAGES) * 100));
         return (
           <div
-            className="ng-modal-backdrop"
+            className="streak-overlay"
             onClick={(e) => {
               if (e.target === e.currentTarget) closeModal();
             }}
           >
             <div
-              className="ng-shell ng-shell--sage max-w-[740px]"
+              className="qs-sc-shell qs-sc-shell--pages"
               role="dialog"
               aria-modal="true"
               aria-label="Expand Notebook Pages"
             >
-              <header className="ng-shell__head">
-                <span className="ng-shell__badge">🪙 {state.coins} COINS</span>
-                <h2 className="ng-shell__title">EXPAND PAGES</h2>
+              <header className="qs-sc-header">
+                <span className="qs-sc-badge tnum">🪙 {state.coins} COINS</span>
+                <h2 className="qs-sc-title">EXPAND PAGES</h2>
                 <button
                   type="button"
-                  className="ng-shell__close"
+                  className="qs-sc-close"
                   aria-label="Close expand pages modal"
                   onClick={closeModal}
                 >
@@ -537,10 +494,10 @@ export function GameModals() {
                 </button>
               </header>
 
-              <div className="ng-shell__body grid grid-cols-1 gap-5 md:grid-cols-[1.2fr_0.8fr]">
-                <section className="flex flex-col gap-3.5">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-16 shrink-0">
+              <div className="qs-sc-body streak-sc-body">
+                <section className="streak-left">
+                  <div className="pages-book-hero">
+                    <div className="pages-book-hero__art">
                       <Book3dSvg
                         style={activeNonRoomModal.cover}
                         title={activeNonRoomModal.bookTitle}
@@ -548,33 +505,28 @@ export function GameModals() {
                       />
                     </div>
                     <div>
-                      <strong className="block text-base font-black text-[var(--noggin-forest)]">
+                      <strong className="pages-book-hero__title">
                         {activeNonRoomModal.bookTitle}
                       </strong>
-                      <div className="text-xs font-bold text-[var(--noggin-ink)]">
+                      <div className="pages-book-hero__sub">
                         {curMax} / {MAX_NOTEBOOK_PAGES} Max Pages
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 rounded-xl bg-[var(--ng-c-efe7cf)] p-3">
-                    <div className="flex justify-between text-xs font-extrabold text-[var(--noggin-forest)]">
+                  <div className="streak-milestone">
+                    <div className="streak-milestone__head">
                       <span>Capacity Limit</span>
                       <strong>{isMax ? "MAXED OUT" : `${remaining} pages available`}</strong>
                     </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-[var(--ng-c-e6dcc0)]">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[var(--ng-c-f5be22)] to-[var(--ng-c-7eb442)] transition-[width] duration-300"
-                        style={{ width: `${pct}%` }}
-                      />
+                    <div className="meter">
+                      <i style={{ width: `${pct}%` }} />
                     </div>
                   </div>
 
                   <div
-                    className={`rounded-xl px-3.5 py-2.5 text-xs font-semibold ${
-                      isMax
-                        ? "bg-[var(--ng-c-e8f6d2)] text-[var(--noggin-forest)]"
-                        : "bg-[var(--ng-c-fff0c2)] text-[var(--ng-c-5b3b00)]"
+                    className={`streak-status ${
+                      isMax ? "streak-status--ok" : "streak-status--warn"
                     }`}
                   >
                     {isMax
@@ -583,47 +535,45 @@ export function GameModals() {
                   </div>
                 </section>
 
-                <aside className="flex flex-col justify-between gap-3 rounded-2xl bg-[var(--ng-c-efe7cf)] p-4">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-2xl" aria-hidden="true">
-                      📄
-                    </span>
-                    <div>
-                      <strong className="block text-sm font-black text-[var(--noggin-forest)]">
-                        Extra Page Packs
-                      </strong>
-                      <span className="text-xs font-bold text-[var(--noggin-ink)]">
-                        Max {MAX_NOTEBOOK_PAGES} pages / book
+                <aside className="streak-right">
+                  <div className="streak-restore-card">
+                    <div className="streak-restore-head">
+                      <span className="text-2xl" aria-hidden="true">
+                        📄
                       </span>
+                      <div>
+                        <strong>Extra Page Packs</strong>
+                        <span>Max {MAX_NOTEBOOK_PAGES} pages / book</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      disabled={isMax || state.coins < 60}
-                      onClick={() => handleExpandPack(10, 60)}
-                      className="ng-btn ng-btn--gold w-full py-2 text-xs"
-                    >
-                      +10 Pages · 🪙 60
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isMax || state.coins < 120}
-                      onClick={() => handleExpandPack(25, 120)}
-                      className="ng-btn ng-btn--gold w-full py-2 text-xs"
-                    >
-                      +25 Pages · 🪙 120
-                    </button>
-                  </div>
+                    <div className="pages-pack-list">
+                      <button
+                        type="button"
+                        disabled={isMax || state.coins < 60}
+                        onClick={() => handleExpandPack(10, 60)}
+                        className="streak-btn streak-btn--gold"
+                      >
+                        +10 Pages · 🪙 60
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isMax || state.coins < 120}
+                        onClick={() => handleExpandPack(25, 120)}
+                        className="streak-btn streak-btn--gold"
+                      >
+                        +25 Pages · 🪙 120
+                      </button>
+                    </div>
 
-                  <p className="m-0 text-[11px] leading-snug text-[var(--noggin-ink)]">
-                    {isMax
-                      ? "This notebook is at full 60-page capacity."
-                      : state.coins < 60
-                        ? "Earn more coins from Quizzes & Streaks to unlock extra pages."
-                        : `Instant unlock · applies to ${activeNonRoomModal.bookTitle}.`}
-                  </p>
+                    <p className="streak-restore-desc">
+                      {isMax
+                        ? "This notebook is at full 60-page capacity."
+                        : state.coins < 60
+                          ? "Earn more coins from Quizzes & Streaks to unlock extra pages."
+                          : `Instant unlock · applies to ${activeNonRoomModal.bookTitle}.`}
+                    </p>
+                  </div>
                 </aside>
               </div>
             </div>
@@ -633,23 +583,23 @@ export function GameModals() {
 
       {activeNonRoomModal?.type === "skinShop" && (
         <div
-          className="ng-modal-backdrop"
+          className="streak-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
           <div
-            className="ng-shell ng-shell--purple max-w-[740px]"
+            className="qs-sc-shell qs-sc-shell--nap"
             role="dialog"
             aria-modal="true"
             aria-label="Skin Shop"
           >
-            <header className="ng-shell__head">
-              <span className="ng-shell__badge">🪙 {state.coins}</span>
-              <h2 className="ng-shell__title">SKIN SHOP</h2>
+            <header className="qs-sc-header">
+              <span className="qs-sc-badge tnum">🪙 {state.coins}</span>
+              <h2 className="qs-sc-title">SKIN SHOP</h2>
               <button
                 type="button"
-                className="ng-shell__close"
+                className="qs-sc-close"
                 aria-label="Close skin shop modal"
                 onClick={closeModal}
               >
@@ -657,71 +607,65 @@ export function GameModals() {
               </button>
             </header>
 
-            <div className="ng-shell__body grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {SKIN_PACKS.map((pack) => {
-                const isOwned = Boolean(
-                  state.ownedSkinPacks[pack.id] || state.isPlus || pack.price === 0,
-                );
-                const isActive = state.activeSkinPack === pack.id;
-                return (
-                  <div
-                    key={pack.id}
-                    className="flex flex-col justify-between gap-3 rounded-2xl bg-white/95 p-4 shadow-sm"
-                  >
-                    <div>
-                      <strong className="text-sm font-black text-[var(--noggin-forest)]">
-                        {pack.name} Pack
-                      </strong>
-                      <div className="mt-2 flex items-center gap-2">
+            <div className="qs-sc-body qs-sc-body--topup">
+              <div className="plus-perks-grid">
+                {SKIN_PACKS.map((pack) => {
+                  const isOwned = Boolean(
+                    state.ownedSkinPacks[pack.id] || state.isPlus || pack.price === 0,
+                  );
+                  const isActive = state.activeSkinPack === pack.id;
+                  return (
+                    <div key={pack.id} className="skin-shop-card">
+                      <strong>{pack.name} Pack</strong>
+                      <div className="skin-shop-dots">
                         {pack.swatches.map((sw) => (
                           <span
                             key={sw.name}
                             title={sw.name}
-                            className="h-7 w-7 rounded-full border-2 border-white shadow-sm"
-                            style={{ backgroundColor: sw.hex }}
+                            style={{ background: sw.hex }}
                           />
                         ))}
                       </div>
-                    </div>
 
-                    {isOwned ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateState((prev) => ({ ...prev, activeSkinPack: pack.id }));
-                          closeModal();
-                        }}
-                        className="ng-btn ng-btn--leaf w-full py-2 text-xs"
-                      >
-                        {isActive ? "Active Pack ✓" : "Use Pack ✓"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          requestPurchase({
-                            title: "BUY SKIN PACK",
-                            itemLabel: `${pack.name} Pack (4 Body Skins)`,
-                            cost: pack.price,
-                            onConfirm: () => {
-                              updateState((prev) => ({
-                                ...prev,
-                                coins: Math.max(0, prev.coins - pack.price),
-                                ownedSkinPacks: { ...prev.ownedSkinPacks, [pack.id]: true },
-                                activeSkinPack: pack.id,
-                              }));
-                              showToast(`Unlocked ${pack.name} Pack!`);
-                            },
-                          });
-                        }}
-                        className="ng-btn ng-btn--gold w-full py-2 text-xs"
-                      >
-                        🪙 {pack.price}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                      {isOwned ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateState((prev) => ({ ...prev, activeSkinPack: pack.id }));
+                            closeModal();
+                          }}
+                          className="streak-btn streak-btn--leaf"
+                        >
+                          {isActive ? "Active Pack ✓" : "Use Pack ✓"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            requestPurchase({
+                              title: "BUY SKIN PACK",
+                              itemLabel: `${pack.name} Pack (4 Body Skins)`,
+                              cost: pack.price,
+                              onConfirm: () => {
+                                updateState((prev) => ({
+                                  ...prev,
+                                  coins: Math.max(0, prev.coins - pack.price),
+                                  ownedSkinPacks: { ...prev.ownedSkinPacks, [pack.id]: true },
+                                  activeSkinPack: pack.id,
+                                }));
+                                showToast(`Unlocked ${pack.name} Pack!`);
+                              },
+                            });
+                          }}
+                          className="streak-btn streak-btn--gold"
+                        >
+                          🪙 {pack.price}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -729,23 +673,23 @@ export function GameModals() {
 
       {confirmReq && (
         <div
-          className="ng-modal-backdrop ng-overlay--confirm"
+          className="streak-overlay confirm-buy-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeConfirm();
           }}
         >
           <div
-            className="ng-shell ng-shell--sage max-w-[440px]"
+            className="qs-sc-shell qs-sc-shell--confirm"
             role="dialog"
             aria-modal="true"
             aria-label="Confirm purchase"
           >
-            <header className="ng-shell__head">
-              <span className="ng-shell__badge">🪙 {state.coins}</span>
-              <h2 className="ng-shell__title">{confirmReq.title || "CONFIRM"}</h2>
+            <header className="qs-sc-header">
+              <span className="qs-sc-badge tnum">🪙 {state.coins}</span>
+              <h2 className="qs-sc-title">{confirmReq.title || "CONFIRM"}</h2>
               <button
                 type="button"
-                className="ng-shell__close"
+                className="qs-sc-close"
                 aria-label="Cancel purchase"
                 onClick={closeConfirm}
               >
@@ -753,20 +697,18 @@ export function GameModals() {
               </button>
             </header>
 
-            <div className="ng-shell__body flex flex-col items-center gap-4 text-center">
-              <p className="m-0 text-base font-black text-[var(--noggin-forest)]">
-                {confirmReq.itemLabel}
-              </p>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[var(--ng-c-efe7cf)] px-4 py-1.5 text-sm font-extrabold text-[var(--noggin-forest)]">
+            <div className="qs-sc-body qs-sc-body--confirm">
+              <p className="cb-item-name">{confirmReq.itemLabel}</p>
+              <div className="cb-balance-pill">
                 <span>🪙 {state.coins}</span>
                 <span aria-hidden="true">→</span>
                 <strong>🪙 {Math.max(0, state.coins - confirmReq.cost)} left</strong>
               </div>
-              <div className="flex w-full items-center gap-3">
+              <div className="cb-actions">
                 <button
                   type="button"
                   onClick={closeConfirm}
-                  className="ng-btn ng-btn--stone flex-1 py-2.5 text-sm"
+                  className="cb-btn cb-btn--cancel"
                 >
                   Cancel
                 </button>
@@ -777,7 +719,7 @@ export function GameModals() {
                     closeConfirm();
                     fn();
                   }}
-                  className="ng-btn ng-btn--leaf flex-1 py-2.5 text-sm"
+                  className="cb-btn cb-btn--ok"
                 >
                   Buy · 🪙 {confirmReq.cost}
                 </button>

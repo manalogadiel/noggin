@@ -79,7 +79,7 @@ export function EggHatch({ onHatched }: EggHatchProps) {
         disabled={popping}
         className="group relative flex w-full max-w-[340px] cursor-pointer items-center justify-center rounded-[36px] bg-transparent p-2 transition-opacity focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--noggin-leaf-strong)] disabled:cursor-default"
       >
-        <div className={cn("w-full max-w-[320px] sm:max-w-[330px]", stageMotionClass)}>
+        <div className={cn("w-full max-w-[320px] sm:max-w-[330px] nog-bob", stageMotionClass)}>
           <NogStage
             scene="egg"
             alt=""
@@ -97,25 +97,20 @@ export function EggHatch({ onHatched }: EggHatchProps) {
       <div
         role="img"
         aria-label={`Taps: ${taps} of ${TOTAL_TAPS}`}
-        className="mt-6 flex items-center justify-center gap-3"
+        className="hatch-dots-pill mt-4"
       >
         {[1, 2, 3].map((stepIndex) => (
           <span
             key={stepIndex}
             aria-hidden="true"
-            className={cn(
-              "h-3.5 w-3.5 rounded-full border-2 border-[var(--noggin-leaf-strong)] transition-colors duration-150 motion-reduce:transition-none",
-              taps >= stepIndex
-                ? "bg-[var(--noggin-leaf-strong)]"
-                : "bg-[var(--noggin-white)]",
-            )}
+            className={cn("hatch-dot", taps >= stepIndex && "is-filled")}
           />
         ))}
       </div>
 
       <p
         aria-live="polite"
-        className="mt-3 text-center text-[1rem] text-[var(--noggin-ink)]"
+        className="stage-sub mt-3 text-center"
       >
         {hintText}
       </p>
