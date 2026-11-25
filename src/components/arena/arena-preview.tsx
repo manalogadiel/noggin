@@ -72,25 +72,16 @@ export function ArenaPreview() {
 
         <div className="game-main-pane">
           <div className="party-lobby-stage party-lobby-stage--tiered">
-            <div className="flex w-full flex-col items-center gap-3">
-              <header className="flex flex-col items-center gap-1.5 text-center">
-                <div className="flex flex-wrap items-center justify-center gap-2.5">
-                  <h1 className="noggin-display text-[clamp(1.65rem,2.8vw,2.25rem)] leading-none font-extrabold text-[var(--noggin-white)] drop-shadow-[0_3px_10px_rgb(16_32_4_/_0.45)]">
-                    Arena
-                  </h1>
-                  <span className="party-code-pill inline-flex items-center gap-1.5 !px-3 !py-1.5">
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Preview</span>
-                  </span>
-                  <span className="party-cap-pill !px-3 !py-1.5">VS</span>
-                </div>
-                <p className="max-w-xl text-[0.9375rem] font-semibold text-[var(--noggin-white)] drop-shadow-[0_2px_6px_rgb(16_32_4_/_0.5)]">
-                  Battle Nogs with friends. Every Nog answers only from what
-                  you taught it.
-                </p>
-              </header>
-
+            <div className="flex w-full flex-col items-center gap-2">
               <div className="party-banner">
+                <h1 className="noggin-display m-0 text-[1.4rem] leading-none font-extrabold text-[var(--noggin-white)] drop-shadow-[0_2px_8px_rgb(16_32_4_/_0.45)]">
+                  Arena
+                </h1>
+                <span className="party-code-pill inline-flex items-center gap-1 !px-3 !py-1.5">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Preview</span>
+                </span>
+                <span className="party-cap-pill !px-3 !py-1.5">VS</span>
                 <span className="party-code-pill tnum">
                   CODE: <strong>NOG-42</strong>
                 </span>
@@ -129,13 +120,18 @@ export function ArenaPreview() {
                   📘 {activeBook} ↻
                 </button>
               </div>
+
+              <p className="m-0 text-center text-[0.875rem] font-semibold text-[var(--noggin-white)] drop-shadow-[0_2px_6px_rgb(16_32_4_/_0.5)]">
+                Battle Nogs with friends. Every Nog answers only from what you
+                taught it.
+              </p>
             </div>
 
             <div
               aria-hidden="true"
               className="party-tiers party-tiers--risers"
             >
-              <div className="party-tier party-tier--r3 flex-wrap">
+              <div className="party-tier party-tier--r3">
                 {RISER_BACK.map((player) => (
                   <div
                     key={player.name}
@@ -153,7 +149,7 @@ export function ArenaPreview() {
                 ))}
               </div>
 
-              <div className="party-tier party-tier--r2 flex-wrap">
+              <div className="party-tier party-tier--r2">
                 {RISER_MID.map((player) => (
                   <div
                     key={player.name}
@@ -171,7 +167,7 @@ export function ArenaPreview() {
                 ))}
               </div>
 
-              <div className="party-tier party-tier--r1 flex-wrap">
+              <div className="party-tier party-tier--r1">
                 {RISER_FRONT.map((player) => (
                   <div
                     key={player.name}
@@ -195,7 +191,7 @@ export function ArenaPreview() {
               </div>
             </div>
 
-            <div className="flex flex-col items-center gap-2.5">
+            <div className="flex flex-col items-center gap-2">
               <div className="arena-actions">
                 <a
                   href="#arena-quick-match-heading"
@@ -216,7 +212,9 @@ export function ArenaPreview() {
                   League
                 </a>
               </div>
-              <p className="party-more-badge tnum">Live battles open soon</p>
+              <p className="party-more-badge tnum m-0">
+                Live battles open soon
+              </p>
             </div>
           </div>
         </div>

@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   BookOpen,
   Check,
-  Clock,
   FileUp,
   ListChecks,
   MessageSquareText,
@@ -14,6 +13,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { Book3dSvg } from "@/components/game-ui/book-3d-svg";
+import { type BookCoverStyle } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import type { NogRecord, TopicSummary } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,14 @@ const FORMAT_MODES = [
   { id: "enum", label: "List", icon: ListChecks },
   { id: "phrase", label: "Short", icon: MessageSquareText },
 ] as const;
+
+const BOOK_COVER_ROTATION: ReadonlyArray<BookCoverStyle> = [
+  "sage",
+  "honey",
+  "gingham",
+  "berry",
+  "denim",
+];
 
 export function TopicSelectStep({
   nog,
@@ -161,14 +170,14 @@ export function TopicSelectStep({
             </div>
 
             <div className="qs-actor qs-actor--nog-floor">
-              <div className="w-[215px]">
+              <div className="w-[clamp(140px,14.5vw,210px)]">
                 <NogStage
                   scene="room"
                   alt={`${nog.name} thinking through the quiz questions`}
                   poster="/nog/blob-closeup.png"
                   width={1254}
                   height={1254}
-                  sizes="215px"
+                  sizes="210px"
                   priority
                   className="nog-bob w-full"
                 />
@@ -199,49 +208,22 @@ export function TopicSelectStep({
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
 
-          <h1 className="stage-h1">Practice Quiz</h1>
+          <h1
+            className="stage-h1"
+            style={{ fontSize: "26px", color: "var(--noggin-white)" }}
+          >
+            Practice Quiz
+          </h1>
         </div>
 
         <p className="qs-brain-pill m-0 hidden sm:inline-flex">
-          Test what your Nog has learned
+          {nog.name} answers each question from its own notebook while you watch.
         </p>
       </div>
 
-      <div className="qs-prep-stage flex-col gap-5">
-        <div className="flex w-full max-w-[720px] items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/game/ui/host-owl-clay.svg"
-              alt=""
-              aria-hidden="true"
-              className="hidden h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgb(20_36_8_/_0.28)] sm:block"
-            />
-            <div className="w-[92px] sm:w-[110px]">
-              <NogStage
-                scene={feedback?.kind === "sleepy" ? "dizzy" : "room"}
-                alt={`${nog.name} ready for a practice quiz`}
-                poster={
-                  feedback?.kind === "sleepy"
-                    ? "/nog/hatchling-dizzy.png"
-                    : "/nog/blob-closeup.png"
-                }
-                width={feedback?.kind === "sleepy" ? 1024 : 1254}
-                height={feedback?.kind === "sleepy" ? 1024 : 1254}
-                sizes="110px"
-                priority
-                className="nog-bob w-full"
-              />
-            </div>
-          </div>
-
-          <p className="qs-bubble__text max-w-[44ch] rounded-2xl bg-[rgb(255_253_247_/_0.92)] px-4 py-2.5 text-xs font-bold text-[var(--noggin-forest)] shadow-md">
-            {nog.name} answers each question from its own notebook while you watch.
-          </p>
-        </div>
-
+      <div className="qs-prep-stage flex-col gap-3">
         {/* Royal-Blue Dot-Matrix START QUIZ Marquee Shell */}
-        <div className="qs-sc-shell qs-sc-shell--prep">
+        <div className="qs-sc-shell qs-sc-shell--prep relative z-10">
           <header className="qs-sc-header">
             <div className="qs-count-stepper" aria-label="Question count">
               <button
@@ -265,7 +247,7 @@ export function TopicSelectStep({
 
             <h2 className="qs-sc-title">START QUIZ</h2>
 
-            <span className="qs-sc-badge truncate max-w-[140px]">
+            <span className="qs-sc-badge justify-self-end truncate max-w-[140px]">
               {selectedTopic?.title ?? "Topics"}
             </span>
           </header>
@@ -309,7 +291,7 @@ export function TopicSelectStep({
                 className={cn("qs-src-cta qs-src-cta--ai", aiGenOn && "is-on")}
               >
                 <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>AI Generate</span>
+                <span>Generate with AI</span>
               </button>
               <button
                 type="button"
@@ -340,13 +322,14 @@ export function TopicSelectStep({
                 </Link>
               </div>
             ) : (
-              <fieldset className="flex flex-col gap-3 border-0 p-0">
+              <fieldset className="m-0 border-0 p-0">
                 <legend className="sr-only">Topics</legend>
 
-                <div className="flex flex-col gap-2.5">
-                  {topics.map((topic) => {
+                <div className="qs-book-row">
+                  {topics.map((topic, idx) => {
                     const isPending = topic.status !== "ready";
                     const isSelected = !isPending && selectedTopicId === topic.id;
+                    const cover = BOOK_COVER_ROTATION[idx % BOOK_COVER_ROTATION.length];
                     const questionLabel =
                       topic.questionCount === 1
                         ? "1 question"
@@ -356,57 +339,43 @@ export function TopicSelectStep({
                       <label
                         key={topic.id}
                         className={cn(
-                          "flex min-h-14 items-center justify-between gap-3 rounded-[var(--noggin-radius-pill)] border px-5 py-3 shadow-sm transition-all duration-150 motion-reduce:transition-none",
-                          isPending
-                            ? "cursor-not-allowed border-[var(--noggin-sand)] bg-[var(--noggin-white)] opacity-70"
-                            : "cursor-pointer hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
-                          isSelected
-                            ? "border-[var(--noggin-leaf-strong)] bg-[var(--noggin-sage)] ring-2 ring-[var(--noggin-leaf-strong)]"
-                            : !isPending &&
-                                "border-[var(--noggin-sage-strong)] bg-[var(--noggin-white)]",
+                          "qs-book-pick",
+                          isSelected && "is-on",
+                          isPending && "cursor-not-allowed opacity-65",
                         )}
                       >
-                        <span className="flex min-w-0 items-center gap-3.5">
-                          <span className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center">
-                            <input
-                              type="radio"
-                              name="quick-check-topic"
-                              value={topic.id}
-                              checked={isSelected}
-                              disabled={isPending}
-                              onChange={() => onSelectTopic(topic.id)}
-                              className="peer h-6 w-6 cursor-pointer appearance-none rounded-[8px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] transition-colors checked:bg-[var(--noggin-leaf-strong)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf)] disabled:cursor-not-allowed"
-                            />
-                            <Check
-                              aria-hidden="true"
-                              className="pointer-events-none absolute h-3.5 w-3.5 text-[var(--noggin-white)] opacity-0 transition-opacity peer-checked:opacity-100"
-                              strokeWidth={3}
-                            />
+                        <input
+                          type="radio"
+                          name="quick-check-topic"
+                          value={topic.id}
+                          checked={isSelected}
+                          disabled={isPending}
+                          aria-disabled={isPending ? "true" : undefined}
+                          onChange={() => onSelectTopic(topic.id)}
+                          className="sr-only"
+                        />
+
+                        {isSelected && (
+                          <span className="qs-book-pick__tick" aria-hidden="true">
+                            ✓
                           </span>
-                          <span className="noggin-display text-[1rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                            {topic.title}
-                          </span>
+                        )}
+
+                        <span className="qs-book-pick__svg" aria-hidden="true">
+                          <Book3dSvg
+                            style={cover}
+                            title={topic.title}
+                            uid={`quiz-book-${topic.id}`}
+                          />
                         </span>
 
-                        {isPending ? (
-                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-meter-mid-soft)] px-3 py-1 text-[0.75rem] font-semibold text-[var(--noggin-meter-mid-ink)]">
-                            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            <span>Questions being written</span>
-                          </span>
-                        ) : (
-                          topic.questionCount > 0 && (
-                            <span
-                              className={cn(
-                                "inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] px-3 py-1 text-[0.75rem] font-semibold",
-                                isSelected
-                                  ? "bg-[var(--noggin-white)] text-[var(--noggin-forest)]"
-                                  : "bg-[var(--noggin-mint)] text-[var(--noggin-ink)]",
-                              )}
-                            >
-                              {questionLabel}
-                            </span>
-                          )
-                        )}
+                        <span className="qs-book-pick__name [overflow-wrap:anywhere]">
+                          {topic.title}
+                        </span>
+
+                        <span className="text-[10.5px] font-bold text-[var(--noggin-ink)]">
+                          {isPending ? "Questions being written" : questionLabel}
+                        </span>
                       </label>
                     );
                   })}
@@ -434,6 +403,38 @@ export function TopicSelectStep({
                 <span>Start Quiz</span>
               </button>
             )}
+          </div>
+        </div>
+
+        <div className="qs-actors-layer">
+          <div className="qs-actor qs-actor--owl-floor">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/game/ui/host-owl-clay.svg"
+              alt=""
+              aria-hidden="true"
+            />
+            <div className="qs-floor-shadow" />
+          </div>
+
+          <div className="qs-actor qs-actor--nog-floor">
+            <div className="w-[clamp(140px,14.5vw,210px)]">
+              <NogStage
+                scene={feedback?.kind === "sleepy" ? "dizzy" : "room"}
+                alt={`${nog.name} ready for a practice quiz`}
+                poster={
+                  feedback?.kind === "sleepy"
+                    ? "/nog/hatchling-dizzy.png"
+                    : "/nog/blob-closeup.png"
+                }
+                width={feedback?.kind === "sleepy" ? 1024 : 1254}
+                height={feedback?.kind === "sleepy" ? 1024 : 1254}
+                sizes="210px"
+                priority
+                className="nog-bob w-full"
+              />
+            </div>
+            <div className="qs-floor-shadow" />
           </div>
         </div>
       </div>

@@ -50,7 +50,8 @@ export function NotebookView({
   const pendingReasonId = useId();
   const newTopicInputRef = useRef<HTMLInputElement | null>(null);
 
-  const { state, openModal, requestPurchase, updateState, showToast } = useGameUi();
+  const { state, activeRoom, openModal, requestPurchase, updateState, showToast } = useGameUi();
+  const roomBgSrc = activeRoom?.src ?? "/game/rooms/room-warm.jpg";
 
   const [viewMode, setViewMode] = useState<"spread" | "shelf">("spread");
   const [editMode, setEditMode] = useState(false);
@@ -242,162 +243,154 @@ export function NotebookView({
   };
   const coverTheme = COVER_THEME[activeCover] ?? COVER_THEME.sage;
 
-  return (
-    <div className="game-world nb-world nb-textured-bg">
-      <div className="stage-body stage-body--with-rail max-w-[1280px] gap-5">
-        <header className="open-book-toolbar">
-          <div className="flex items-center gap-3">
-            <h1 className="stage-h1">Notebook</h1>
-            <span className="qs-round-pill inline-flex items-center gap-1.5">
-              <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{nog.name}</span>
+  const editBarEl =
+    editMode && selectedTopic ? (
+      <div
+        className={cn(
+          "book-edit-bar",
+          viewMode === "shelf" && "book-edit-bar--shelf",
+        )}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="book-edit-title-row flex-1">
+            <label
+              htmlFor="nb-rename-input"
+              className="text-xs font-black text-[var(--noggin-forest)]"
+            >
+              Title:
+            </label>
+            <input
+              id="nb-rename-input"
+              type="text"
+              maxLength={30}
+              value={customBookTitle}
+              onChange={(e) => {
+                const val = e.target.value.slice(0, 30);
+                updateState((prev) => ({
+                  ...prev,
+                  notebookTitles: {
+                    ...prev.notebookTitles,
+                    [selectedTopic.id]: val,
+                  },
+                }));
+              }}
+              className="book-edit-input"
+            />
+            <span className="book-edit-count tnum">
+              {customBookTitle.length}/30
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              aria-pressed={viewMode === "shelf"}
-              onClick={() => setViewMode((m) => (m === "shelf" ? "spread" : "shelf"))}
-              className={cn(
-                "gbtn gbtn--sm",
-                viewMode === "shelf" ? "gbtn--leaf" : "gbtn--white",
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{viewMode === "shelf" ? "Back to Open Book" : "All Notebooks (3D)"}</span>
-            </button>
-
-            <button
-              type="button"
-              aria-pressed={editMode}
-              onClick={() => setEditMode((v) => !v)}
-              className={cn("book-edit-toggle-btn", editMode && "is-on")}
-            >
-              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{editMode ? "Done" : "Edit"}</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Inline Edit & Cover Toolbar (when Edit active or customizing active book) */}
-        {(editMode || viewMode === "spread") && selectedTopic && (
-          <div className={cn(editMode ? "book-edit-bar" : "open-book-toolbar")}>
-            {editMode ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="book-edit-title-row flex-1">
-                  <label
-                    htmlFor="nb-rename-input"
-                    className="text-xs font-black text-[var(--noggin-forest)]"
-                  >
-                    Title:
-                  </label>
-                  <input
-                    id="nb-rename-input"
-                    type="text"
-                    maxLength={30}
-                    value={customBookTitle}
-                    onChange={(e) => {
-                      const val = e.target.value.slice(0, 30);
-                      updateState((prev) => ({
-                        ...prev,
-                        notebookTitles: { ...prev.notebookTitles, [selectedTopic.id]: val },
-                      }));
-                    }}
-                    className="book-edit-input"
-                  />
-                  <span className="book-edit-count tnum">
-                    {customBookTitle.length}/30
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="hw-date-stamp tnum">
-                    {pages.length} / {maxPages} pages
-                  </span>
-                  {maxPages >= 60 ? (
-                    <span className="nb-max-pill">MAX</span>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-label="Expand pages"
-                      onClick={() =>
-                        openModal({
-                          type: "expandPages",
-                          bookId: activeBookId,
-                          bookTitle: customBookTitle,
-                          cover: activeCover,
-                        })
-                      }
-                      className="nb-plus-btn"
-                    >
-                      +
-                    </button>
-                  )}
-                </div>
-              </div>
+          <div className="flex items-center gap-2">
+            <span className="hw-date-stamp tnum">
+              {pages.length} / {maxPages} pages
+            </span>
+            {maxPages >= 60 ? (
+              <span className="nb-max-pill">MAX</span>
             ) : (
-              <>
-                <div
-                  className="open-book-swatches"
-                  role="group"
-                  aria-label="Customize notebook cover"
-                >
-                  <span>Cover:</span>
-                  {COVER_SWATCHES.map((sw) => (
-                    <button
-                      key={sw.id}
-                      type="button"
-                      aria-label={`${sw.label} cover`}
-                      aria-pressed={activeCover === sw.id}
-                      onClick={() =>
-                        updateState((prev) => ({
-                          ...prev,
-                          notebookCovers: { ...prev.notebookCovers, [activeBookId]: sw.id },
-                        }))
-                      }
-                      className={cn(
-                        "h-6 w-6 cursor-pointer rounded-full border-2 transition",
-                        activeCover === sw.id
-                          ? "scale-110 border-[var(--noggin-forest)]"
-                          : "border-white opacity-85 hover:opacity-100",
-                      )}
-                      style={{ backgroundColor: sw.color }}
-                    />
-                  ))}
-                </div>
-
-                <div className="open-book-swatches">
-                  <span className="tnum">
-                    {pages.length} / {maxPages} pages
-                  </span>
-                  {maxPages >= 60 ? (
-                    <span className="nb-max-pill">MAX</span>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-label="Expand pages"
-                      onClick={() =>
-                        openModal({
-                          type: "expandPages",
-                          bookId: activeBookId,
-                          bookTitle: customBookTitle,
-                          cover: activeCover,
-                        })
-                      }
-                      className="nb-plus-btn"
-                    >
-                      +
-                    </button>
-                  )}
-                </div>
-              </>
+              <button
+                type="button"
+                aria-label="Expand pages"
+                onClick={() =>
+                  openModal({
+                    type: "expandPages",
+                    bookId: activeBookId,
+                    bookTitle: customBookTitle,
+                    cover: activeCover,
+                  })
+                }
+                className="nb-plus-btn"
+              >
+                +
+              </button>
             )}
           </div>
-        )}
+        </div>
 
+        <div
+          className="open-book-swatches"
+          role="group"
+          aria-label="Customize notebook cover"
+        >
+          <span className="mr-1">Cover:</span>
+          {COVER_SWATCHES.map((sw) => (
+            <button
+              key={sw.id}
+              type="button"
+              aria-label={`${sw.label} cover`}
+              aria-pressed={activeCover === sw.id}
+              onClick={() =>
+                updateState((prev) => ({
+                  ...prev,
+                  notebookCovers: {
+                    ...prev.notebookCovers,
+                    [activeBookId]: sw.id,
+                  },
+                }))
+              }
+              className={cn(
+                "live-book-swatch",
+                activeCover === sw.id && "is-on",
+              )}
+              style={{ backgroundColor: sw.color }}
+            />
+          ))}
+        </div>
+      </div>
+    ) : null;
+
+  return (
+    <div className="game-world game-world--scroll nb-world">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={roomBgSrc} alt="" className="scene-bg-img" />
+      <div className="scene-bg-scrim nb-textured-bg" aria-hidden="true" />
+      <RoomRail nogId={nog.id} />
+
+      <header className="stage-top">
+        <div className="flex items-center gap-3">
+          <h1 className="stage-h1" style={{ fontSize: "30px" }}>
+            Notebook
+          </h1>
+          <span className="qs-round-pill inline-flex items-center gap-1.5">
+            <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{nog.name}</span>
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={viewMode === "shelf"}
+            onClick={() => setViewMode((m) => (m === "shelf" ? "spread" : "shelf"))}
+            className={cn(
+              "gbtn gbtn--sm",
+              viewMode === "shelf" ? "gbtn--leaf" : "gbtn--white",
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{viewMode === "shelf" ? "Back to Open Book" : "All Notebooks (3D)"}</span>
+          </button>
+
+          <button
+            type="button"
+            aria-pressed={editMode}
+            onClick={() => setEditMode((v) => !v)}
+            className={cn("book-edit-toggle-btn", editMode && "is-on")}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{editMode ? "Done" : "Edit"}</span>
+          </button>
+        </div>
+      </header>
+
+      <div
+        className="stage-body stage-body--with-rail"
+        style={{ justifyContent: "flex-start", paddingTop: "12px" }}
+      >
         {viewMode === "shelf" ? (
           <section aria-label="3D notebooks shelf" className="nb-shelf-wrap">
+            {editBarEl}
+
             <div className="nb-shelf-grid">
               {visibleTopics.map((topic, idx) => {
                 const title = state.notebookTitles[topic.id] ?? topic.title;
@@ -445,16 +438,16 @@ export function NotebookView({
                 aria-label="Unlock extra notebook slot for 150 coins"
                 className="nb-shelf-card nb-shelf-card--locked"
               >
-                <span className="nb-shelf-lock-badge flex-col gap-1">
-                  <span className="text-2xl leading-none">+</span>
-                  <span className="text-xs font-black">🪙 150</span>
+                <span className="nb-shelf-lock-badge slot-glow-card">
+                  <span className="slot-glow-plus">+</span>
+                  <span className="slot-glow-price">🪙 150</span>
                 </span>
                 <strong className="nb-shelf-card__name">Add Notebook Slot</strong>
               </button>
             </div>
           </section>
         ) : (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(240px,290px)_minmax(0,1fr)] lg:items-start">
+          <div className="open-book-stage">
             <TopicSidebar
               nogId={nog.id}
               topics={visibleTopics}
@@ -477,6 +470,64 @@ export function NotebookView({
               statusAlert={statusAlert}
               newTopicInputRef={newTopicInputRef}
             />
+
+            {editBarEl}
+
+            {selectedTopic && !editMode && (
+              <div className="open-book-toolbar">
+                <div
+                  className="open-book-swatches"
+                  role="group"
+                  aria-label="Customize notebook cover"
+                >
+                  <span className="mr-1">Cover:</span>
+                  {COVER_SWATCHES.map((sw) => (
+                    <button
+                      key={sw.id}
+                      type="button"
+                      aria-label={`${sw.label} cover`}
+                      aria-pressed={activeCover === sw.id}
+                      onClick={() =>
+                        updateState((prev) => ({
+                          ...prev,
+                          notebookCovers: { ...prev.notebookCovers, [activeBookId]: sw.id },
+                        }))
+                      }
+                      className={cn(
+                        "live-book-swatch",
+                        activeCover === sw.id && "is-on",
+                      )}
+                      style={{ backgroundColor: sw.color }}
+                    />
+                  ))}
+                </div>
+
+                <div className="open-book-swatches">
+                  <span className="tnum">
+                    {pages.length} / {maxPages} pages
+                  </span>
+                  {maxPages >= 60 ? (
+                    <span className="nb-max-pill">MAX</span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label="Expand pages"
+                      onClick={() =>
+                        openModal({
+                          type: "expandPages",
+                          bookId: activeBookId,
+                          bookTitle: customBookTitle,
+                          cover: activeCover,
+                        })
+                      }
+                      className="nb-plus-btn"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 2-Page Open Book Spread */}
             <section
@@ -619,8 +670,6 @@ export function NotebookView({
           </div>
         )}
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

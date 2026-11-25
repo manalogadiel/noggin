@@ -38,46 +38,43 @@ export function LessonCard({ page }: LessonCardProps) {
   const taughtDate = formatTaughtDate(page.createdAt);
 
   return (
-    <li className="rounded-[22px] bg-[var(--noggin-white)] shadow-[0_6px_18px_var(--noggin-shadow)]">
+    <li className="hw-entry">
       <button
         type="button"
         aria-expanded={expanded}
         aria-controls={contentId}
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full min-h-14 cursor-pointer items-start justify-between gap-3 rounded-[22px] p-4 text-left transition-colors duration-150 hover:bg-[var(--noggin-mint)]/55 motion-reduce:transition-none sm:p-5"
+        className="w-full cursor-pointer border-0 bg-transparent p-0 text-left"
       >
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="noggin-display text-[1rem] font-bold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+        <div className="hw-entry__top">
+          <span className="hw-entry__title [overflow-wrap:anywhere]">
             {preview}
           </span>
 
-          <div className="flex flex-wrap items-center gap-2 text-[0.8125rem] font-medium text-[var(--noggin-ink)]">
-            <span>Taught {taughtDate}</span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="hw-date-stamp tnum">Taught {taughtDate}</span>
             {page.kind === "follow_up_answer" && (
-              <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-2.5 py-0.5 text-[0.75rem] font-semibold text-[var(--noggin-forest)]">
+              <span className="hw-stamp hw-stamp--refresh">
                 Follow-up
               </span>
             )}
+            <ChevronDown
+              aria-hidden="true"
+              className={cn(
+                "h-4 w-4 shrink-0 text-[var(--noggin-forest)] transition-transform duration-150 motion-reduce:transition-none",
+                expanded && "rotate-180",
+              )}
+            />
           </div>
         </div>
-
-        <ChevronDown
-          aria-hidden="true"
-          className={cn(
-            "mt-1 h-5 w-5 shrink-0 text-[var(--noggin-forest)] transition-transform duration-150 motion-reduce:transition-none",
-            expanded && "rotate-180",
-          )}
-        />
       </button>
 
       {expanded && (
         <div
           id={contentId}
-          className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5"
+          className="hw-sticky whitespace-pre-wrap [overflow-wrap:anywhere]"
         >
-          <p className="rounded-[16px] bg-[var(--noggin-mint)] p-4 whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-            {page.body}
-          </p>
+          {page.body}
         </div>
       )}
     </li>

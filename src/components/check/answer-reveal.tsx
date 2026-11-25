@@ -170,7 +170,7 @@ export function AnswerReveal({
               aria-hidden="true"
             >
               <path
-                d="M0 0C4 9 10 16 14 20C14 11 19 4 28 0Z"
+                d="M4 0h22C20 10 12 16 2 19c4-6 4-13 2-19z"
                 fill="var(--ng-c-fbf5e6)"
               />
             </svg>
@@ -273,14 +273,14 @@ export function AnswerReveal({
               aria-hidden="true"
             >
               <path
-                d="M0 0C9 4 14 11 14 20C18 16 24 9 28 0Z"
+                d="M24 0H2c6 10 14 16 24 19-4-6-4-13-2-19z"
                 fill="var(--ng-c-fbf5e6)"
               />
             </svg>
           </div>
         </div>
 
-        <div className="relative z-12 mx-auto mt-auto flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-3 pt-2">
+        <div className="qs-controls">
           <button
             type="button"
             disabled={questionNumber <= 1}
@@ -311,14 +311,14 @@ export function AnswerReveal({
           </div>
 
           <div className="qs-actor qs-actor--nog-floor">
-            <div className="w-[215px]">
+            <div className="w-[clamp(140px,14.5vw,210px)]">
               <NogStage
                 scene="room"
                 alt={`${nogName} answering question ${questionNumber}`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
                 height={1254}
-                sizes="215px"
+                sizes="210px"
                 className="nog-bob w-full"
               />
             </div>
