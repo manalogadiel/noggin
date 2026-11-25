@@ -283,7 +283,8 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
     );
   });
 
-  it("renders the Accessories section with disabled tiles, a Soon chip, and helper text", async () => {
+  it("renders the interactive Accessories section with owned packs, equip toggle buttons, and shop link", async () => {
+    const user = userEvent.setup();
     await renderCustomize();
 
     const accessoriesHeading = screen.getByRole("heading", {
@@ -291,17 +292,17 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
       name: /accessories/i,
     });
     expect(accessoriesHeading).toBeVisible();
-    expect(screen.getAllByText(/^soon$/i).length).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getByText(/hats and bows are coming soon\./i),
-    ).toBeVisible();
+    expect(screen.getByRole("tablist", { name: /owned skin packages/i })).toBeVisible();
 
-    const accessoriesSection =
-      accessoriesHeading.closest("section, div") ?? document.body;
-    const disabledControls = accessoriesSection.querySelectorAll(
-      "button:disabled, [aria-disabled='true']",
+    const beanieBtn = screen.getByRole("button", { name: /sprout beanie/i });
+    expect(beanieBtn).toHaveAttribute("aria-pressed", "false");
+    await user.click(beanieBtn);
+    expect(beanieBtn).toHaveAttribute("aria-pressed", "true");
+
+    expect(screen.getByRole("link", { name: /open shop for more accessories/i })).toHaveAttribute(
+      "href",
+      "/profile/shop",
     );
-    expect(disabledControls.length).toBeGreaterThanOrEqual(4);
   });
 
   it("navigates back to the room without calling customizeNog when Done is clicked with no color change", async () => {
@@ -428,7 +429,7 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
 });
 
 describe("Nog Room tint without in-room Customize pill", () => {
-  it("passes nog.colors.body as the room NogStage tint and omits the in-room Customize pill", async () => {
+  it("passes nog.colors.body as the room NogStage tint and links Customize from the Sanctuary radial wheel", async () => {
     currentNog = { ...baseNog, colors: { body: "#d9c8f5" } };
     window.history.replaceState(null, "", roomHref);
 
@@ -439,8 +440,8 @@ describe("Nog Room tint without in-room Customize pill", () => {
     );
 
     expect(
-      screen.queryByRole("link", { name: /customize/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("link", { name: /customize/i }),
+    ).toHaveAttribute("href", `${roomHref}/customize`);
 
     const stage = screen.getByTestId("nog-scene-room");
     expect(stage).toHaveAttribute("data-tint", "#d9c8f5");

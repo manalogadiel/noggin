@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { runQuickCheckAction } from "@/app/(app)/actions/check-actions";
-import { RoomRail } from "@/components/room/room-rail";
 import type {
   NogRecord,
   NogStageSlug,
@@ -152,8 +151,20 @@ export function PlayView({ nog, topics, initialTopicId }: PlayViewProps) {
     step === "quiz" && checkData ? checkData.attempts[currentIndex] : null;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="min-w-0">
+    <div className="relative min-h-[calc(100dvh-76px)] overflow-hidden rounded-[28px] px-4 py-5 md:px-7 md:py-7">
+      {/* Quiz Show Stage Backdrop */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/game/bg/quiz-field-stage.jpg"
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[rgb(245_251_232_/_0.78)] via-[rgb(255_253_244_/_0.72)] to-[rgb(228_241_202_/_0.8)]"
+      />
+
+      <div className="relative z-10 mx-auto w-full max-w-[1160px] min-w-0">
         {(step === "setup" || step === "thinking") && (
           <TopicSelectStep
             nog={nog}
@@ -196,8 +207,6 @@ export function PlayView({ nog, topics, initialTopicId }: PlayViewProps) {
           />
         )}
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }
