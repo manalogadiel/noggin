@@ -168,11 +168,22 @@ export type ActiveModal =
   | { type: "skinShop" }
   | { type: "expandPages"; bookId: string; bookTitle: string; cover: BookCoverStyle };
 
+export interface SanctuaryContextInfo {
+  nogId: string;
+  nogName: string;
+  teachDone: boolean;
+  waterDone: boolean;
+  petDone: boolean;
+  onRequestPetToast?: () => void;
+}
+
 interface GameUiContextValue {
   state: PersistedGameUi;
   modal: ActiveModal;
   confirmReq: ConfirmPurchaseRequest | null;
   toastText: string | null;
+  sanctuary: SanctuaryContextInfo | null;
+  setSanctuary: (info: SanctuaryContextInfo | null) => void;
   showToast: (msg: string) => void;
   openModal: (m: ActiveModal) => void;
   closeModal: () => void;
@@ -211,6 +222,7 @@ export function GameUiProvider({ children }: { children: ReactNode }) {
   const [modal, setModal] = useState<ActiveModal>(null);
   const [confirmReq, setConfirmReq] = useState<ConfirmPurchaseRequest | null>(null);
   const [toastText, setToastText] = useState<string | null>(null);
+  const [sanctuary, setSanctuary] = useState<SanctuaryContextInfo | null>(null);
 
   const updateState = useCallback(
     (updater: (prev: PersistedGameUi) => PersistedGameUi) => {
@@ -362,6 +374,8 @@ export function GameUiProvider({ children }: { children: ReactNode }) {
       modal,
       confirmReq,
       toastText,
+      sanctuary,
+      setSanctuary,
       showToast,
       openModal: setModal,
       closeModal,
@@ -371,19 +385,15 @@ export function GameUiProvider({ children }: { children: ReactNode }) {
       awardRewards,
       activeRoom,
     }),
-    [state, modal, confirmReq, toastText, showToast, closeModal, requestPurchase, closeConfirm, updateState, awardRewards, activeRoom],
+    [state, modal, confirmReq, toastText, sanctuary, showToast, closeModal, requestPurchase, closeConfirm, updateState, awardRewards, activeRoom],
   );
 
   return (
     <GameUiContext.Provider value={value}>
       {children}
       {toastText && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed bottom-6 left-1/2 z-[320] -translate-x-1/2 rounded-full bg-[var(--ng-c-2f5406)] px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_8px_24px_rgba(20,38,6,0.36)]"
-        >
-          {toastText}
+        <div className="toast-region" role="status" aria-live="polite">
+          <div className="toast">{toastText}</div>
         </div>
       )}
     </GameUiContext.Provider>
@@ -400,6 +410,8 @@ export function useGameUi(): GameUiContextValue {
       modal: null,
       confirmReq: null,
       toastText: null,
+      sanctuary: null,
+      setSanctuary: NOOP,
       showToast: NOOP,
       openModal: NOOP,
       closeModal: NOOP,

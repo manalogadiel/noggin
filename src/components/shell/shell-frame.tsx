@@ -119,34 +119,31 @@ export function ShellFrame({
       {drawerOpen && (
         <>
           <div
-            className="ng-drawer-backdrop"
+            className="nav-drawer-backdrop"
             aria-hidden="true"
             onClick={() => setDrawerOpen(false)}
           />
           <aside
             ref={drawerRef}
             id={drawerId}
-            className="ng-drawer"
+            className="nav-drawer"
             aria-label="App navigation"
           >
-            <div className="flex items-center justify-between px-2 pb-2">
-              <span
-                className="text-2xl font-black tracking-tight text-white"
-                style={{ fontFamily: "var(--noggin-font-display), sans-serif" }}
-              >
+            <div className="game-sidebar__brand">
+              <span className="wordmark" style={{ fontSize: 28 }}>
                 Noggin
               </span>
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 aria-label="Close menu"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+                className="figma-menu-btn"
               >
-                <X className="h-5 w-5" aria-hidden="true" />
+                <X className="h-[22px] w-[22px]" strokeWidth={2.6} aria-hidden="true" />
               </button>
             </div>
 
-            <nav aria-label="App" className="flex flex-1 flex-col gap-1">
+            <nav aria-label="App" className="game-sidebar__nav">
               {primaryLinks.map((item, idx) => {
                 const Icon = item.icon;
                 return (
@@ -155,17 +152,16 @@ export function ShellFrame({
                     ref={idx === 0 ? firstLinkRef : undefined}
                     href={item.href}
                     onClick={() => setDrawerOpen(false)}
-                    className={`ng-drawer__link ${item.active ? "is-active" : ""}`}
+                    aria-current={item.active ? "page" : undefined}
+                    className="gs-nav-btn"
                   >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
 
-              <span className="px-4 pt-4 pb-1 text-[11px] font-black tracking-widest text-[var(--ng-c-e2f7c5)] uppercase">
-                Study &amp; Care
-              </span>
+              <span className="nav-drawer__group-label">Study &amp; Care</span>
 
               {studyLinks.map((item) => {
                 const Icon = item.icon;
@@ -174,20 +170,22 @@ export function ShellFrame({
                     key={item.label}
                     href={item.href}
                     onClick={() => setDrawerOpen(false)}
-                    className={`ng-drawer__link ${item.active ? "is-active" : ""}`}
+                    aria-current={item.active ? "page" : undefined}
+                    className="gs-nav-btn"
                   >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
             </nav>
 
-            <div className="flex flex-col gap-2 border-t border-white/20 pt-3">
+            <div className="game-sidebar__footer">
               <Link
                 href="/adopt"
                 onClick={() => setDrawerOpen(false)}
-                className="flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-black text-[var(--ng-c-2f5406)] shadow-[0_4px_0_rgba(40,70,10,0.22)]"
+                className="gbtn gbtn--white"
+                style={{ width: "100%" }}
               >
                 <Plus className="h-4 w-4" strokeWidth={2.8} aria-hidden="true" />
                 <span>Hatch a Nog</span>
@@ -195,10 +193,12 @@ export function ShellFrame({
               <form action={async () => { await signOutAction(); }}>
                 <button
                   type="submit"
-                  className="flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white/90 hover:bg-white/15"
+                  className="gs-wallet-btn justify-center"
                 >
-                  <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Log out</span>
+                  <span className="inline-flex items-center gap-2">
+                    <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Log out</span>
+                  </span>
                 </button>
               </form>
             </div>
@@ -206,7 +206,7 @@ export function ShellFrame({
         </>
       )}
 
-      <main id="main" className="flex min-w-0 flex-1 flex-col">
+      <main id="main" className="app-shell-main flex min-w-0 flex-1 flex-col">
         {children}
       </main>
 
