@@ -32,7 +32,7 @@ export function BrainMeter({
         "rounded-[28px] p-4 shadow-[0_12px_28px_var(--noggin-shadow)] transition-colors duration-200 motion-reduce:transition-none sm:p-5",
         overloaded
           ? "bg-[var(--noggin-meter-low-soft)] ring-2 ring-[var(--noggin-danger)]"
-          : "border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
+          : "surface-sage border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">

@@ -13,6 +13,7 @@ import {
   addTopicAction,
   type AddTopicActionResult,
 } from "@/app/(app)/actions/topic-actions";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { RoomRail } from "@/components/room/room-rail";
 import type {
   LessonPage,
@@ -98,6 +99,7 @@ function FeedWorkspace({
   micMode,
 }: FeedWorkspaceProps) {
   const router = useRouter();
+  const { activeRoom } = useGameUi();
   const [draft, setDraft] = useState(initialDraft);
   const [activeReviseLessonId, setActiveReviseLessonId] = useState<string | null>(
     reviseLessonId,
@@ -507,35 +509,46 @@ function FeedWorkspace({
       : statusBubble ?? `Teach me about ${topic.title}!`;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-5 lg:pr-14">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <Link
-              href={roomHref}
-              aria-label={`Back to ${nog.name}'s room`}
-              className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-            >
-              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            </Link>
+    <div className="game-world game-world--scroll">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={activeRoom.src} alt="" className="scene-bg-img" />
+      <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
+      <RoomRail nogId={nog.id} />
 
-            <h1 className="noggin-display text-[clamp(2rem,4vw,2.75rem)] font-extrabold leading-tight text-[var(--noggin-leaf-title)]">
-              Feed
-            </h1>
-
-            <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sage)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
-              {topic.title}
-            </span>
-          </div>
-
+      <header className="stage-top">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Link
-            href={feedBaseHref}
-            className="noggin-display inline-flex min-h-11 items-center rounded-[var(--noggin-radius-pill)] border border-[var(--noggin-leaf-strong)] bg-transparent px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
+            href={roomHref}
+            aria-label={`Back to ${nog.name}'s room`}
+            className="stage-close-btn"
           >
-            Change topic
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
-        </header>
 
+          <h1
+            className="stage-h1"
+            style={{ fontSize: "32px" }}
+          >
+            Feed
+          </h1>
+
+          <span className="pill pill--dark [overflow-wrap:anywhere]">
+            {topic.title}
+          </span>
+        </div>
+
+        <Link
+          href={feedBaseHref}
+          className="gbtn gbtn--white gbtn--sm"
+        >
+          Change topic
+        </Link>
+      </header>
+
+      <div
+        className="stage-body stage-body--with-rail gap-5"
+        style={{ justifyContent: "flex-start" }}
+      >
         {duplicateMessage && (
           <p
             role="status"
@@ -565,7 +578,7 @@ function FeedWorkspace({
               type="button"
               disabled={isRetryingTopic}
               onClick={() => void handleRetryPendingTopic()}
-              className="noggin-display inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-60"
+              className="gbtn gbtn--white gbtn--sm shrink-0 gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{isRetryingTopic ? "Retrying…" : "Retry"}</span>
@@ -599,7 +612,7 @@ function FeedWorkspace({
             {isFirstLesson && (
               <section
                 aria-label="Lesson guidance"
-                className="rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-cream)] p-5 shadow-[0_10px_24px_var(--noggin-shadow)]"
+                className="surface-mint rounded-[24px] border border-[var(--noggin-sage-strong)] p-5"
               >
                 <div className="flex items-center gap-2 text-[var(--noggin-forest)]">
                   <Lightbulb
@@ -643,8 +656,6 @@ function FeedWorkspace({
           </div>
         </div>
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

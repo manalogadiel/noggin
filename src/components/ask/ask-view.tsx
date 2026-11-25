@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useId, useMemo, useRef, useState } from "react";
 import { askNogAction } from "@/app/(app)/actions/ask-actions";
 import { AskAnswer, type AskCitedNote } from "@/components/ask/ask-answer";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { RoomRail } from "@/components/room/room-rail";
 import { MicButton } from "@/components/voice/mic-button";
@@ -61,6 +62,7 @@ function relativeTime(iso: string, now: number): string {
 
 export function AskView({ nog, topics, history, micMode }: AskViewProps) {
   const router = useRouter();
+  const { activeRoom } = useGameUi();
   const ids = useId();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -194,161 +196,171 @@ export function AskView({ nog, topics, history, micMode }: AskViewProps) {
   const recentHeadingId = `${ids}-recent`;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
-        <header className="flex items-center gap-2">
+    <div className="game-world game-world--scroll">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={activeRoom.src} alt="" className="scene-bg-img" />
+      <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
+      <RoomRail nogId={nog.id} />
+
+      <header className="stage-top">
+        <div className="flex items-center gap-3">
           <Link
             href={`/nogs/${nog.id}`}
             aria-label="Back to room"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--noggin-forest)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-forest)] motion-reduce:transition-none"
+            className="stage-close-btn"
           >
             <ChevronLeft className="h-6 w-6" aria-hidden="true" />
           </Link>
-          <h1 className="noggin-display text-[clamp(1.5rem,3.5vw,2rem)] font-extrabold text-[var(--noggin-leaf-title,var(--noggin-forest))]">
+          <h1 className="stage-h1" style={{ fontSize: "32px" }}>
             Ask {nog.name}
           </h1>
-        </header>
+        </div>
+      </header>
 
-        <section aria-label={`${nog.name} answer`} className="flex flex-col items-center gap-4">
-          <div
-            role={fog ? "alert" : "status"}
-            aria-live={fog ? "assertive" : "polite"}
-            className={cn(
-              "relative z-10 w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
-              fog
-                ? "bg-[var(--noggin-cream)] text-[var(--noggin-forest)]"
-                : "bg-[var(--noggin-sage)] text-[var(--noggin-forest)]",
-            )}
-          >
-            {bubble}
-            <span
-              aria-hidden="true"
+      <div
+        className="stage-body stage-body--with-rail"
+        style={{ justifyContent: "flex-start" }}
+      >
+        <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+          <section aria-label={`${nog.name} answer`} className="flex flex-col items-center gap-4">
+            <div
+              role={fog ? "alert" : "status"}
+              aria-live={fog ? "assertive" : "polite"}
               className={cn(
-                "pointer-events-none absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45",
-                fog ? "bg-[var(--noggin-cream)]" : "bg-[var(--noggin-sage)]",
+                "relative z-10 w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
+                fog
+                  ? "bg-[var(--noggin-cream)] text-[var(--noggin-forest)]"
+                  : "bg-[var(--noggin-sage)] text-[var(--noggin-forest)]",
               )}
-            />
-          </div>
-          <div className="-mt-[14%] w-full max-w-[240px] shrink-0 lg:max-w-[300px]">
-            <NogStage
-              scene="room"
-              alt={`${nog.name} ready for your question`}
-              poster="/nog/blob-closeup.png"
-              width={1254}
-              height={1254}
-              sizes="(min-width: 1024px) 300px, 240px"
-              className="nog-bob w-full"
-            />
-          </div>
-        </section>
-
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-3 rounded-[28px] bg-[var(--noggin-cream)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)]"
-        >
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor={topicFieldId}
-              className="text-[0.8125rem] font-bold text-[var(--noggin-forest)]"
             >
-              Topic
-            </label>
-            <select
-              id={topicFieldId}
-              value={topicId}
-              disabled={waiting || tired}
-              onChange={(event) => setTopicId(event.target.value)}
-              className="min-h-11 w-full cursor-pointer appearance-none rounded-[18px] bg-[var(--noggin-white)] px-4 text-[0.9375rem] font-semibold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-forest)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <option value="">All topics</option>
-              {topics.map((topic) => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <label htmlFor={questionFieldId} className="sr-only">
-            Your question
-          </label>
-          <textarea
-            id={questionFieldId}
-            ref={textareaRef}
-            rows={2}
-            value={draft}
-            disabled={waiting || tired}
-            placeholder={`Ask ${nog.name} anything you've taught…`}
-            aria-invalid={tooLong || undefined}
-            aria-describedby={tooLong ? `${questionFieldId}-hint` : undefined}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-            className="max-h-40 min-h-[4.5rem] w-full resize-none rounded-[20px] bg-[var(--noggin-white)] px-4 py-3 text-[1rem] leading-relaxed text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [field-sizing:content] placeholder:text-[var(--noggin-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-forest)] disabled:cursor-not-allowed disabled:opacity-60"
-          />
-
-          <div className="flex items-center justify-between gap-3">
-            <p
-              id={`${questionFieldId}-hint`}
-              aria-live="polite"
-              className="min-h-5 text-[0.8125rem] font-semibold text-[var(--noggin-danger)]"
-            >
-              {tooLong ? TOO_LONG_LINE : ""}
-            </p>
-            <div className="flex items-center gap-2">
-              <MicButton
-                mode={micMode}
-                onTranscript={handleTranscript}
-                disabled={waiting || tired}
+              {bubble}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45",
+                  fog ? "bg-[var(--noggin-cream)]" : "bg-[var(--noggin-sage)]",
+                )}
               />
-              <button
-                type="submit"
-                disabled={!canAsk}
-                className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-6 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Send className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{waiting ? "Thinking…" : "Ask"}</span>
-              </button>
             </div>
-          </div>
-        </form>
-
-        {exchanges.length > 0 && (
-          <section aria-labelledby={recentHeadingId} className="flex flex-col gap-4">
-            <h2
-              id={recentHeadingId}
-              className="noggin-display text-[1.125rem] font-extrabold text-[var(--noggin-forest)]"
-            >
-              Recent
-            </h2>
-            <ol className="flex flex-col gap-5">
-              {exchanges.map((exchange) => (
-                <li key={exchange.id} className="flex flex-col gap-2">
-                  <p className="ml-auto max-w-[85%] rounded-[20px] bg-[var(--noggin-white)] px-4 py-2.5 text-[0.9375rem] text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
-                    {exchange.question}
-                  </p>
-                  <p className="mr-auto max-w-[85%] rounded-[20px] bg-[var(--noggin-sage)] px-4 py-2.5 text-[0.9375rem] font-semibold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                    {exchange.answer}
-                  </p>
-                  <time
-                    dateTime={exchange.createdAt}
-                    suppressHydrationWarning
-                    className="mr-auto pl-2 text-[0.75rem] text-[var(--noggin-ink)]"
-                  >
-                    {relativeTime(exchange.createdAt, now)}
-                  </time>
-                </li>
-              ))}
-            </ol>
+            <div className="-mt-[14%] w-full max-w-[240px] shrink-0 lg:max-w-[300px]">
+              <NogStage
+                scene="room"
+                alt={`${nog.name} ready for your question`}
+                poster="/nog/blob-closeup.png"
+                width={1254}
+                height={1254}
+                sizes="(min-width: 1024px) 300px, 240px"
+                className="nog-bob w-full"
+              />
+            </div>
           </section>
-        )}
-      </div>
 
-      <RoomRail nogId={nog.id} />
+          <form
+            onSubmit={handleSubmit}
+            className="surface-sage flex flex-col gap-3 rounded-[28px] p-5"
+          >
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor={topicFieldId}
+                className="text-[0.8125rem] font-bold text-[var(--noggin-forest)]"
+              >
+                Topic
+              </label>
+              <select
+                id={topicFieldId}
+                value={topicId}
+                disabled={waiting || tired}
+                onChange={(event) => setTopicId(event.target.value)}
+                className="g-select min-h-11 w-full cursor-pointer font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">All topics</option>
+                {topics.map((topic) => (
+                  <option key={topic.id} value={topic.id}>
+                    {topic.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <label htmlFor={questionFieldId} className="sr-only">
+              Your question
+            </label>
+            <textarea
+              id={questionFieldId}
+              ref={textareaRef}
+              rows={2}
+              value={draft}
+              disabled={waiting || tired}
+              placeholder={`Ask ${nog.name} anything you've taught…`}
+              aria-invalid={tooLong || undefined}
+              aria-describedby={tooLong ? `${questionFieldId}-hint` : undefined}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+              className="g-textarea max-h-40 min-h-[4.5rem] w-full resize-none [field-sizing:content] placeholder:text-[var(--noggin-ink)] disabled:cursor-not-allowed disabled:opacity-60"
+            />
+
+            <div className="flex items-center justify-between gap-3">
+              <p
+                id={`${questionFieldId}-hint`}
+                aria-live="polite"
+                className="min-h-5 text-[0.8125rem] font-semibold text-[var(--noggin-danger)]"
+              >
+                {tooLong ? TOO_LONG_LINE : ""}
+              </p>
+              <div className="flex items-center gap-2">
+                <MicButton
+                  mode={micMode}
+                  onTranscript={handleTranscript}
+                  disabled={waiting || tired}
+                />
+                <button
+                  type="submit"
+                  disabled={!canAsk}
+                  className="pub-cta-pill inline-flex cursor-pointer items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{waiting ? "Thinking…" : "Ask"}</span>
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {exchanges.length > 0 && (
+            <section aria-labelledby={recentHeadingId} className="surface-white flex flex-col gap-4 rounded-[28px]">
+              <h2
+                id={recentHeadingId}
+                className="noggin-display text-[1.125rem] font-extrabold text-[var(--noggin-forest)]"
+              >
+                Recent
+              </h2>
+              <ol className="flex flex-col gap-5">
+                {exchanges.map((exchange) => (
+                  <li key={exchange.id} className="flex flex-col gap-2">
+                    <p className="ml-auto max-w-[85%] rounded-[20px] bg-[var(--noggin-mint-light)] px-4 py-2.5 text-[0.9375rem] text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
+                      {exchange.question}
+                    </p>
+                    <p className="mr-auto max-w-[85%] rounded-[20px] bg-[var(--noggin-sage)] px-4 py-2.5 text-[0.9375rem] font-semibold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+                      {exchange.answer}
+                    </p>
+                    <time
+                      dateTime={exchange.createdAt}
+                      suppressHydrationWarning
+                      className="mr-auto pl-2 text-[0.75rem] text-[var(--noggin-ink)]"
+                    >
+                      {relativeTime(exchange.createdAt, now)}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { reviseLessonAction } from "@/app/(app)/actions/lesson-actions";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { RoomRail } from "@/components/room/room-rail";
 import type { NogRecord } from "@/core/application/ports";
@@ -59,6 +60,7 @@ function createRevisionKey(lessonId: string): string {
 
 export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
   const router = useRouter();
+  const { activeRoom } = useGameUi();
   const roomHref = `/nogs/${nog.id}`;
 
   const defaultId =
@@ -207,22 +209,32 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
     : `${roomHref}/play`;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
-        <header className="flex items-center gap-3">
+    <div className="game-world game-world--scroll">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={activeRoom.src} alt="" className="scene-bg-img" />
+      <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
+      <RoomRail nogId={nog.id} />
+
+      <header className="stage-top">
+        <div className="flex items-center gap-3">
           <Link
             href={roomHref}
             aria-label={`Back to ${nog.name}'s room`}
-            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="stage-close-btn"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
 
-          <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-tight text-[var(--noggin-leaf-title)]">
+          <h1 className="stage-h1" style={{ fontSize: "32px" }}>
             Bath
           </h1>
-        </header>
+        </div>
+      </header>
 
+      <div
+        className="stage-body stage-body--with-rail gap-6"
+        style={{ justifyContent: "flex-start" }}
+      >
         {!selected ? (
           <div className="flex flex-col items-center gap-5 py-6 text-center">
             <div className="w-full max-w-[280px] lg:max-w-[360px]">
@@ -238,7 +250,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
               />
             </div>
 
-            <h2 className="noggin-display text-[clamp(1.75rem,4vw,2.5rem)] font-extrabold text-[var(--noggin-forest)]">
+            <h2 className="stage-h1" style={{ fontSize: "36px" }}>
               Squeaky clean! Nothing to fix.
             </h2>
 
@@ -249,7 +261,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
 
             <Link
               href={roomHref}
-              className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-8 text-[1rem] font-bold"
+              className="pub-cta-pill pub-cta-pill--md"
             >
               Back to room
             </Link>
@@ -258,7 +270,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
           <div className="flex min-w-0 flex-col gap-6">
             <aside
               aria-label="Thoughts to fix"
-              className="rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] p-4 shadow-[0_10px_24px_var(--noggin-shadow)]"
+              className="surface-mint rounded-[24px] border border-[var(--noggin-sage-strong)] p-4"
             >
               <h2 className="noggin-display px-1 text-[0.9375rem] font-extrabold text-[var(--noggin-forest)]">
                 Needs a bath ({items.length})
@@ -317,7 +329,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] lg:items-start">
                 <div className="flex flex-col items-center gap-4 lg:items-start">
                   <div className="w-full min-w-0">
-                    <h2 className="noggin-display text-[clamp(1.85rem,4vw,2.75rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
+                    <h2 className="stage-h1" style={{ fontSize: "36px" }}>
                       Missed Concept
                     </h2>
                     <p
@@ -359,7 +371,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
 
                 <div className="flex min-w-0 flex-col gap-6">
                   <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <article className="flex min-h-[260px] flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_12px_28px_var(--noggin-shadow)]">
+                    <article className="surface-sage flex min-h-[260px] flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_12px_28px_var(--noggin-shadow)]">
                       <h3 className="noggin-display text-[1rem] font-extrabold uppercase tracking-wide text-[var(--noggin-forest)]">
                         Nog Answer
                       </h3>
@@ -368,7 +380,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                       </p>
                     </article>
 
-                    <article className="flex min-h-[260px] flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_12px_28px_var(--noggin-shadow)]">
+                    <article className="surface-sage flex min-h-[260px] flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_12px_28px_var(--noggin-shadow)]">
                       <h3 className="noggin-display text-[1rem] font-extrabold uppercase tracking-wide text-[var(--noggin-forest)]">
                         What it missed
                       </h3>
@@ -401,7 +413,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                       <button
                         type="button"
                         onClick={handleOpenRevise}
-                        className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center px-9 text-[1.0625rem] font-bold"
+                        className="pub-cta-pill pub-cta-pill--md cursor-pointer"
                       >
                         Start Revising →
                       </button>
@@ -409,7 +421,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
 
                     <Link
                       href={feedHref}
-                      className="noggin-display inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
+                      className="gbtn gbtn--white gap-2"
                     >
                       <Wrench className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span>Fix this thought</span>
@@ -421,7 +433,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
               <div className="flex min-w-0 flex-col gap-5">
                 <header className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h2 className="noggin-display text-[clamp(1.85rem,4vw,2.6rem)] font-extrabold leading-[1.08] text-[var(--noggin-leaf-title)]">
+                    <h2 className="stage-h1" style={{ fontSize: "34px" }}>
                       Revise
                     </h2>
                     <p className="mt-1 text-[0.9375rem] text-[var(--noggin-ink)]">
@@ -436,13 +448,13 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                   <button
                     type="button"
                     onClick={() => setMode("detail")}
-                    className="noggin-display inline-flex min-h-11 cursor-pointer items-center justify-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] motion-reduce:transition-none"
+                    className="gbtn gbtn--white gbtn--sm cursor-pointer"
                   >
                     Back to concept
                   </button>
                 </header>
 
-                <div className="flex flex-col gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-6">
+                <div className="surface-sage flex flex-col gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label
                       htmlFor="bath-revise-editor"
@@ -468,7 +480,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                     value={draft}
                     onChange={(event) => handleDraftChange(event.target.value)}
                     placeholder={`Explain ${selected.title} in your own words…`}
-                    className="w-full resize-y rounded-[20px] bg-[var(--noggin-white)] p-4 text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_8px_var(--noggin-shadow)] focus:outline-none focus:ring-2 focus:ring-[var(--noggin-leaf-strong)]"
+                    className="g-textarea w-full resize-y rounded-[20px] bg-[var(--noggin-white)] p-4 text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_8px_var(--noggin-shadow)] focus:outline-none focus:ring-2 focus:ring-[var(--noggin-leaf-strong)]"
                   />
 
                   {saveFeedback?.kind === "ok" && (
@@ -537,7 +549,7 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                       <button
                         type="button"
                         onClick={() => void handleSaveRevision()}
-                        className="noggin-display inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-4 text-[0.875rem] font-bold text-[var(--noggin-forest)]"
+                        className="gbtn gbtn--white gbtn--sm cursor-pointer gap-1.5"
                       >
                         <RefreshCw
                           className="h-4 w-4 shrink-0"
@@ -562,14 +574,14 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
                       type="button"
                       disabled={isSaving || isOverload || wordCount === 0}
                       onClick={() => void handleSaveRevision()}
-                      className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-7 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
+                      className="pub-cta-pill pub-cta-pill--md inline-flex cursor-pointer items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-55"
                     >
                       <span>{isSaving ? "Saving…" : "Save Revision"}</span>
                     </button>
 
                     <Link
                       href={rerunHref}
-                      className="noggin-display inline-flex min-h-12 items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] motion-reduce:transition-none"
+                      className="gbtn gbtn--white gap-2"
                     >
                       <Play
                         className="h-4 w-4 shrink-0 fill-current"
@@ -584,8 +596,6 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
           </div>
         )}
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

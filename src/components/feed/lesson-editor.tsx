@@ -76,7 +76,7 @@ export function LessonEditor({
         "flex min-w-0 flex-col gap-4 rounded-[28px] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] transition-colors duration-200 motion-reduce:transition-none sm:p-6",
         isOverloaded
           ? "bg-[var(--noggin-meter-low-soft)] ring-2 ring-[var(--noggin-danger)]"
-          : "border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
+          : "surface-sage border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
       )}
     >
       {fixingCard && (
@@ -131,7 +131,7 @@ export function LessonEditor({
           onChange={(event) => onDraftChange(event.target.value)}
           disabled={isSaving}
           className={cn(
-            "min-h-[210px] w-full resize-y rounded-[22px] bg-[var(--noggin-white)] p-4 text-[1rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_8px_var(--noggin-shadow)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)] disabled:opacity-75",
+            "g-textarea min-h-[210px] w-full resize-y rounded-[22px] bg-[var(--noggin-white)] p-4 text-[1rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_8px_var(--noggin-shadow)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)] disabled:opacity-75",
             isOverloaded && "ring-2 ring-[var(--noggin-danger)]",
           )}
         />
@@ -151,7 +151,7 @@ export function LessonEditor({
                 type="button"
                 onClick={onSplit}
                 disabled={isSaving}
-                className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-6 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                className="gbtn gbtn--coral gap-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Scissors className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>Split lesson</span>
@@ -171,7 +171,7 @@ export function LessonEditor({
               type="button"
               onClick={onFeed}
               disabled={!canFeed}
-              className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-7 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+              className="pub-cta-pill inline-flex cursor-pointer items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Utensils className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>Feed</span>
