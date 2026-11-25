@@ -1,7 +1,19 @@
 "use client";
 
-import { ArrowLeft, BookOpen, Check, Clock, Play, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Check,
+  Clock,
+  FileUp,
+  ListChecks,
+  MessageSquareText,
+  Play,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import type { NogRecord, TopicSummary } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
@@ -30,6 +42,12 @@ export interface TopicSelectStepProps {
   onRetry: () => void;
 }
 
+const FORMAT_MODES = [
+  { id: "mc", label: "Choices", icon: Check },
+  { id: "enum", label: "List", icon: ListChecks },
+  { id: "phrase", label: "Short", icon: MessageSquareText },
+] as const;
+
 export function TopicSelectStep({
   nog,
   topics,
@@ -40,6 +58,15 @@ export function TopicSelectStep({
   onStart,
   onRetry,
 }: TopicSelectStepProps) {
+  const [questionCount, setQuestionCount] = useState(10);
+  const [aiGenOn, setAiGenOn] = useState(true);
+  const [fileUploadOn, setFileUploadOn] = useState(false);
+  const [formats, setFormats] = useState<Record<string, boolean>>({
+    mc: true,
+    enum: true,
+    phrase: true,
+  });
+
   const roomHref = `/nogs/${nog.id}`;
   const feedBaseHref = `${roomHref}/feed`;
   const hasReadyTopic = topics.some((topic) => topic.status === "ready");
@@ -49,7 +76,7 @@ export function TopicSelectStep({
 
   if (isThinking) {
     return (
-      <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+      <div className="flex min-w-0 flex-col gap-6">
         <header className="flex flex-wrap items-center gap-3">
           <Link
             href={roomHref}
@@ -111,17 +138,26 @@ export function TopicSelectStep({
               />
             </div>
 
-            <div className="w-full max-w-[300px] lg:max-w-[360px]">
-              <NogStage
-                scene="room"
-                alt={`${nog.name} thinking through the quiz questions`}
-                poster="/nog/blob-closeup.png"
-                width={1254}
-                height={1254}
-                sizes="(min-width: 1024px) 360px, 300px"
-                priority
-                className="nog-bob w-full"
+            <div className="flex items-end justify-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/game/ui/host-owl-clay.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-28 w-28 object-contain drop-shadow"
               />
+              <div className="w-full max-w-[260px]">
+                <NogStage
+                  scene="room"
+                  alt={`${nog.name} thinking through the quiz questions`}
+                  poster="/nog/blob-closeup.png"
+                  width={1254}
+                  height={1254}
+                  sizes="(min-width: 1024px) 260px, 240px"
+                  priority
+                  className="nog-bob w-full"
+                />
+              </div>
             </div>
           </aside>
         </div>
@@ -130,7 +166,7 @@ export function TopicSelectStep({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+    <div className="flex min-w-0 flex-col gap-6">
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <Link
@@ -152,9 +188,18 @@ export function TopicSelectStep({
         </p>
       </header>
 
-      <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(360px,0.95fr)_2px_minmax(0,1.05fr)] lg:items-start lg:gap-10">
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-full max-w-[300px] lg:max-w-[380px]">
+      <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[0.88fr_1.12fr]">
+        {/* LEFT: Open-Ground Owl Host & Nog Stage */}
+        <div className="flex flex-col items-center gap-5">
+          <div className="flex items-end justify-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/game/ui/host-owl-clay.svg"
+              alt=""
+              aria-hidden="true"
+              className="hidden h-36 w-36 object-contain drop-shadow-[0_12px_20px_rgb(20_36_8_/_0.24)] sm:block"
+            />
+            <div className="w-full max-w-[280px] lg:max-w-[330px]">
               <NogStage
                 scene={feedback?.kind === "sleepy" ? "dizzy" : "room"}
                 alt={`${nog.name} ready for a practice quiz`}
@@ -165,37 +210,126 @@ export function TopicSelectStep({
                 }
                 width={feedback?.kind === "sleepy" ? 1024 : 1254}
                 height={feedback?.kind === "sleepy" ? 1024 : 1254}
-                sizes="(min-width: 1024px) 380px, 300px"
+                sizes="(min-width: 1024px) 330px, 280px"
                 priority
                 className="nog-bob w-full"
               />
             </div>
-
-            {topics.length > 0 && (
-              <button
-                type="button"
-                disabled={!canStart}
-                onClick={onStart}
-                className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center gap-2.5 px-10 text-[1.125rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                <Play className="h-4 w-4 shrink-0 fill-current" aria-hidden="true" />
-                <span>Start Quiz</span>
-              </button>
-            )}
           </div>
 
-          <div
-            aria-hidden="true"
-            className="hidden h-full min-h-[340px] w-[2px] rounded-full bg-[var(--noggin-leaf)] lg:block"
-          />
+          {topics.length > 0 && (
+            <button
+              type="button"
+              disabled={!canStart}
+              onClick={onStart}
+              className="ng-btn ng-btn--gold px-10 py-3.5 text-lg disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              <Play className="h-5 w-5 shrink-0 fill-current" aria-hidden="true" />
+              <span>Start Quiz</span>
+            </button>
+          )}
+        </div>
 
-          <div className="flex min-w-0 flex-col gap-5">
-            <h2 className="noggin-display text-[1.5rem] font-extrabold text-[var(--noggin-forest)]">
+        {/* RIGHT: Royal-Blue Dot-Matrix START QUIZ Marquee Shell */}
+        <div className="ng-shell ng-shell--blue max-w-[660px]">
+          <header className="ng-shell__head">
+            <div
+              className="inline-flex items-center gap-1 rounded-full bg-[rgb(16_38_86_/_0.52)] px-2 py-1 text-xs font-black text-white"
+              aria-label="Question count"
+            >
+              <button
+                type="button"
+                aria-label="Fewer questions"
+                onClick={() => setQuestionCount((c) => Math.max(3, c - 1))}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+              >
+                −
+              </button>
+              <span className="px-1.5 tabular-nums">{questionCount} Qs</span>
+              <button
+                type="button"
+                aria-label="More questions"
+                onClick={() => setQuestionCount((c) => Math.min(50, c + 1))}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+              >
+                +
+              </button>
+            </div>
+
+            <h2 className="ng-shell__title">START QUIZ</h2>
+
+            <span className="ng-shell__badge justify-self-end truncate max-w-[140px]">
+              {selectedTopic?.title ?? "Topics"}
+            </span>
+          </header>
+
+          <div className="ng-shell__body flex min-w-0 flex-col gap-4">
+            {/* Colored Format & Source Toggles */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Question formats">
+                {FORMAT_MODES.map((mode) => {
+                  const Icon = mode.icon;
+                  const on = formats[mode.id] !== false;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setFormats((prev) => ({ ...prev, [mode.id]: !prev[mode.id] }))
+                      }
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black transition",
+                        on
+                          ? "bg-[var(--ng-c-318fd6)] text-white shadow-sm"
+                          : "bg-[var(--ng-c-e8dec4)] text-[var(--noggin-forest)]",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{mode.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-pressed={aiGenOn}
+                  onClick={() => setAiGenOn((v) => !v)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black transition",
+                    aiGenOn
+                      ? "bg-[var(--ng-c-7d54d4)] text-white"
+                      : "bg-[var(--ng-c-e8dec4)] text-[var(--noggin-forest)]",
+                  )}
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>AI Generate</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={fileUploadOn}
+                  onClick={() => setFileUploadOn((v) => !v)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black transition",
+                    fileUploadOn
+                      ? "bg-[var(--ng-c-e5624c)] text-white"
+                      : "bg-[var(--ng-c-e8dec4)] text-[var(--noggin-forest)]",
+                  )}
+                >
+                  <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Add by File</span>
+                </button>
+              </div>
+            </div>
+
+            <h2 className="noggin-display text-sm font-black tracking-wide text-[var(--noggin-forest)] uppercase">
               Topics
             </h2>
 
             {topics.length === 0 ? (
-              <div className="flex flex-col items-start gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_10px_26px_var(--noggin-shadow)]">
+              <div className="flex flex-col items-start gap-4 rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-sm">
                 <p className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]">
                   No topics to quiz yet
                 </p>
@@ -204,7 +338,7 @@ export function TopicSelectStep({
                 </p>
                 <Link
                   href={feedBaseHref}
-                  className="noggin-primary-pill noggin-display inline-flex min-h-11 items-center justify-center gap-2 px-6 text-[0.9375rem] font-bold"
+                  className="ng-btn ng-btn--leaf px-6 py-2.5 text-sm"
                 >
                   <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>Teach a topic</span>
@@ -214,7 +348,7 @@ export function TopicSelectStep({
               <fieldset className="flex flex-col gap-3 border-0 p-0">
                 <legend className="sr-only">Topics</legend>
 
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2.5">
                   {topics.map((topic) => {
                     const isPending = topic.status !== "ready";
                     const isSelected = !isPending && selectedTopicId === topic.id;
@@ -227,7 +361,7 @@ export function TopicSelectStep({
                       <label
                         key={topic.id}
                         className={cn(
-                          "flex min-h-14 items-center justify-between gap-3 rounded-[var(--noggin-radius-pill)] border px-5 py-3 shadow-[0_6px_16px_var(--noggin-shadow)] transition-all duration-150 motion-reduce:transition-none",
+                          "flex min-h-14 items-center justify-between gap-3 rounded-[var(--noggin-radius-pill)] border px-5 py-3 shadow-sm transition-all duration-150 motion-reduce:transition-none",
                           isPending
                             ? "cursor-not-allowed border-[var(--noggin-sand)] bg-[var(--noggin-white)] opacity-70"
                             : "cursor-pointer hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
@@ -295,6 +429,7 @@ export function TopicSelectStep({
             )}
           </div>
         </div>
+      </div>
     </div>
   );
 }
