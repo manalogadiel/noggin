@@ -1,6 +1,12 @@
 "use client";
 
-import { BookOpen, CheckCircle2, House, Sprout } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle2,
+  House,
+  MessageCircleQuestion,
+  Sprout,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -14,6 +20,7 @@ const RAIL_ITEMS = [
   { label: "Room", suffix: "", icon: House },
   { label: "Notebook", suffix: "/notebook", icon: BookOpen },
   { label: "Analysis", suffix: "/analysis", icon: Sprout },
+  { label: "Ask", suffix: "/ask", icon: MessageCircleQuestion },
   { label: "Check", suffix: "/play", icon: CheckCircle2 },
 ] as const;
 

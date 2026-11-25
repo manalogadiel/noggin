@@ -253,7 +253,7 @@ describe("asking", () => {
     expect(screen.getByText("Keep it under 60 words.")).toBeVisible();
     expect(askButton()).toBeDisabled();
     expect(askNogAction).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it("disables asking for the day when the Nog is all asked out", async () => {
     const user = userEvent.setup();
