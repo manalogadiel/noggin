@@ -5,6 +5,7 @@ import {
   petNogAction,
   saveProfileSettingsAction,
 } from "@/app/(app)/actions/room-actions";
+import { wakeNogAction } from "@/app/(app)/nogs/[id]/rest/actions";
 import { NogRoomView } from "@/components/room/nog-room-view";
 import { createContainer } from "@/composition/container";
 import {
@@ -123,6 +124,7 @@ export default async function NogRoomPage({ params }: NogRoomPageProps) {
       initialSettings={initialSettings}
       onSaveSettings={saveProfileSettingsAction}
       onPet={onPet}
+      onWake={wakeNogAction.bind(null, nog.id)}
       now={now}
     />
   );

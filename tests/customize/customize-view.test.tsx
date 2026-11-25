@@ -428,7 +428,7 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
 });
 
 describe("Nog Room tint without in-room Customize pill", () => {
-  it("passes nog.colors.body as the room NogStage tint and omits the in-room Customize pill", async () => {
+  it("passes nog.colors.body as the room NogStage tint and links Customize from the Sanctuary radial wheel", async () => {
     currentNog = { ...baseNog, colors: { body: "#d9c8f5" } };
     window.history.replaceState(null, "", roomHref);
 
@@ -439,8 +439,8 @@ describe("Nog Room tint without in-room Customize pill", () => {
     );
 
     expect(
-      screen.queryByRole("link", { name: /customize/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("link", { name: /customize/i }),
+    ).toHaveAttribute("href", `${roomHref}/customize`);
 
     const stage = screen.getByTestId("nog-scene-room");
     expect(stage).toHaveAttribute("data-tint", "#d9c8f5");

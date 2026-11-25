@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 190" fill="none">
+  <defs>
+    <linearGradient id="owlBody" x1="36" y1="30" x2="144" y2="174" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c99b6a"/>
+      <stop offset="55%" stop-color="#a87948"/>
+      <stop offset="100%" stop-color="#845a30"/>
+    </linearGradient>
+    <linearGradient id="owlBelly" x1="56" y1="88" x2="124" y2="168" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff6e2"/>
+      <stop offset="100%" stop-color="#ecd8b2"/>
+    </linearGradient>
+    <linearGradient id="goldRim" x1="40" y1="62" x2="140" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffe282"/>
+      <stop offset="100%" stop-color="#d4931a"/>
+    </linearGradient>
+  </defs>
+  <!-- Cute rounded body -->
+  <ellipse cx="90" cy="122" rx="58" ry="60" fill="url(#owlBody)"/>
+  <!-- Wings -->
+  <ellipse cx="34" cy="128" rx="18" ry="34" transform="rotate(14 34 128)" fill="#94673a"/>
+  <ellipse cx="146" cy="128" rx="18" ry="34" transform="rotate(-14 146 128)" fill="#94673a"/>
+  <!-- Cream belly -->
+  <ellipse cx="90" cy="136" rx="38" ry="38" fill="url(#owlBelly)"/>
+  <!-- Belly feather scallops -->
+  <path d="M72 130q6 6 12 0m12 0q6 6 12 0M78 144q6 6 12 0m6 0q6 6 12 0" stroke="#d5bc92" stroke-width="3" stroke-linecap="round"/>
+  <!-- Head & ear tufts -->
+  <path d="M44 56l14-20 14 14zm92 0l-14-20-14 14z" fill="#8f6236"/>
+  <ellipse cx="90" cy="78" rx="52" ry="44" fill="url(#owlBody)"/>
+  <!-- Facial disc -->
+  <circle cx="68" cy="80" r="24" fill="#fff5df"/>
+  <circle cx="112" cy="80" r="24" fill="#fff5df"/>
+  <!-- Eyes -->
+  <circle cx="68" cy="80" r="11" fill="#2c2419"/>
+  <circle cx="112" cy="80" r="11" fill="#2c2419"/>
+  <circle cx="64" cy="76" r="3.8" fill="#ffffff"/>
+  <circle cx="108" cy="76" r="3.8" fill="#ffffff"/>
+  <!-- Round Professor Gold Glasses -->
+  <circle cx="68" cy="80" r="19" stroke="url(#goldRim)" stroke-width="4.5" fill="#d9f0ff" fill-opacity=".18"/>
+  <circle cx="112" cy="80" r="19" stroke="url(#goldRim)" stroke-width="4.5" fill="#d9f0ff" fill-opacity=".18"/>
+  <path d="M87 79q3-4 6 0" stroke="url(#goldRim)" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- Beak -->
+  <path d="M82 90h16l-8 13-8-13z" fill="#f2b22e"/>
+  <!-- Academic Grad Cap -->
+  <path d="M44 40l46-18 46 18-46 16-46-16z" fill="#3a6618"/>
+  <path d="M62 47v12c0 5 12 9 28 9s28-4 28-9V47" fill="#2b4e10"/>
+  <path d="M132 41v22" stroke="#f5c23b" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="132" cy="65" r="4.5" fill="#f5c23b"/>
+  <!-- Sage Bow Tie -->
+  <path d="M90 116l-16-8v16l16-8zm0 0l16-8v16l-16-8z" fill="#7cb042"/>
+  <circle cx="90" cy="116" r="5" fill="#f5c23b"/>
+  <!-- Quiz Cue Card in right wing -->
+  <rect x="132" y="102" width="32" height="40" rx="6" transform="rotate(10 132 102)" fill="#fffdf6" stroke="#88b552" stroke-width="3"/>
+  <path d="M140 116h16M139 124h14M138 132h10" stroke="#7cb042" stroke-width="2.6" stroke-linecap="round"/>
+</svg>
