@@ -15,45 +15,30 @@ export function LearningProgressView({
   nogs,
 }: LearningProgressViewProps) {
   return (
-    <div className="flex flex-col gap-5 pb-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="ng-prof-kpi">
-          <strong className="noggin-display block text-[1.75rem] font-extrabold text-[var(--noggin-leaf-strong)] tabular-nums">
-            {summary.nogs}
-          </strong>
-          <span className="text-[0.8125rem] font-bold text-[var(--noggin-ink)]">
-            Nogs
-          </span>
+    <div className="flex flex-col gap-4 pb-4">
+      <div className="prof-kpi-row">
+        <div className="prof-kpi">
+          <strong className="tnum">{summary.nogs}</strong>
+          <span>Nogs</span>
         </div>
 
-        <div className="ng-prof-kpi">
-          <strong className="noggin-display block text-[1.75rem] font-extrabold text-[var(--noggin-leaf-strong)] tabular-nums">
-            {summary.topicsWithProgress}
-          </strong>
-          <span className="text-[0.8125rem] font-bold text-[var(--noggin-ink)]">
-            Topics with progress
-          </span>
+        <div className="prof-kpi">
+          <strong className="tnum">{summary.topicsWithProgress}</strong>
+          <span>Topics with progress</span>
         </div>
 
-        <div className="ng-prof-kpi">
-          <strong className="noggin-display block text-[1.75rem] font-extrabold text-[var(--noggin-leaf-strong)] tabular-nums">
-            {summary.mastered}
-          </strong>
-          <span className="text-[0.8125rem] font-bold text-[var(--noggin-ink)]">
-            Questions mastered
-          </span>
+        <div className="prof-kpi">
+          <strong className="tnum">{summary.mastered}</strong>
+          <span>Questions mastered</span>
         </div>
       </div>
 
       {nogs.length === 0 ? (
-        <section className="ng-prof-panel flex flex-col items-center p-8 text-center">
+        <section className="prof-panel items-center p-8 text-center">
           <p className="noggin-display text-[1.25rem] font-extrabold text-[var(--noggin-forest)]">
             No Nogs yet — hatch one to start tracking mastery!
           </p>
-          <Link
-            href="/adopt"
-            className="ng-btn ng-btn--leaf mt-5 inline-flex min-h-11 items-center justify-center px-6"
-          >
+          <Link href="/adopt" className="gbtn gbtn--leaf mt-3 no-underline">
             Hatch a Nog
           </Link>
         </section>
@@ -69,13 +54,10 @@ export function LearningProgressView({
               );
 
               return (
-                <article
-                  key={nog.id}
-                  className="ng-prof-panel flex flex-col gap-4"
-                >
+                <article key={nog.id} className="prof-panel">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <h2 className="noggin-display text-[1.35rem] font-extrabold text-[var(--noggin-forest)]">
+                      <h2 className="prof-panel__title m-0 text-[1.35rem]">
                         {nog.name}
                       </h2>
                       <span className="rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-3 py-1 text-[0.8125rem] font-bold text-[var(--noggin-forest)]">
@@ -88,7 +70,7 @@ export function LearningProgressView({
 
                     <Link
                       href={`/nogs/${nog.id}`}
-                      className="ng-btn ng-btn--leaf ng-btn--sm"
+                      className="gbtn gbtn--leaf gbtn--sm no-underline"
                     >
                       Open room
                     </Link>
@@ -100,8 +82,7 @@ export function LearningProgressView({
                         <div className="flex items-center justify-between gap-2 text-[0.875rem] font-bold text-[var(--noggin-forest)]">
                           <span>Stage progress</span>
                           <span>
-                            {nog.mastered}/{nog.nextThreshold} to{" "}
-                            {nog.nextStage}
+                            {nog.mastered}/{nog.nextThreshold} to {nog.nextStage}
                           </span>
                         </div>
                         <div
@@ -110,12 +91,9 @@ export function LearningProgressView({
                           aria-valuemin={0}
                           aria-valuemax={100}
                           aria-valuenow={clampedPercent}
-                          className="h-3 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)]"
+                          className="meter"
                         >
-                          <div
-                            className="h-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-leaf-strong)] transition-all"
-                            style={{ width: `${clampedPercent}%` }}
-                          />
+                          <i style={{ width: `${clampedPercent}%` }} />
                         </div>
                       </>
                     ) : (
@@ -169,12 +147,9 @@ export function LearningProgressView({
                                 aria-valuemin={0}
                                 aria-valuemax={100}
                                 aria-valuenow={topicPercent}
-                                className="h-2.5 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)]"
+                                className="meter"
                               >
-                                <div
-                                  className="h-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-leaf-strong)] transition-all"
-                                  style={{ width: `${topicPercent}%` }}
-                                />
+                                <i style={{ width: `${topicPercent}%` }} />
                               </div>
                             )}
                           </div>

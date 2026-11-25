@@ -24,20 +24,15 @@ export function NotebookCapacityPanel({
   const { state, openModal } = useGameUi();
 
   return (
-    <section
-      aria-label="Notebook Capacity"
-      className="ng-prof-panel flex flex-col gap-3"
-    >
+    <section aria-label="Notebook Capacity" className="prof-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="noggin-display text-[17px] font-extrabold text-[var(--noggin-forest)]">
-          Notebook Capacity
-        </span>
+        <span className="prof-panel__title">Notebook Capacity</span>
         <span className="text-[12px] font-bold text-[var(--noggin-ink)]">
           {state.isPlus ? "Plus Plan · 30 pages / book" : "Standard · Expandable"}
         </span>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="prof-book-bars">
         {nogs.map((nog, index) => {
           const cover =
             state.notebookCovers[nog.id] ??
@@ -55,8 +50,8 @@ export function NotebookCapacityPanel({
             state.notebookTitles[nog.id] ?? `${nog.name}'s Notebook`;
 
           return (
-            <div key={nog.id} className="flex items-center gap-3">
-              <div className="h-9 w-8 shrink-0">
+            <div key={nog.id} className="prof-book-row">
+              <div className="prof-book-row__ico">
                 <Book3dSvg
                   style={cover}
                   title={bookTitle}
@@ -65,18 +60,15 @@ export function NotebookCapacityPanel({
                 />
               </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 flex items-center justify-between gap-2 text-[13px] font-bold text-[var(--noggin-forest)]">
+              <div className="prof-book-row__bar">
+                <div className="prof-book-row__head">
                   <span className="truncate">{bookTitle}</span>
-                  <span className="shrink-0 tabular-nums">
+                  <span className="shrink-0 tnum">
                     {usedPages} / {maxPages} pages
                   </span>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)]">
-                  <div
-                    className="h-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-leaf-strong)] transition-all"
-                    style={{ width: `${fillPct}%` }}
-                  />
+                <div className="meter">
+                  <i style={{ width: `${fillPct}%` }} />
                 </div>
               </div>
 
@@ -92,7 +84,7 @@ export function NotebookCapacityPanel({
                   })
                 }
                 aria-label={`Expand ${bookTitle} pages`}
-                className="ng-btn ng-btn--gold ng-btn--sm shrink-0 disabled:cursor-not-allowed disabled:opacity-55"
+                className="nb-expand-btn nb-expand-btn--sm shrink-0 disabled:cursor-not-allowed disabled:opacity-55"
               >
                 {atMax ? "MAX" : "+ Expand"}
               </button>

@@ -61,16 +61,16 @@ export function AccountForm({
   }
 
   return (
-    <div className="flex flex-col gap-5 pb-4">
+    <div className="flex flex-col gap-4 pb-4">
       <form
         onSubmit={(event) => void handleSubmit(event)}
-        className="ng-prof-panel flex flex-col gap-5"
+        className="prof-panel gap-5"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label
               htmlFor="account-display-name"
-              className="noggin-display block text-[0.9375rem] font-bold text-[var(--noggin-forest)]"
+              className="figma-auth-label block"
             >
               Display name
             </label>
@@ -85,15 +85,15 @@ export function AccountForm({
                 setSaved(false);
                 setFormError(null);
               }}
-              className="h-12 w-full rounded-[16px] border-2 border-[var(--noggin-panel)] bg-[var(--noggin-white)] px-4 text-[1rem] font-semibold text-[var(--noggin-forest)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf-strong)]"
+              className="g-input h-12 rounded-[14px]"
             />
           </div>
 
           <div className="space-y-1.5">
-            <span className="noggin-display block text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+            <span className="figma-auth-label block">
               Email address
             </span>
-            <p className="flex h-12 items-center truncate rounded-[16px] bg-[var(--noggin-white)] px-4 text-[0.9375rem] font-semibold text-[var(--noggin-ink)]">
+            <p className="m-0 flex h-12 items-center truncate rounded-[14px] bg-[var(--ng-c-f4efe0)] px-4 text-[0.9375rem] font-semibold text-[var(--noggin-ink)]">
               {email}
             </p>
           </div>
@@ -288,19 +288,17 @@ export function AccountForm({
           <button
             type="submit"
             disabled={saving}
-            className="ng-btn ng-btn--leaf inline-flex min-h-11 cursor-pointer items-center justify-center px-6 py-2.5 text-[1rem] font-bold disabled:opacity-60"
+            className="gbtn gbtn--leaf disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
       </form>
 
-      <section aria-label="Sound and Audio Mixer" className="ng-prof-panel space-y-3">
-        <h2 className="noggin-display text-[1.0625rem] font-extrabold text-[var(--noggin-forest)]">
-          Sound &amp; Audio
-        </h2>
+      <section aria-label="Sound and Audio Mixer" className="prof-panel">
+        <h2 className="prof-panel__title m-0">Sound &amp; Audio</h2>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="prof-audio-list">
           {(
             [
               {
@@ -308,7 +306,7 @@ export function AccountForm({
                 label: "Background music volume",
                 title: "Background Music",
                 value: gameState.audio.music,
-                icoClass: "ng-prof-audio-ico--music",
+                icoClass: "prof-audio-ico--music",
                 icon: Music,
               },
               {
@@ -316,7 +314,7 @@ export function AccountForm({
                 label: "Sound effects volume",
                 title: "UI Sound Effects",
                 value: gameState.audio.sfx,
-                icoClass: "ng-prof-audio-ico--sfx",
+                icoClass: "prof-audio-ico--sfx",
                 icon: Volume2,
               },
               {
@@ -324,21 +322,21 @@ export function AccountForm({
                 label: "Speech synthesis volume",
                 title: "Speech Volume",
                 value: gameState.audio.voice,
-                icoClass: "ng-prof-audio-ico--voice",
+                icoClass: "prof-audio-ico--voice",
                 icon: Mic,
               },
             ] as const
           ).map((row) => {
             const Icon = row.icon;
             return (
-              <div key={row.key} className="ng-prof-audio-row">
-                <span className={`ng-prof-audio-ico ${row.icoClass}`} aria-hidden="true">
+              <div key={row.key} className="prof-audio-row">
+                <span className={`prof-audio-ico ${row.icoClass}`} aria-hidden="true">
                   <Icon className="h-4 w-4" />
                 </span>
-                <div className="flex flex-1 flex-col gap-1">
-                  <div className="flex items-center justify-between text-[13px] font-extrabold text-[var(--noggin-forest)]">
+                <div className="prof-audio-ctrl">
+                  <div className="prof-audio-head">
                     <label htmlFor={`audio-slider-${row.key}`}>{row.title}</label>
-                    <span className="tabular-nums">{row.value}%</span>
+                    <span className="tnum">{row.value}%</span>
                   </div>
                   <input
                     id={`audio-slider-${row.key}`}
@@ -354,7 +352,7 @@ export function AccountForm({
                         audio: { ...prev.audio, [row.key]: nextVal },
                       }));
                     }}
-                    className="ng-prof-slider"
+                    className="prof-slider"
                   />
                 </div>
               </div>
@@ -367,7 +365,7 @@ export function AccountForm({
         <button
           type="button"
           onClick={() => void handleLogOut()}
-          className="noggin-display inline-flex min-h-11 cursor-pointer items-center gap-2.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-5 py-2.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors hover:bg-[var(--noggin-mint)]"
+          className="gbtn gbtn--white"
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
           <span>Log out</span>
