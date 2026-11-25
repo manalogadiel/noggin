@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "../styles/tokens.css";
 @import "../styles/game-ui.css";
+@import "../styles/mockup.css";
 
 @theme inline {
   --color-background: var(--background);

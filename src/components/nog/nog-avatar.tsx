@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { cn } from "@/lib/utils";
 import styles from "./nog-avatar.module.css";
@@ -13,6 +14,8 @@ export interface NogAvatarProps {
   onTap: () => void;
   tint?: string | null;
   className?: string;
+  variant?: "default" | "sanctuary";
+  children?: ReactNode;
 }
 
 export function NogAvatar({
@@ -23,6 +26,8 @@ export function NogAvatar({
   onTap,
   tint,
   className,
+  variant = "default",
+  children,
 }: NogAvatarProps) {
   const reactionClass =
     reaction === "giggle"
@@ -32,6 +37,37 @@ export function NogAvatar({
         : reaction === "annoyed"
           ? styles.annoyed
           : "";
+
+  if (variant === "sanctuary") {
+    return (
+      <button
+        type="button"
+        aria-label={`Pet ${name}`}
+        data-reaction={reaction}
+        onClick={onTap}
+        className={cn("sanctuary-pet-btn", className)}
+      >
+        <div
+          key={tapCount > 0 ? `${reaction}-${tapCount}` : "idle"}
+          className={cn("nog-bob", reactionClass)}
+        >
+          <NogStage
+            scene="room"
+            alt=""
+            poster="/nog/blob-closeup.png"
+            width={1254}
+            height={1254}
+            sizes="400px"
+            tint={tint}
+            priority
+            decorative
+            className="w-full"
+          />
+        </div>
+        {children}
+      </button>
+    );
+  }
 
   return (
     <div className={cn("relative flex flex-col items-center", className)}>
@@ -72,6 +108,7 @@ export function NogAvatar({
             className="w-full"
           />
         </div>
+        {children}
       </button>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ROOM_THEMES, useGameUi } from "@/components/game-ui/game-ui-context";
 
@@ -61,113 +62,120 @@ function RoomsOverlayInner({ initialIdx }: { initialIdx: number }) {
   return (
     <div
       id="room-stage"
-      className="ng-rooms-overlay"
+      className="room-stage"
       role="dialog"
       aria-modal="true"
       aria-label="Sanctuary Rooms"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) closeModal();
-      }}
     >
-      <div className="flex w-full max-w-[1160px] items-center justify-end px-6">
-        <h2
-          className="m-0 text-[34px] font-black italic tracking-wide text-white"
-          style={{
-            fontFamily: "var(--noggin-font-display), sans-serif",
-            textShadow: "0 5px 0 var(--ng-c-446e14), 0 12px 24px rgba(16,32,4,0.44)",
-          }}
-        >
-          {current.name.toUpperCase()}
-        </h2>
+      <div
+        className="room-stage__backdrop"
+        onClick={closeModal}
+        aria-hidden="true"
+      />
+
+      <div className="room-stage__topbar">
+        <span aria-hidden="true" />
+        <div className="room-stage__right-head">
+          <h2 className="room-stage__big-title">{current.name.toUpperCase()}</h2>
+        </div>
       </div>
 
-      <div className="ng-rooms-carousel" role="group" aria-label="Sanctuary rooms carousel">
+      <div className="room-stage__carousel" role="group" aria-label="Sanctuary rooms">
         <button
           type="button"
+          className="room-peek room-peek--prev"
           onClick={() => setIdx((i) => (i - 1 + n) % n)}
           aria-label={`Previous room: ${prev.name}`}
-          className="relative z-[2] -mr-20 hidden scale-90 flex-col items-center gap-2.5 border-0 bg-transparent p-0 opacity-90 transition hover:scale-95 hover:opacity-100 md:flex"
         >
-          <span className="ng-room-peek-skew--prev" aria-hidden="true" />
-          <span className="relative z-[2] block aspect-[16/10] w-full overflow-hidden shadow-xl">
+          <span className="room-peek__skew" aria-hidden="true" />
+          <span className="room-peek__clip">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={prev.src} alt={prev.name} className="h-full w-full object-cover" />
+            <img src={prev.src} alt={prev.name} />
           </span>
-          <span
-            className="relative z-[2] bg-[rgb(255_253_247_/_0.95)] px-3 py-1 text-xs font-extrabold text-[var(--ng-c-2f5406)]"
-            style={{ transform: "skewX(-6deg)" }}
-          >
-            {prev.name}
-          </span>
+          <span className="room-peek__label">{prev.name}</span>
         </button>
 
-        <div className="relative z-[6] w-full">
-          <span className="ng-room-main-skew" aria-hidden="true" />
-          <figure className="relative z-[2] m-0 aspect-[16/9.4] overflow-hidden bg-[var(--ng-c-233610)] shadow-2xl">
+        <div className="room-main-wrap">
+          <span className="room-main-skew" aria-hidden="true" />
+          <figure className="room-main-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              className={`room-main-img ${owned ? "" : "is-locked"}`}
               src={current.src}
-              alt={`${current.name} preview`}
-              className={`h-full w-full object-cover ${owned ? "" : "brightness-75 saturate-50"}`}
+              alt={`${current.name} room preview`}
             />
-            <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-[rgb(20_34_8_/_0.85)] to-transparent px-6 py-4">
-              <div className="flex flex-col text-white">
-                <span className="text-xs font-black tracking-wider text-[var(--ng-c-ffe48d)]">
-                  {equipped ? "EQUIPPED" : owned ? "OWNED" : `LOCKED · 🪙 ${current.price}`}
+            <figcaption className="room-main-bar">
+              <div className="room-main-meta">
+                <span className="room-main-status">
+                  {equipped ? (
+                    "EQUIPPED"
+                  ) : owned ? (
+                    "OWNED"
+                  ) : (
+                    <>
+                      <Lock className="h-[13px] w-[13px]" aria-hidden="true" />
+                      <span>{current.price} COINS</span>
+                    </>
+                  )}
                 </span>
-                <strong
-                  className="text-2xl font-black italic"
-                  style={{ fontFamily: "var(--noggin-font-display), sans-serif" }}
-                >
-                  {current.name}
-                </strong>
+                <strong>{current.name}</strong>
               </div>
-              <button
-                type="button"
-                disabled={equipped || (!owned && !canAfford)}
-                onClick={handleAction}
-                className={`border-0 px-5 py-2.5 text-sm font-black uppercase tracking-wide shadow-md ${
-                  equipped
-                    ? "bg-[var(--ng-c-dcefc4)] text-[var(--ng-c-366410)]"
-                    : owned
-                      ? "bg-gradient-to-b from-[var(--ng-c-9ad054)] to-[var(--ng-c-72a538)] text-white"
-                      : "bg-gradient-to-b from-[var(--ng-c-ffe47a)] to-[var(--ng-c-f5be22)] text-[var(--ng-c-5b3b00)]"
-                }`}
-                style={{ transform: "skewX(-8deg)" }}
-              >
-                {equipped
-                  ? "Equipped ✓"
-                  : owned
-                    ? "Use Room"
-                    : canAfford
-                      ? `Unlock · 🪙 ${current.price}`
-                      : `Need 🪙 ${current.price - state.coins}`}
-              </button>
+
+              <div className="room-stage__action">
+                {equipped ? (
+                  <button
+                    type="button"
+                    className="room-skew-btn room-skew-btn--equipped"
+                    disabled
+                  >
+                    Equipped ✓
+                  </button>
+                ) : owned ? (
+                  <button
+                    type="button"
+                    className="room-skew-btn room-skew-btn--leaf"
+                    onClick={handleAction}
+                  >
+                    Use Room
+                  </button>
+                ) : canAfford ? (
+                  <button
+                    type="button"
+                    className="room-skew-btn room-skew-btn--gold tnum"
+                    onClick={handleAction}
+                  >
+                    Unlock · 🪙 {current.price}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="room-skew-btn room-skew-btn--gold tnum"
+                    disabled
+                  >
+                    Need 🪙 {current.price - state.coins}
+                  </button>
+                )}
+              </div>
             </figcaption>
           </figure>
         </div>
 
         <button
           type="button"
+          className="room-peek room-peek--next"
           onClick={() => setIdx((i) => (i + 1) % n)}
           aria-label={`Next room: ${next.name}`}
-          className="relative z-[2] -ml-20 hidden scale-90 flex-col items-center gap-2.5 border-0 bg-transparent p-0 opacity-90 transition hover:scale-95 hover:opacity-100 md:flex"
         >
-          <span className="ng-room-peek-skew--next" aria-hidden="true" />
-          <span className="relative z-[2] block aspect-[16/10] w-full overflow-hidden shadow-xl">
+          <span className="room-peek__skew" aria-hidden="true" />
+          <span className="room-peek__clip">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={next.src} alt={next.name} className="h-full w-full object-cover" />
+            <img src={next.src} alt={next.name} />
           </span>
-          <span
-            className="relative z-[2] bg-[rgb(255_253_247_/_0.95)] px-3 py-1 text-xs font-extrabold text-[var(--ng-c-2f5406)]"
-            style={{ transform: "skewX(-6deg)" }}
-          >
-            {next.name}
-          </span>
+          <span className="room-peek__label">{next.name}</span>
         </button>
       </div>
 
-      <div className="relative z-[6] flex items-center gap-2.5">
+      <div className="room-stage__dots">
         {ROOM_THEMES.map((r, i) => (
           <button
             key={r.id}
@@ -175,9 +183,6 @@ function RoomsOverlayInner({ initialIdx }: { initialIdx: number }) {
             aria-label={r.name}
             aria-current={i === idx ? "true" : undefined}
             onClick={() => setIdx(i)}
-            className={`h-2.5 border-0 transition-all ${
-              i === idx ? "w-7 rounded-full bg-white" : "w-2.5 rounded-full bg-white/45"
-            }`}
           />
         ))}
       </div>
