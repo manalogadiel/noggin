@@ -237,6 +237,86 @@ export function GameUiProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(t);
   }, [toastText]);
 
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof fetch !== "function" ||
+      process.env.NODE_ENV === "test" ||
+      !window.location.protocol.startsWith("http")
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    void fetch("/api/economy", { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const payload = (await res.json()) as {
+          state?: {
+            coins?: number;
+            level?: number;
+            xp?: number;
+            xpMax?: number;
+            streakDays?: number;
+            streakRestores?: number;
+            streakMissedDays?: number;
+            activeRoomBg?: RoomBgId;
+            ownedRooms?: Record<RoomBgId, boolean>;
+            ownedSkinPacks?: Record<SkinPackId, boolean>;
+            activeSkinPack?: SkinPackId;
+            ownedAccessories?: Record<string, boolean>;
+            equippedSlots?: (string | null)[];
+            claimedTasks?: Record<string, boolean>;
+            notebookPrefs?: Record<
+              string,
+              { maxPages?: number; cover?: BookCoverStyle; title?: string }
+            >;
+            audioPrefs?: { music: number; sfx: number; voice: number };
+          };
+        };
+        const s = payload.state;
+        if (!s) return;
+        updateState((prev) => {
+          const maxPages = { ...prev.notebookMaxPages };
+          const covers = { ...prev.notebookCovers };
+          const titles = { ...prev.notebookTitles };
+          if (s.notebookPrefs) {
+            for (const [id, pref] of Object.entries(s.notebookPrefs)) {
+              if (typeof pref.maxPages === "number") maxPages[id] = pref.maxPages;
+              if (pref.cover) covers[id] = pref.cover;
+              if (pref.title) titles[id] = pref.title;
+            }
+          }
+          return {
+            ...prev,
+            ...(typeof s.coins === "number" ? { coins: s.coins } : {}),
+            ...(typeof s.level === "number" ? { level: s.level } : {}),
+            ...(typeof s.xp === "number" ? { xp: s.xp } : {}),
+            ...(typeof s.xpMax === "number" ? { xpMax: s.xpMax } : {}),
+            ...(typeof s.streakDays === "number" ? { streakDays: s.streakDays } : {}),
+            ...(typeof s.streakRestores === "number" ? { streakRestores: s.streakRestores } : {}),
+            ...(typeof s.streakMissedDays === "number" ? { streakMissedDays: s.streakMissedDays } : {}),
+            ...(s.activeRoomBg ? { roomBgId: s.activeRoomBg } : {}),
+            ...(s.ownedRooms ? { ownedRooms: { ...prev.ownedRooms, ...s.ownedRooms } } : {}),
+            ...(s.ownedSkinPacks ? { ownedSkinPacks: { ...prev.ownedSkinPacks, ...s.ownedSkinPacks } } : {}),
+            ...(s.activeSkinPack ? { activeSkinPack: s.activeSkinPack } : {}),
+            ...(s.ownedAccessories ? { ownedAccessories: { ...prev.ownedAccessories, ...s.ownedAccessories } } : {}),
+            ...(Array.isArray(s.equippedSlots) ? { equippedSlots: s.equippedSlots } : {}),
+            ...(s.claimedTasks ? { claimedTasks: { ...prev.claimedTasks, ...s.claimedTasks } } : {}),
+            notebookMaxPages: maxPages,
+            notebookCovers: covers,
+            notebookTitles: titles,
+            ...(s.audioPrefs ? { audio: { ...prev.audio, ...s.audioPrefs } } : {}),
+          };
+        });
+      })
+      .catch(() => {
+        // Offline or unauthenticated fallback uses local state
+      });
+
+    return () => controller.abort();
+  }, [updateState]);
+
   const awardRewards = useCallback(
     (coins: number, xp: number) => {
       updateState((prev) => {
