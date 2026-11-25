@@ -22,27 +22,27 @@ export default async function ProfileLayout({
   const level = 1 + Math.floor(Math.max(0, totalMastered) / 5);
 
   return (
-    <div className="ng-botanical-bg ng-prof-shell">
-      <div className="mx-auto flex w-full max-w-[1120px] flex-1 min-h-0 flex-col gap-4">
-        <header className="shrink-0">
-          <h1 className="noggin-display text-[clamp(1.75rem,3.4vw,2.4rem)] font-extrabold text-[var(--noggin-leaf-title)]">
-            Student Profile
-          </h1>
-        </header>
+    <div className="game-world game-world--profile nb-textured-bg">
+      <div className="game-main-pane flex min-h-0 flex-1 flex-col">
+        <div className="stage-body max-w-[1200px] gap-4">
+          <header className="shrink-0">
+            <h1 className="stage-h1">Student Profile</h1>
+          </header>
 
-        <div className="ng-prof-grid grid grid-cols-1 gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
-          <ProfileHeroSidebar
-            displayName={studentName}
-            level={level}
-            nogCount={nogCount}
-            mastered={totalMastered}
-          />
+          <div className="profile-layout">
+            <ProfileHeroSidebar
+              displayName={studentName}
+              level={level}
+              nogCount={nogCount}
+              mastered={totalMastered}
+            />
 
-          <div className="ng-prof-scroll-pane">
-            <div className="shrink-0">
-              <ProfileTabs />
+            <div className="prof-content">
+              <div className="shrink-0">
+                <ProfileTabs />
+              </div>
+              {children}
             </div>
-            <div className="ng-profile-scroll">{children}</div>
           </div>
         </div>
       </div>

@@ -1232,3 +1232,24 @@
   .ng-arena-avatar img { width: 54px; height: 54px; }
   .ng-arena-avatar.is-featured img { width: 64px; height: 64px; }
 }
+
+.game-tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--noggin-ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.game-tabs a[aria-current="page"] {
+  background: var(--noggin-leaf);
+  color: var(--noggin-white);
+  box-shadow: 0 3px 10px rgb(86 126 38 / 0.22);
+}

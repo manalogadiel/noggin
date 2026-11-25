@@ -22,59 +22,51 @@ export function ProfileHeroSidebar({
   );
 
   return (
-    <aside className="ng-prof-hero-card">
-      <div className="ng-prof-hero-card__surface">
-        <div className="ng-prof-avatar-ring">
+    <aside className="prof-hero-card">
+      <div className="prof-hero-card__surface">
+        <div className="prof-avatar-ring">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/game/nog/head.png"
             alt=""
-            width={120}
-            height={120}
+            width={138}
+            height={138}
           />
         </div>
 
-        <p className="noggin-display mt-1 text-[1.5rem] font-extrabold text-[var(--noggin-forest)]">
-          {displayName}
-        </p>
-        <p className="text-[0.9375rem] font-semibold text-[var(--noggin-forest)]">
+        <p className="prof-hero-name">{displayName}</p>
+        <p className="m-0 text-[0.9375rem] font-semibold text-[var(--noggin-forest)]">
           Student
         </p>
-        <span className="noggin-display inline-flex items-center justify-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-leaf-strong)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-white)]">
+        <span className="noggin-display inline-flex items-center justify-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-leaf-strong)] px-4 py-1 text-[0.875rem] font-bold text-[var(--noggin-white)]">
           Lvl. {level}
         </span>
 
-        <div className="ng-prof-xp-box">
-          <div className="flex items-center justify-between text-[12px] font-bold text-[var(--noggin-forest)]">
+        <div className="prof-xp-box">
+          <div className="prof-xp-box__head">
             <span>XP Progress</span>
-            <span className="tabular-nums">
+            <span className="tnum">
               {state.xp} / {state.xpMax} XP
             </span>
           </div>
-          <div className="ng-prof-xp-track" aria-hidden="true">
-            <div className="ng-prof-xp-fill" style={{ width: `${xpPct}%` }} />
+          <div className="meter" aria-hidden="true">
+            <i style={{ width: `${xpPct}%` }} />
           </div>
         </div>
 
-        <div className="ng-prof-mini-stats">
-          <span className="ng-prof-mini-stat tabular-nums">
-            🔥 {state.streakDays}d Streak
-          </span>
-          <span className="ng-prof-mini-stat tabular-nums">
-            🪙 {state.coins}
-          </span>
-          <span className="ng-prof-mini-stat tabular-nums">
+        <div className="prof-mini-stats">
+          <span className="tnum">🔥 {state.streakDays}d Streak</span>
+          <span className="tnum">🪙 {state.coins}</span>
+          <span className="tnum">
             🐾 {nogCount} {nogCount === 1 ? "Nog" : "Nogs"}
           </span>
-          <span className="ng-prof-mini-stat tabular-nums">
-            ⭐ {mastered} Mastered
-          </span>
+          <span className="tnum">⭐ {mastered} Mastered</span>
         </div>
 
         <button
           type="button"
           onClick={() => openModal({ type: "plus" })}
-          className={`ng-prof-plus-hero-btn ${state.isPlus ? "is-active" : ""}`}
+          className={`prof-plus-hero-btn ${state.isPlus ? "is-active" : ""}`}
         >
           {state.isPlus ? "✨ Noggin Plus Active" : "Upgrade to Noggin Plus"}
         </button>
