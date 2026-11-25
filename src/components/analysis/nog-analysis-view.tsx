@@ -44,48 +44,46 @@ export function NogAnalysisView({
   const selectedCard = cards.find((c) => c.id === selectedCardId) ?? cards[0] ?? null;
 
   return (
-    <div className="ng-botanical-bg grid grid-cols-1 gap-6 rounded-[28px] p-4 shadow-[0_14px_34px_var(--noggin-shadow)] md:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-6 lg:pr-10">
-        <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className="game-world nb-world nb-textured-bg">
+      <div className="stage-body stage-body--with-rail max-w-[1260px] gap-6">
+        <header className="open-book-toolbar">
           <div className="flex items-center gap-3">
             <Link
               href={roomHref}
               aria-label={`Back to ${nog.name}'s room`}
-              className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="stage-close-btn"
             >
               <ArrowLeft className="h-5 w-5" aria-hidden="true" />
             </Link>
 
-            <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-tight text-[var(--noggin-leaf-title)]">
-              Nog Analysis
-            </h1>
+            <h1 className="stage-h1">Nog Analysis</h1>
           </div>
 
-          <span className="rounded-full bg-white/85 px-3.5 py-1 text-xs font-black tracking-wider text-[var(--noggin-forest)] uppercase shadow-sm">
+          <span className="qs-brain-pill uppercase tracking-wider">
             Brain Map
           </span>
         </header>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-center lg:gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:items-center lg:gap-8">
           <div className="flex flex-col items-center text-center">
-            <div className="w-full max-w-[300px] lg:max-w-[360px]">
+            <div className="w-full max-w-[280px] lg:max-w-[330px] nog-bob">
               <NogStage
                 scene="room"
                 alt={`${nog.name} in its room`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
                 height={1254}
-                sizes="(min-width: 1024px) 360px, 300px"
+                sizes="(min-width: 1024px) 330px, 280px"
                 priority
                 className="w-full"
               />
             </div>
 
-            <h2 className="noggin-display mt-3 max-w-full text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.05] text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+            <h2 className="noggin-display mt-2 max-w-full text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.05] text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
               {nog.name}
             </h2>
 
-            <span className="noggin-display mt-2.5 inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sage)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)]">
+            <span className="qs-round-pill mt-2">
               {stage} · Level {level}
             </span>
           </div>
@@ -110,7 +108,7 @@ export function NogAnalysisView({
         {cards.length > 0 && (
           <section
             aria-label="Brain map graph"
-            className="grid grid-cols-1 gap-4 rounded-[26px] border-2 border-[var(--ng-c-e3d6b4)] bg-[rgb(255_253_245_/_0.9)] p-4 shadow-md md:grid-cols-[1.2fr_0.8fr]"
+            className="hatch-panel grid grid-cols-1 gap-4 p-4 md:grid-cols-[1.2fr_0.8fr]"
           >
             <div className="overflow-hidden rounded-2xl bg-[var(--noggin-mint)] p-2">
               <svg
@@ -195,7 +193,7 @@ export function NogAnalysisView({
                 </div>
                 <Link
                   href={`${roomHref}/water`}
-                  className="ng-btn ng-btn--blue w-full py-2 text-xs"
+                  className="gbtn gbtn--sm bg-[var(--ng-c-318fd6)] text-white w-full no-underline"
                 >
                   Practice Concepts in Water →
                 </Link>

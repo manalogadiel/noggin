@@ -3,7 +3,7 @@
 import { BookOpen, CheckCircle2, LayoutGrid, Pencil, Plus, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   addTopicAction,
   type AddTopicActionResult,
@@ -232,15 +232,23 @@ export function NotebookView({
       ? duplicateNotice.message
       : null;
 
+  const COVER_THEME: Record<BookCoverStyle, { rim: string; rib: string }> = {
+    sage: { rim: "var(--ng-c-7aa941)", rib: "var(--ng-c-ea6c68)" },
+    honey: { rim: "var(--ng-c-cf8f15)", rib: "var(--ng-c-7aa941)" },
+    gingham: { rim: "var(--ng-c-82b04b)", rib: "var(--ng-c-f2bd32)" },
+    berry: { rim: "var(--ng-c-c74f4f)", rib: "var(--noggin-leaf)" },
+    denim: { rim: "var(--ng-c-4d85b5)", rib: "var(--ng-c-f5c23b)" },
+    forest: { rim: "var(--ng-c-203a09)", rib: "var(--ng-c-f7cb52)" },
+  };
+  const coverTheme = COVER_THEME[activeCover] ?? COVER_THEME.sage;
+
   return (
-    <div className="ng-botanical-bg grid grid-cols-1 gap-6 rounded-[28px] p-4 shadow-[0_14px_34px_var(--noggin-shadow)] md:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className="game-world nb-world nb-textured-bg">
+      <div className="stage-body stage-body--with-rail max-w-[1280px] gap-5">
+        <header className="open-book-toolbar">
           <div className="flex items-center gap-3">
-            <h1 className="noggin-display text-[clamp(2rem,4vw,2.75rem)] font-extrabold leading-tight text-[var(--noggin-leaf-title)]">
-              Notebook
-            </h1>
-            <span className="inline-flex items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
+            <h1 className="stage-h1">Notebook</h1>
+            <span className="qs-round-pill inline-flex items-center gap-1.5">
               <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{nog.name}</span>
             </span>
@@ -252,10 +260,8 @@ export function NotebookView({
               aria-pressed={viewMode === "shelf"}
               onClick={() => setViewMode((m) => (m === "shelf" ? "spread" : "shelf"))}
               className={cn(
-                "inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold shadow-sm transition",
-                viewMode === "shelf"
-                  ? "bg-[var(--noggin-leaf-strong)] text-white"
-                  : "bg-white text-[var(--noggin-forest)] hover:bg-[var(--noggin-mint)]",
+                "gbtn gbtn--sm",
+                viewMode === "shelf" ? "gbtn--leaf" : "gbtn--white",
               )}
             >
               <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
@@ -266,12 +272,7 @@ export function NotebookView({
               type="button"
               aria-pressed={editMode}
               onClick={() => setEditMode((v) => !v)}
-              className={cn(
-                "inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold shadow-sm transition",
-                editMode
-                  ? "bg-[var(--ng-c-ffe26a)] text-[var(--ng-c-4a2e00)]"
-                  : "bg-white text-[var(--noggin-forest)] hover:bg-[var(--noggin-mint)]",
-              )}
+              className={cn("book-edit-toggle-btn", editMode && "is-on")}
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{editMode ? "Done" : "Edit"}</span>
@@ -281,11 +282,14 @@ export function NotebookView({
 
         {/* Inline Edit & Cover Toolbar (when Edit active or customizing active book) */}
         {(editMode || viewMode === "spread") && selectedTopic && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--ng-c-e3d6b4)] bg-[rgb(255_253_245_/_0.92)] px-4 py-2.5 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              {editMode ? (
-                <div className="flex items-center gap-2">
-                  <label htmlFor="nb-rename-input" className="text-xs font-black text-[var(--noggin-forest)]">
+          <div className={cn(editMode ? "book-edit-bar" : "open-book-toolbar")}>
+            {editMode ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="book-edit-title-row flex-1">
+                  <label
+                    htmlFor="nb-rename-input"
+                    className="text-xs font-black text-[var(--noggin-forest)]"
+                  >
                     Title:
                   </label>
                   <input
@@ -300,15 +304,46 @@ export function NotebookView({
                         notebookTitles: { ...prev.notebookTitles, [selectedTopic.id]: val },
                       }));
                     }}
-                    className="rounded-xl border border-[var(--noggin-sage-strong)] bg-white px-3 py-1 text-xs font-bold text-[var(--noggin-forest)]"
+                    className="book-edit-input"
                   />
-                  <span className="text-[11px] font-bold text-[var(--noggin-ink)]">
+                  <span className="book-edit-count tnum">
                     {customBookTitle.length}/30
                   </span>
                 </div>
-              ) : (
-                <div className="flex items-center gap-1.5" role="group" aria-label="Customize notebook cover">
-                  <span className="text-xs font-extrabold text-[var(--noggin-forest)]">Cover:</span>
+
+                <div className="flex items-center gap-2">
+                  <span className="hw-date-stamp tnum">
+                    {pages.length} / {maxPages} pages
+                  </span>
+                  {maxPages >= 60 ? (
+                    <span className="nb-max-pill">MAX</span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label="Expand pages"
+                      onClick={() =>
+                        openModal({
+                          type: "expandPages",
+                          bookId: activeBookId,
+                          bookTitle: customBookTitle,
+                          cover: activeCover,
+                        })
+                      }
+                      className="nb-plus-btn"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div
+                  className="open-book-swatches"
+                  role="group"
+                  aria-label="Customize notebook cover"
+                >
+                  <span>Cover:</span>
                   {COVER_SWATCHES.map((sw) => (
                     <button
                       key={sw.id}
@@ -331,93 +366,95 @@ export function NotebookView({
                     />
                   ))}
                 </div>
-              )}
-            </div>
 
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[var(--ng-c-efe7cf)] px-3 py-1 text-xs font-extrabold text-[var(--noggin-forest)] tabular-nums">
-                {pages.length} / {maxPages} pages
-              </span>
-              {maxPages >= 60 ? (
-                <span className="rounded-full bg-[var(--noggin-leaf-strong)] px-2.5 py-0.5 text-[11px] font-black text-white">
-                  MAX
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  aria-label="Expand pages"
-                  onClick={() =>
-                    openModal({
-                      type: "expandPages",
-                      bookId: activeBookId,
-                      bookTitle: customBookTitle,
-                      cover: activeCover,
-                    })
-                  }
-                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-[var(--ng-c-ffe26a)] text-sm font-black text-[var(--ng-c-4a2e00)] shadow-sm"
-                >
-                  +
-                </button>
-              )}
-            </div>
+                <div className="open-book-swatches">
+                  <span className="tnum">
+                    {pages.length} / {maxPages} pages
+                  </span>
+                  {maxPages >= 60 ? (
+                    <span className="nb-max-pill">MAX</span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label="Expand pages"
+                      onClick={() =>
+                        openModal({
+                          type: "expandPages",
+                          bookId: activeBookId,
+                          bookTitle: customBookTitle,
+                          cover: activeCover,
+                        })
+                      }
+                      className="nb-plus-btn"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {viewMode === "shelf" ? (
-          <section aria-label="3D notebooks shelf" className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-            {visibleTopics.map((topic, idx) => {
-              const title = state.notebookTitles[topic.id] ?? topic.title;
-              const cover = state.notebookCovers[topic.id] ?? COVER_SWATCHES[idx % COVER_SWATCHES.length].id;
-              return (
-                <button
-                  key={topic.id}
-                  type="button"
-                  onClick={() => {
-                    setViewMode("spread");
-                    router.push(`${notebookBaseHref}?topic=${encodeURIComponent(topic.id)}`);
-                  }}
-                  className="flex cursor-pointer flex-col items-center gap-2 border-0 bg-transparent p-2 text-center transition hover:-translate-y-1"
-                >
-                  <div className="w-28 drop-shadow-[0_14px_18px_rgb(35_54_16_/_0.24)]">
-                    <Book3dSvg style={cover} title={title} uid={`shelf-${topic.id}`} />
+          <section aria-label="3D notebooks shelf" className="nb-shelf-wrap">
+            <div className="nb-shelf-grid">
+              {visibleTopics.map((topic, idx) => {
+                const title = state.notebookTitles[topic.id] ?? topic.title;
+                const cover = state.notebookCovers[topic.id] ?? COVER_SWATCHES[idx % COVER_SWATCHES.length].id;
+                const isCurrent = selectedTopic?.id === topic.id;
+                return (
+                  <button
+                    key={topic.id}
+                    type="button"
+                    onClick={() => {
+                      setViewMode("spread");
+                      router.push(`${notebookBaseHref}?topic=${encodeURIComponent(topic.id)}`);
+                    }}
+                    className={cn(
+                      "nb-shelf-card",
+                      isCurrent && "is-current",
+                      editMode && "is-editing",
+                    )}
+                  >
+                    <div className="nb-shelf-card__book">
+                      <Book3dSvg style={cover} title={title} uid={`shelf-${topic.id}`} />
+                    </div>
+                    <div className="nb-shelf-card__shadow" aria-hidden="true" />
+                    <strong className="nb-shelf-card__name">{title}</strong>
+                    <span className="nb-shelf-card__meta">
+                      {topic.questionCount} questions
+                    </span>
+                  </button>
+                );
+              })}
+
+              {Array.from({ length: extraSlots }).map((_, i) => (
+                <div key={`extra-${i}`} className="nb-shelf-card">
+                  <div className="nb-shelf-card__book opacity-85">
+                    <Book3dSvg style="honey" title="New Subject" uid={`extra-slot-${i}`} />
                   </div>
-                  <strong className="text-sm font-black text-[var(--noggin-forest)]">{title}</strong>
-                  <span className="text-[11px] font-bold text-[var(--noggin-ink)]">
-                    {topic.questionCount} questions
-                  </span>
-                </button>
-              );
-            })}
-
-            {Array.from({ length: extraSlots }).map((_, i) => (
-              <div
-                key={`extra-${i}`}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-[var(--noggin-sage-strong)] bg-white/75 p-4 text-center"
-              >
-                <div className="w-24 opacity-80">
-                  <Book3dSvg style="honey" title="New Subject" uid={`extra-slot-${i}`} />
+                  <div className="nb-shelf-card__shadow" aria-hidden="true" />
+                  <strong className="nb-shelf-card__name">Unlocked Slot</strong>
                 </div>
-                <strong className="text-xs font-extrabold text-[var(--noggin-forest)]">Unlocked Slot</strong>
-              </div>
-            ))}
+              ))}
 
-            <button
-              type="button"
-              onClick={handleUnlockSlot}
-              aria-label="Unlock extra notebook slot for 150 coins"
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-[var(--ng-c-f5be2c)] bg-[rgb(255_253_245_/_0.88)] p-4 text-center shadow-[0_0_24px_rgb(245_190_44_/_0.3)] transition hover:-translate-y-1"
-            >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--ng-c-ffe26a)] text-2xl font-black text-[var(--ng-c-4a2e00)] shadow">
-                +
-              </span>
-              <span className="rounded-full bg-[var(--ng-c-f5be2c)] px-3 py-0.5 text-xs font-black text-[var(--ng-c-4a2e00)]">
-                🪙 150
-              </span>
-              <span className="text-xs font-extrabold text-[var(--noggin-forest)]">Add Notebook Slot</span>
-            </button>
+              <button
+                type="button"
+                onClick={handleUnlockSlot}
+                aria-label="Unlock extra notebook slot for 150 coins"
+                className="nb-shelf-card nb-shelf-card--locked"
+              >
+                <span className="nb-shelf-lock-badge flex-col gap-1">
+                  <span className="text-2xl leading-none">+</span>
+                  <span className="text-xs font-black">🪙 150</span>
+                </span>
+                <strong className="nb-shelf-card__name">Add Notebook Slot</strong>
+              </button>
+            </div>
           </section>
         ) : (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(260px,310px)_minmax(0,1fr)] lg:items-start">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(240px,290px)_minmax(0,1fr)] lg:items-start">
             <TopicSidebar
               nogId={nog.id}
               topics={visibleTopics}
@@ -444,59 +481,76 @@ export function NotebookView({
             {/* 2-Page Open Book Spread */}
             <section
               aria-label={selectedTopic ? selectedTopic.title : "Topic notes"}
-              className="relative flex min-w-0 flex-col gap-5 rounded-[28px] border-4 border-[var(--noggin-leaf)] bg-[var(--ng-c-fcf7e8)] p-5 shadow-[0_18px_38px_var(--noggin-shadow)] sm:p-7"
+              style={
+                {
+                  "--book-rim": coverTheme.rim,
+                  "--book-rib": coverTheme.rib,
+                } as CSSProperties
+              }
+              className="open-book-cover border border-[var(--noggin-leaf)] min-w-0"
             >
+              <div className="open-book-ribbon" aria-hidden="true" />
+
               {!selectedTopic ? (
-                <div className="flex flex-col items-center rounded-[22px] bg-[var(--noggin-white)] px-6 py-10 text-center shadow-sm sm:py-12">
-                  <p className="noggin-display text-[1.25rem] font-extrabold text-[var(--noggin-forest)]">
-                    Nothing taught yet
-                  </p>
+                <div className="open-book-page items-center justify-center rounded-[16px] text-center">
+                  <p className="hw-title">Nothing taught yet</p>
                   <p className="mt-2 max-w-[36ch] text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
                     Add a topic to start teaching {nog.name} in your own words.
                   </p>
                   <button
                     type="button"
                     onClick={openAddAndFocus}
-                    className="noggin-primary-pill noggin-display mt-5 inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-6 text-[1rem] font-bold"
+                    className="gbtn gbtn--leaf gbtn--lg mt-4"
                   >
                     <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>Add your first topic</span>
                   </button>
                 </div>
               ) : (
-                <>
-                  {activeDuplicateNotice && (
-                    <p
-                      role="status"
-                      className="rounded-[18px] bg-[var(--noggin-mint-light)] px-4 py-3 text-[0.9375rem] font-medium text-[var(--noggin-forest)]"
-                    >
-                      {activeDuplicateNotice}
-                    </p>
-                  )}
+                <div className="open-book-spread">
+                  {/* LEFT PAGE: Handwritten Header + Lessons */}
+                  <div className="open-book-page open-book-page--left">
+                    {activeDuplicateNotice && (
+                      <p
+                        role="status"
+                        className="rounded-[14px] bg-[var(--noggin-mint-light)] px-4 py-2.5 text-[0.875rem] font-medium text-[var(--noggin-forest)]"
+                      >
+                        {activeDuplicateNotice}
+                      </p>
+                    )}
 
-                  <div className="flex flex-col gap-4 border-b-2 border-[var(--ng-c-e3d6b4)] pb-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex min-w-0 flex-col gap-1.5">
-                      <h2 className="noggin-display text-[clamp(1.5rem,3vw,2rem)] font-extrabold leading-tight text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                        {selectedTopic.title}
-                      </h2>
+                    <div className="hw-page-head">
+                      <div className="min-w-0">
+                        <h2 className="hw-title [overflow-wrap:anywhere]">
+                          {selectedTopic.title}
+                        </h2>
+                        <span className="hw-subtitle block">
+                          {customBookTitle !== selectedTopic.title
+                            ? customBookTitle
+                            : `${nog.name}’s study notes`}
+                        </span>
+                      </div>
 
-                      {selectedTopic.status === "pending" && (
-                        <p
-                          id={pendingReasonId}
-                          className="text-[0.875rem] font-medium text-[var(--noggin-meter-mid-ink)]"
-                        >
-                          Your Nog&rsquo;s questions are being written — Quick
-                          check unlocks once they&rsquo;re ready.
-                        </p>
-                      )}
+                      <span className="hw-date-stamp tnum">
+                        {pages.length} / {maxPages} pages
+                      </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2.5 sm:shrink-0">
+                    {selectedTopic.status === "pending" && (
+                      <p
+                        id={pendingReasonId}
+                        className="hw-sticky m-0 text-[1rem]"
+                      >
+                        Your Nog&rsquo;s questions are being written — Quick check unlocks once they&rsquo;re ready.
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/nogs/${nog.id}/feed?topic=${encodeURIComponent(selectedTopic.id)}`}
-                        className="noggin-primary-pill noggin-display inline-flex min-h-11 items-center justify-center gap-2 px-5 text-[0.9375rem] font-bold"
+                        className="gbtn gbtn--leaf gbtn--sm no-underline"
                       >
-                        <Utensils className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <Utensils className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                         <span>Teach this topic</span>
                       </Link>
 
@@ -505,50 +559,61 @@ export function NotebookView({
                           type="button"
                           disabled
                           aria-describedby={pendingReasonId}
-                          className="noggin-display inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sand)] px-5 text-[0.9375rem] font-bold text-[var(--noggin-ink)] opacity-75"
+                          className="gbtn gbtn--sm bg-[var(--noggin-sand)] text-[var(--noggin-ink)] opacity-75 cursor-not-allowed"
                         >
-                          <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                           <span>Quick check</span>
                         </button>
                       ) : (
                         <Link
                           href={`/nogs/${nog.id}/play?topic=${encodeURIComponent(selectedTopic.id)}`}
-                          className="noggin-feature-pill noggin-display inline-flex min-h-11 items-center justify-center gap-2 px-5 text-[0.9375rem] font-bold transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className="gbtn gbtn--honey gbtn--sm no-underline"
                         >
-                          <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                           <span>Quick check</span>
                         </Link>
                       )}
                     </div>
+
+                    {pages.length === 0 ? (
+                      <div className="hw-sticky my-2">
+                        <p className="m-0 font-bold">Nothing taught yet</p>
+                        <p className="mt-1 mb-0 text-[0.95rem]">
+                          Teach {nog.name} about {selectedTopic.title} in your own words to start your notes.
+                        </p>
+                      </div>
+                    ) : (
+                      <ul className="flex flex-col gap-3 m-0 p-0 list-none">
+                        {pages.map((page) => (
+                          <LessonCard key={page.id} page={page} />
+                        ))}
+                      </ul>
+                    )}
                   </div>
 
-                  {/* Two-Page Spread Grid */}
-                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:divide-x-2 xl:divide-dashed xl:divide-[var(--ng-c-d7c9a3)]">
-                    <div className="flex flex-col gap-3 xl:pr-4">
-                      {pages.length === 0 ? (
-                        <div className="flex flex-col items-center rounded-[22px] bg-[var(--noggin-white)] px-6 py-9 text-center shadow-sm">
-                          <p className="noggin-display text-[1.125rem] font-extrabold text-[var(--noggin-forest)]">
-                            Nothing taught yet
-                          </p>
-                          <p className="mt-1.5 max-w-[38ch] text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
-                            Teach {nog.name} about {selectedTopic.title} in your own
-                            words to start your notes.
-                          </p>
-                        </div>
-                      ) : (
-                        <ul className="flex flex-col gap-3">
-                          {pages.map((page) => (
-                            <LessonCard key={page.id} page={page} />
-                          ))}
-                        </ul>
-                      )}
+                  {/* BOOK SPINE */}
+                  <div className="open-book-spine" aria-hidden="true">
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <span key={i} />
+                    ))}
+                  </div>
+
+                  {/* RIGHT PAGE: Thought Cards + Handwritten Sticky Note */}
+                  <div className="open-book-page open-book-page--right">
+                    <div className="hw-sticky hw-sticky--sage">
+                      {nog.name} connects concepts here as you feed new lessons.
                     </div>
 
-                    <div className="xl:pl-5">
-                      <TopicThoughtCards nogName={nog.name} cards={thoughtCards} />
-                    </div>
+                    <TopicThoughtCards nogName={nog.name} cards={thoughtCards} />
+
+                    <Link
+                      href={`/nogs/${nog.id}/feed?topic=${encodeURIComponent(selectedTopic.id)}`}
+                      className="hw-add-note-btn block no-underline"
+                    >
+                      + Write a new note for {selectedTopic.title}...
+                    </Link>
                   </div>
-                </>
+                </div>
               )}
             </section>
           </div>
