@@ -1,3 +1,4 @@
+import { createDefaultEconomyState } from "../../domain/economy";
 import { nextReviewIntervalDays } from "../../domain/thought-card";
 import { growthStage, trainingMeter } from "../../domain/training";
 import type {
@@ -11,10 +12,14 @@ import type {
   CheckAttemptRecord,
   CheckReservationKey,
   Clock,
+  CoinLedgerEntry,
   CreateNogInput,
   CreateUserSubjectInput,
   CreateUserTopicInput,
   CurrentUser,
+  EconomyPreferencesPatch,
+  EconomyRepository,
+  EconomyTransactionInput,
   GeneratedQuestionDraft,
   GenerateQuestionsInput,
   GraderResult,
@@ -30,6 +35,7 @@ import type {
   NotebookRepository,
   OwnedCheckAttempt,
   OwnedMessage,
+  PlayerEconomyState,
   ProfileRepository,
   ProfileSettings,
   ProgressRepository,
@@ -112,6 +118,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   );
   const usageCounts = new Map<string, number>();
   const voiceCacheStore = new Map<string, SynthesizedAudio>();
+  const economyStore = new Map<string, PlayerEconomyState>();
+  const coinLedgerStore: CoinLedgerEntry[] = [];
   const appliedDigests = new Map<string, SavedDigestRecord>();
   const reservationQueues = new Map<string, Promise<void>>();
   const caps: Record<UsageKind, number> = { ...DEFAULT_CAPS, ...options.caps };
@@ -1120,6 +1128,79 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
   };
 
+  const economy: EconomyRepository = {
+    async getOrInit(userId: string): Promise<PlayerEconomyState> {
+      const existing = economyStore.get(userId);
+      if (existing) {
+        return {
+          ...existing,
+          ownedRooms: { ...existing.ownedRooms },
+          ownedSkinPacks: { ...existing.ownedSkinPacks },
+          ownedAccessories: { ...existing.ownedAccessories },
+          equippedSlots: [...existing.equippedSlots],
+          claimedTasks: { ...existing.claimedTasks },
+          notebookPrefs: { ...existing.notebookPrefs },
+          audioPrefs: { ...existing.audioPrefs },
+        };
+      }
+      const created = createDefaultEconomyState(userId, clock.now().toISOString());
+      economyStore.set(userId, created);
+      return created;
+    },
+
+    async applyTransaction(
+      userId: string,
+      input: EconomyTransactionInput,
+    ): Promise<PlayerEconomyState> {
+      const current = await economy.getOrInit(userId);
+      const nextCoins = current.coins + input.delta;
+      if (nextCoins < 0) {
+        throw new Error("Insufficient coins");
+      }
+
+      const next: PlayerEconomyState = {
+        ...current,
+        ...(input.patch ?? {}),
+        coins: nextCoins,
+        updatedAt: clock.now().toISOString(),
+      };
+      economyStore.set(userId, next);
+      coinLedgerStore.unshift({
+        id: nextId("ledger"),
+        userId,
+        delta: input.delta,
+        reason: input.reason,
+        itemRef: input.itemRef ?? null,
+        balanceAfter: nextCoins,
+        createdAt: clock.now().toISOString(),
+      });
+      return next;
+    },
+
+    async savePreferences(
+      userId: string,
+      patch: EconomyPreferencesPatch,
+    ): Promise<PlayerEconomyState> {
+      const current = await economy.getOrInit(userId);
+      const next: PlayerEconomyState = {
+        ...current,
+        ...patch,
+        updatedAt: clock.now().toISOString(),
+      };
+      economyStore.set(userId, next);
+      return next;
+    },
+
+    async listLedger(
+      userId: string,
+      limit: number = 20,
+    ): Promise<CoinLedgerEntry[]> {
+      return coinLedgerStore
+        .filter((entry) => entry.userId === userId)
+        .slice(0, limit);
+    },
+  };
+
   return {
     deps: {
       currentUser,
@@ -1136,6 +1217,7 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       questions,
       attempts,
       usage,
+      economy,
       listener,
       brain,
       grader,
@@ -1158,6 +1240,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       questions: questionStore,
       attempts: attemptStore,
       voiceCache: voiceCacheStore,
+      economy: economyStore,
+      coinLedger: coinLedgerStore,
     },
     setUser(userId: string | null) {
       currentUserId = userId ?? "";

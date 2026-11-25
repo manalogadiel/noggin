@@ -631,3 +631,66 @@ export interface VoiceCacheRepository {
   get(key: string): Promise<SynthesizedAudio | null>;
   put(key: string, audio: SynthesizedAudio): Promise<void>;
 }
+
+export type {
+  AudioPrefs,
+  BookCoverStyle,
+  CoinLedgerEntry,
+  NotebookBookPrefs,
+  PlayerEconomyState,
+  RoomBgId,
+  ShopItemKind,
+  SkinPackId,
+} from "../domain/economy";
+
+import type {
+  AudioPrefs,
+  CoinLedgerEntry,
+  NotebookBookPrefs,
+  PlayerEconomyState,
+  RoomBgId,
+  SkinPackId,
+} from "../domain/economy";
+
+export type EconomyPreferencesPatch = Partial<{
+  activeRoomBg: RoomBgId;
+  activeSkinPack: SkinPackId;
+  equippedSlots: (string | null)[];
+  notebookPrefs: Record<string, NotebookBookPrefs>;
+  audioPrefs: AudioPrefs;
+  streakRestores: number;
+  streakMissedDays: number;
+  streakDays: number;
+  lastStudyDate: string | null;
+}>;
+
+export type EconomyStatePatch = EconomyPreferencesPatch &
+  Partial<{
+    level: number;
+    xp: number;
+    xpMax: number;
+    ownedRooms: Record<RoomBgId, boolean>;
+    ownedSkinPacks: Record<SkinPackId, boolean>;
+    ownedAccessories: Record<string, boolean>;
+    claimedTasks: Record<string, boolean>;
+  }>;
+
+export interface EconomyTransactionInput {
+  delta: number;
+  reason: string;
+  itemRef?: string | null;
+  patch?: EconomyStatePatch;
+}
+
+export interface EconomyRepository {
+  getOrInit(userId: string): Promise<PlayerEconomyState>;
+  applyTransaction(
+    userId: string,
+    input: EconomyTransactionInput,
+  ): Promise<PlayerEconomyState>;
+  savePreferences(
+    userId: string,
+    patch: EconomyPreferencesPatch,
+  ): Promise<PlayerEconomyState>;
+  listLedger(userId: string, limit?: number): Promise<CoinLedgerEntry[]>;
+}
