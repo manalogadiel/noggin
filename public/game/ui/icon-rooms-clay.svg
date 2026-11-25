@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <defs>
+    <linearGradient id="rm-frame" x1="16" y1="12" x2="64" y2="68" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f2c48d"/>
+      <stop offset="55%" stop-color="#d99f62"/>
+      <stop offset="100%" stop-color="#b57a3f"/>
+    </linearGradient>
+    <linearGradient id="rm-sky" x1="40" y1="16" x2="40" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#cfefff"/>
+      <stop offset="100%" stop-color="#fff8e0"/>
+    </linearGradient>
+    <linearGradient id="rm-hill" x1="40" y1="42" x2="40" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a5d26a"/>
+      <stop offset="100%" stop-color="#76a53d"/>
+    </linearGradient>
+  </defs>
+  <!-- Arched wooden Sanctuary window outer frame -->
+  <path d="M16 40C16 23 26.5 12 40 12s24 11 24 28v22a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6V40z" fill="url(#rm-frame)"/>
+  <!-- Sky & sunlit hills inside arch -->
+  <path d="M22 40c0-13 8-22 18-22s18 9 18 22v19H22V40z" fill="url(#rm-sky)"/>
+  <circle cx="49" cy="30" r="6" fill="#ffe17a"/>
+  <path d="M22 50c7-6 15-6 22 0 5-4 10-4 14 0v9H22v-9z" fill="url(#rm-hill)"/>
+  <!-- Window mullions + sill -->
+  <path d="M40 18v41M22 41h36" stroke="#d5995c" stroke-width="3.6"/>
+  <rect x="12" y="59" width="56" height="9" rx="4.5" fill="url(#rm-frame)"/>
+  <path d="M18 62h44" stroke="#fbe0bc" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+</svg>
