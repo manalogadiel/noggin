@@ -16,6 +16,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { signOutAction } from "@/app/(auth)/actions";
+import { GameModals } from "@/components/game-ui/game-modals";
 import { RoomsOverlay } from "@/components/game-ui/rooms-overlay";
 import { TopBar } from "@/components/shell/top-bar";
 
@@ -210,6 +211,7 @@ export function ShellFrame({
       </main>
 
       <RoomsOverlay />
+      <GameModals />
     </div>
   );
 }

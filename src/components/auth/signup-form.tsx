@@ -13,6 +13,19 @@ export interface SignupFormProps {
 
 const INITIAL_STATE: AuthFormState = {};
 
+function computeAgeFromIso(dateStr: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const now = new Date();
+  let age = now.getFullYear() - year;
+  const mDiff = now.getMonth() + 1 - month;
+  if (mDiff < 0 || (mDiff === 0 && now.getDate() < day)) age -= 1;
+  return age;
+}
+
 export function SignupForm({ maxBirthday }: SignupFormProps) {
   const [state, formAction, pending] = useActionState(
     signUpFormAction,
@@ -23,6 +36,8 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
   const [birthDate, setBirthDate] = useState(state.birthDate ?? "");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
+  const computedAge = computeAgeFromIso(birthDate);
+  const needsGuardianNotice = computedAge !== null && computedAge >= 16 && computedAge < 18;
 
   const nameId = useId();
   const emailId = useId();
@@ -155,6 +170,27 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           Noggin is for ages 16 and up. If you&apos;re 16–17, a guardian will
           need to say OK.
         </p>
+        {needsGuardianNotice && (
+          <p className="rounded-xl bg-[var(--noggin-meter-mid-soft)] px-3 py-2 text-[0.8125rem] font-medium text-[var(--noggin-meter-mid-ink)]">
+            Age {computedAge} detected: public publishing and public Arena lobbies stay locked until a guardian approves.
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-start gap-2 pt-1">
+        <input
+          id={`${privacyId}-age`}
+          name="age_confirmed"
+          type="checkbox"
+          defaultChecked
+          className="mt-1 h-5 w-5 shrink-0 cursor-pointer accent-[var(--noggin-leaf-strong)]"
+        />
+        <label
+          htmlFor={`${privacyId}-age`}
+          className="cursor-pointer text-[0.9375rem] leading-[1.45] text-[var(--noggin-forest)]"
+        >
+          I confirm I am eligible to create a Noggin account (ages 16+ or 16–17 with guardian approval).
+        </label>
       </div>
 
       <div className="flex items-start gap-2 pt-1">
