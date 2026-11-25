@@ -197,28 +197,38 @@ interface GameUiContextValue {
 const GameUiContext = createContext<GameUiContextValue | null>(null);
 
 export function GameUiProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PersistedGameUi>(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_STATE;
-    }
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
+  const [state, setState] = useState<PersistedGameUi>(DEFAULT_STATE);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled || typeof window === "undefined") return;
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
         const parsed = JSON.parse(raw) as Partial<PersistedGameUi>;
-        return {
-          ...DEFAULT_STATE,
+        setState((prev) => ({
+          ...prev,
           ...parsed,
-          ownedRooms: { ...DEFAULT_STATE.ownedRooms, ...(parsed.ownedRooms ?? {}) },
-          ownedSkinPacks: { ...DEFAULT_STATE.ownedSkinPacks, ...(parsed.ownedSkinPacks ?? {}) },
-          ownedAccessories: { ...DEFAULT_STATE.ownedAccessories, ...(parsed.ownedAccessories ?? {}) },
-          audio: { ...DEFAULT_STATE.audio, ...(parsed.audio ?? {}) },
-        };
+          ownedRooms: { ...prev.ownedRooms, ...(parsed.ownedRooms ?? {}) },
+          ownedSkinPacks: {
+            ...prev.ownedSkinPacks,
+            ...(parsed.ownedSkinPacks ?? {}),
+          },
+          ownedAccessories: {
+            ...prev.ownedAccessories,
+            ...(parsed.ownedAccessories ?? {}),
+          },
+          audio: { ...prev.audio, ...(parsed.audio ?? {}) },
+        }));
+      } catch {
+        // ignore storage errors
       }
-    } catch {
-      // ignore storage errors
-    }
-    return DEFAULT_STATE;
-  });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [modal, setModal] = useState<ActiveModal>(null);
   const [confirmReq, setConfirmReq] = useState<ConfirmPurchaseRequest | null>(null);
   const [toastText, setToastText] = useState<string | null>(null);

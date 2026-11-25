@@ -36,7 +36,8 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
   const customInputId = useId();
   const initialColor = nog.colors?.body ?? null;
 
-  const { state, openModal, requestPurchase, updateState, showToast } = useGameUi();
+  const { state, activeRoom, openModal, requestPurchase, updateState, showToast } = useGameUi();
+  const roomBgSrc = activeRoom?.src ?? "/game/bg/sanctuary-day.jpg";
 
   const [selectedColor, setSelectedColor] = useState<string | null>(initialColor);
   const [customColor, setCustomColor] = useState<string | null>(
@@ -166,7 +167,7 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
     <div className="game-world game-world--hub game-world--customize">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/game/bg/sanctuary-day.jpg"
+        src={roomBgSrc}
         alt=""
         className="scene-bg-img scene-bg-img--sanctuary scene-bg-img--customize"
       />
@@ -215,6 +216,23 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                className="cust-bubble cust-bubble--r2 is-locked"
+                disabled
+                aria-label="Slot 5 unlocks at Level 3"
+              >
+                <span>Lv.3</span>
+              </button>
+              <button
+                type="button"
+                className="cust-bubble cust-bubble--r3 is-locked"
+                disabled
+                aria-label="Slot 6 unlocks at Level 5"
+              >
+                <span>Lv.5</span>
+              </button>
 
               <div
                 className={cn(
