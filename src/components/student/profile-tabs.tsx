@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const PROFILE_TABS = [
   { href: "/profile/progress", label: "Learning Progress" },
   { href: "/profile/activity", label: "Recent Activity" },
+  { href: "/profile/shop", label: "Shop" },
   { href: "/profile/account", label: "Account" },
 ] as const;
 
