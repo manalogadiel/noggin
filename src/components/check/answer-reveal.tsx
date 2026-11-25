@@ -98,57 +98,93 @@ export function AnswerReveal({
   const roomHref = `/nogs/${nogId ?? attempt.nogId}`;
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header className="flex flex-wrap items-center gap-3">
-        <Link
-          href={roomHref}
-          aria-label={`Back to ${nogName}'s room`}
-          className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+    <div className="flex min-w-0 flex-1 flex-col">
+      <div className="qs-top-bar">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={roomHref}
+            aria-label={`Back to ${nogName}'s room`}
+            className="stage-close-btn"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+          </Link>
+
+          <h1 className="stage-h1">Play</h1>
+
+          <span className="qs-round-pill [overflow-wrap:anywhere]">
+            {topicTitle}
+          </span>
+        </div>
+
+        <div className="qs-meta-pills">
+          <span className="qs-brain-pill">
+            Question {questionNumber} of {totalQuestions}
+          </span>
+        </div>
+      </div>
+
+      <div className="qs-live-stage gap-5">
+        <section
+          aria-labelledby="quiz-progress-heading"
+          className="qs-live-head items-center rounded-full border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] px-5 py-2.5 shadow-sm"
         >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-        </Link>
+          <h2
+            id="quiz-progress-heading"
+            className="noggin-display m-0 shrink-0 text-sm font-extrabold text-[var(--noggin-forest)]"
+          >
+            Quiz Progress
+          </h2>
 
-        <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
-          Play
-        </h1>
+          <div
+            role="progressbar"
+            aria-labelledby="quiz-progress-heading"
+            aria-valuemin={0}
+            aria-valuemax={totalQuestions}
+            aria-valuenow={questionNumber}
+            aria-valuetext={`Question ${questionNumber} of ${totalQuestions}`}
+            className="meter flex-1"
+          >
+            <i style={{ width: `${progressPercent}%` }} />
+          </div>
 
-        <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sage)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
-          {topicTitle}
-        </span>
+          <span className="qs-progress-pill tnum shrink-0">
+            {questionNumber} / {totalQuestions}
+          </span>
+        </section>
 
-        <span className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-ink)]">
-          Question {questionNumber} of {totalQuestions}
-        </span>
-      </header>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-start lg:gap-8">
-        <div className="flex min-w-0 flex-col gap-5">
+        <div className="qs-bubbles-row">
           <section
             aria-label={`Question ${questionNumber}`}
-            className="flex min-h-[240px] flex-col justify-center gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8"
+            className="qs-bubble qs-bubble--host bg-[var(--noggin-sage)]"
           >
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[0.8125rem] font-extrabold tracking-widest text-[var(--noggin-forest)] uppercase">
-                Question {questionNumber}
-              </p>
-              <span className="rounded-full bg-[var(--ng-c-ffe26a)] px-2.5 py-0.5 text-[11px] font-black text-[var(--ng-c-4a2e00)]">
-                Professor Owl
-              </span>
+            <div className="qs-bubble__who">
+              <span>Professor Owl</span>
+              <span className="qs-verdict-chip is-ok">Question {questionNumber}</span>
             </div>
-            <h2 className="noggin-display text-[clamp(1.375rem,3vw,2rem)] font-bold leading-snug text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+            <h2 className="qs-bubble__text text-[clamp(1.125rem,2vw,1.375rem)] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
               {attempt.prompt}
             </h2>
+            <svg
+              className="qs-tail qs-tail--left"
+              viewBox="0 0 28 20"
+              aria-hidden="true"
+            >
+              <path
+                d="M0 0C4 9 10 16 14 20C14 11 19 4 28 0Z"
+                fill="var(--ng-c-fbf5e6)"
+              />
+            </svg>
           </section>
 
           <div
             data-attempt-id={attempt.id}
-            className="flex flex-col gap-4 rounded-[18px] border-2 border-[var(--noggin-leaf)] bg-[var(--noggin-white)] p-5 shadow-[0_10px_26px_var(--noggin-shadow)] sm:p-6"
+            className={cn(
+              "qs-bubble qs-bubble--nog border-2 border-[var(--noggin-leaf)]",
+              isComplete && (attempt.correct ? "is-ok" : "is-miss"),
+            )}
           >
-            <div className="flex items-center justify-between gap-2">
-              <p className="noggin-display text-[0.875rem] font-bold text-[var(--noggin-ink)]">
-                {nogName}&rsquo;s answer
-              </p>
-
+            <div className="qs-bubble__who">
+              <span>{nogName}&rsquo;s answer</span>
               {isComplete ? (
                 <SpeakButton
                   key={attempt.id}
@@ -165,7 +201,7 @@ export function AnswerReveal({
 
             {isComplete ? (
               <div aria-live="polite" className="min-h-[3.5rem]">
-                <p className="text-[1rem] leading-relaxed text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
+                <p className="qs-bubble__text text-[1rem] text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
                   {fullAnswer || "I wasn't sure how to answer this one yet."}
                 </p>
               </div>
@@ -175,7 +211,7 @@ export function AnswerReveal({
                 <div className="flex items-baseline gap-1">
                   <p
                     aria-hidden="true"
-                    className="text-[1rem] leading-relaxed text-[var(--noggin-forest)] [overflow-wrap:anywhere]"
+                    className="qs-bubble__text text-[1rem] text-[var(--noggin-forest)] [overflow-wrap:anywhere]"
                   >
                     {partialText}
                   </p>
@@ -188,19 +224,16 @@ export function AnswerReveal({
             )}
 
             {isComplete && (
-              <div className="flex flex-col gap-3 border-t border-[var(--noggin-mint-light)] pt-4">
+              <div className="flex flex-col gap-2.5 border-t border-[var(--noggin-mint-light)] pt-3">
                 <div className="flex flex-wrap items-center gap-2">
                   {attempt.correct ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-bold text-[var(--noggin-forest)]">
-                      <CheckCircle2
-                        className="h-4 w-4 shrink-0 text-[var(--noggin-leaf-strong)]"
-                        aria-hidden="true"
-                      />
+                    <span className="qs-verdict-chip is-ok inline-flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span>Got it</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-danger-soft)] px-3.5 py-1 text-[0.875rem] font-bold text-[var(--noggin-danger)]">
-                      <XCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="qs-verdict-chip is-miss inline-flex items-center gap-1.5">
+                      <XCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span>Missed</span>
                     </span>
                   )}
@@ -233,81 +266,65 @@ export function AnswerReveal({
                 )}
               </div>
             )}
-          </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <button
-              type="button"
-              disabled={questionNumber <= 1}
-              onClick={onPrevious}
-              className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center px-7 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-45"
+            <svg
+              className="qs-tail qs-tail--right"
+              viewBox="0 0 28 20"
+              aria-hidden="true"
             >
-              Previous
-            </button>
-
-            <button
-              type="button"
-              onClick={onNext}
-              className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center px-7 text-[1rem] font-bold"
-            >
-              {isLastQuestion ? "See results →" : "Next →"}
-            </button>
+              <path
+                d="M0 0C9 4 14 11 14 20C18 16 24 9 28 0Z"
+                fill="var(--ng-c-fbf5e6)"
+              />
+            </svg>
           </div>
         </div>
 
-        <aside className="flex flex-col items-center gap-6">
-          <section
-            aria-labelledby="quiz-progress-heading"
-            className="flex w-full flex-col items-center gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]"
+        <div className="relative z-12 mx-auto mt-auto flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-3 pt-2">
+          <button
+            type="button"
+            disabled={questionNumber <= 1}
+            onClick={onPrevious}
+            className="gbtn gbtn--white gbtn--lg disabled:cursor-not-allowed disabled:opacity-45"
           >
-            <h2
-              id="quiz-progress-heading"
-              className="noggin-display text-center text-[1.0625rem] font-extrabold text-[var(--noggin-forest)]"
-            >
-              Quiz Progress
-            </h2>
+            Previous
+          </button>
 
-            <div
-              role="progressbar"
-              aria-labelledby="quiz-progress-heading"
-              aria-valuemin={0}
-              aria-valuemax={totalQuestions}
-              aria-valuenow={questionNumber}
-              aria-valuetext={`Question ${questionNumber} of ${totalQuestions}`}
-              className="h-4 w-full overflow-hidden rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] p-0.5 shadow-[inset_0_1px_4px_var(--noggin-shadow-inset)]"
-            >
-              <div
-                className="h-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-leaf-strong)] transition-[width] duration-200 motion-reduce:transition-none"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+          <button
+            type="button"
+            onClick={onNext}
+            className="qs-pop-cta max-w-[260px]"
+          >
+            <span>{isLastQuestion ? "See results →" : "Next →"}</span>
+          </button>
+        </div>
 
-            <span className="text-[0.8125rem] font-bold tabular-nums text-[var(--noggin-forest)]">
-              {questionNumber} / {totalQuestions}
-            </span>
-          </section>
-
-          <div className="flex items-end justify-center gap-2">
+        <div className="qs-actors-layer">
+          <div className="qs-actor qs-actor--owl-floor">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/game/ui/host-owl-clay.svg"
               alt=""
               aria-hidden="true"
-              className="hidden h-28 w-28 object-contain drop-shadow sm:block"
             />
-            <div className="w-full max-w-[260px]">
+            <div className="qs-floor-shadow" />
+          </div>
+
+          <div className="qs-actor qs-actor--nog-floor">
+            <div className="w-[215px]">
               <NogStage
                 scene="room"
                 alt={`${nogName} answering question ${questionNumber}`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
                 height={1254}
-                sizes="(min-width: 1024px) 260px, 240px"
+                sizes="215px"
                 className="nog-bob w-full"
               />
             </div>
+            <div className="qs-floor-shadow" />
           </div>
-        </aside>
+        </div>
       </div>
     </div>
   );

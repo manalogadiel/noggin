@@ -151,20 +151,17 @@ export function PlayView({ nog, topics, initialTopicId }: PlayViewProps) {
     step === "quiz" && checkData ? checkData.attempts[currentIndex] : null;
 
   return (
-    <div className="relative min-h-[calc(100dvh-76px)] overflow-hidden rounded-[28px] px-4 py-5 md:px-7 md:py-7">
+    <div className="game-world game-world--hub qs-world">
       {/* Quiz Show Stage Backdrop */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/game/bg/quiz-field-stage.jpg"
         alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
+        className="scene-bg-img"
       />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[rgb(245_251_232_/_0.78)] via-[rgb(255_253_244_/_0.72)] to-[rgb(228_241_202_/_0.8)]"
-      />
+      <div className="scene-bg-scrim qs-scrim" aria-hidden="true" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1160px] min-w-0">
+      <div className="relative z-10 flex w-full flex-1 flex-col min-w-0">
         {(step === "setup" || step === "thinking") && (
           <TopicSelectStep
             nog={nog}
