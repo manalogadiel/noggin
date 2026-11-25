@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="woodTop" x1="20" y1="26" x2="108" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#d89248"/>
+      <stop offset="55%" stop-color="#b9702c"/>
+      <stop offset="100%" stop-color="#91511b"/>
+    </linearGradient>
+    <linearGradient id="woodBot" x1="22" y1="64" x2="106" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c37934"/>
+      <stop offset="100%" stop-color="#874815"/>
+    </linearGradient>
+    <linearGradient id="goldTrim" x1="20" y1="24" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff0a6"/>
+      <stop offset="48%" stop-color="#f5c23b"/>
+      <stop offset="100%" stop-color="#cb8b14"/>
+    </linearGradient>
+  </defs>
+  <!-- Ground shadow -->
+  <ellipse cx="64" cy="112" rx="44" ry="10" fill="#3c260a" fill-opacity=".22"/>
+  <!-- Chest base -->
+  <rect x="20" y="60" width="88" height="48" rx="14" fill="url(#woodBot)"/>
+  <!-- Chest curved lid -->
+  <path d="M18 52c0-18 14-30 46-30s46 12 46 30v14H18V52z" fill="url(#woodTop)"/>
+  <!-- Lid glossy highlight -->
+  <path d="M32 34c10-6 24-8 44-5" stroke="#ffe5bd" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/>
+  <!-- Gold side straps -->
+  <rect x="28" y="27" width="12" height="80" rx="5" fill="url(#goldTrim)"/>
+  <rect x="88" y="27" width="12" height="80" rx="5" fill="url(#goldTrim)"/>
+  <!-- Center horizontal gold band -->
+  <rect x="17" y="56" width="94" height="12" rx="6" fill="url(#goldTrim)"/>
+  <!-- Gold clasp & keyhole -->
+  <rect x="52" y="48" width="24" height="28" rx="8" fill="url(#goldTrim)" stroke="#9e6709" stroke-width="2"/>
+  <circle cx="64" cy="59" r="3.8" fill="#6b4104"/>
+  <path d="M62.2 61h3.6l1 8h-5.6l1-8z" fill="#6b4104"/>
+  <!-- Cute sparkle -->
+  <path d="M106 20l2.4 5.6 5.6 2.4-5.6 2.4-2.4 5.6-2.4-5.6-5.6-2.4 5.6-2.4 2.4-5.6z" fill="#fff4b8"/>
+</svg>

@@ -139,7 +139,7 @@ afterEach(() => {
 });
 
 describe("ShellFrame focus-mode routing and ☰ menu", () => {
-  it("routes /home, /nogs, /arena, and /profile/progress with Sidebar + BottomBar and switches /adopt, /nogs/<id>, and /nogs/<id>/* to focus mode via ShellFrame", async () => {
+  it("renders unified green TopBar with drawer menu trigger across primary and room routes via ShellFrame", async () => {
     const loader = shellFrameModules["../../src/components/shell/shell-frame.tsx"];
     expect(
       loader,
@@ -148,7 +148,7 @@ describe("ShellFrame focus-mode routing and ☰ menu", () => {
     const mod = await loader!();
     expect(mod.ShellFrame).toBeTypeOf("function");
 
-    for (const pathname of ["/home", "/nogs", "/arena", "/profile/progress"]) {
+    for (const pathname of ["/home", "/nogs", "/arena", "/profile/progress", "/adopt", "/nogs/nog-packet", "/nogs/nog-packet/feed"]) {
       usePathnameMock.mockReturnValue(pathname);
       const { container, unmount } = render(
         <AppShell displayName="Gadiel" showArena={true}>
@@ -156,47 +156,24 @@ describe("ShellFrame focus-mode routing and ☰ menu", () => {
         </AppShell>,
       );
 
-      expect(container.querySelector("aside")).not.toBeNull();
-      expect(
-        screen.getAllByRole("navigation", { name: "App" }).length,
-      ).toBeGreaterThanOrEqual(2);
-      expect(
-        screen.queryByRole("button", { name: "Open menu" }),
-      ).not.toBeInTheDocument();
-      unmount();
-    }
-
-    for (const pathname of ["/adopt", "/nogs/nog-packet", "/nogs/nog-packet/feed"]) {
-      usePathnameMock.mockReturnValue(pathname);
-      const { container, unmount } = render(
-        <AppShell displayName="Gadiel" showArena={true}>
-          <div>Focus content</div>
-        </AppShell>,
-      );
-
       expect(container.querySelector("aside")).toBeNull();
-      expect(
-        screen.queryByRole("navigation", { name: "App" }),
-      ).not.toBeInTheDocument();
-
       const header = container.querySelector("header");
       expect(header).not.toBeNull();
       const menuBtn = within(header!).getByRole("button", { name: "Open menu" });
       expect(menuBtn).toBeVisible();
       expect(menuBtn).toHaveAttribute("aria-expanded", "false");
       expect(menuBtn).toHaveAttribute("aria-controls");
-
       expect(
-        within(header!).getByRole("button", { name: /account menu for gadiel/i }),
+        within(header!).getByRole("link", { name: /gadiel/i }),
       ).toBeVisible();
 
       const main = screen.getByRole("main");
-      expect(main.className).toMatch(/1280/);
+      expect(main).toBeInTheDocument();
       unmount();
     }
   });
 
-  it("shows Home, My Nogs, Profile, Hatch a Nog, and respects showArena in the focus-mode ☰ menu on /adopt without This Nog links", async () => {
+  it("shows Home, Choose Your Nog, Profile & Shop, Hatch a Nog, and respects showArena in the slide-out menu on /adopt", async () => {
     const user = userEvent.setup();
     usePathnameMock.mockReturnValue("/adopt");
 
@@ -219,22 +196,18 @@ describe("ShellFrame focus-mode routing and ☰ menu", () => {
       "href",
       "/home",
     );
-    expect(panelScope.getByRole("link", { name: "My Nogs" })).toHaveAttribute(
+    expect(panelScope.getByRole("link", { name: "Choose Your Nog" })).toHaveAttribute(
       "href",
       "/nogs",
     );
     expect(
-      panelScope.getByRole("link", { name: "Profile" }).getAttribute("href"),
+      panelScope.getByRole("link", { name: "Profile & Shop" }).getAttribute("href"),
     ).toMatch(/^\/profile(?:\/progress)?$/);
     expect(
       panelScope.getByRole("link", { name: "Hatch a Nog" }),
     ).toHaveAttribute("href", "/adopt");
     expect(
       panelScope.queryByRole("link", { name: "Arena" }),
-    ).not.toBeInTheDocument();
-    expect(panelScope.queryByText(/this nog/i)).not.toBeInTheDocument();
-    expect(
-      panelScope.queryByRole("link", { name: "Room" }),
     ).not.toBeInTheDocument();
 
     rerender(
@@ -249,7 +222,7 @@ describe("ShellFrame focus-mode routing and ☰ menu", () => {
     ).toHaveAttribute("href", "/arena");
   });
 
-  it("includes the 'This Nog' group (Room, Notebook, Analysis, Customize, Settings) on /nogs/<id> and sub-pages, moves focus to first link, and closes on Escape or outside click", async () => {
+  it("points Study & Care links (Play, Nap, Notebooks) to /nogs/<id>/* on room pages, moves focus to first link, and closes on Escape or outside click", async () => {
     const user = userEvent.setup();
     usePathnameMock.mockReturnValue("/nogs/nog-packet/feed");
 
@@ -267,26 +240,18 @@ describe("ShellFrame focus-mode routing and ☰ menu", () => {
     const panel = document.getElementById(panelId)!;
     const panelScope = within(panel);
 
-    expect(panelScope.getByText(/this nog/i)).toBeVisible();
-    expect(panelScope.getByRole("link", { name: "Room" })).toHaveAttribute(
+    expect(panelScope.getByText(/study & care/i)).toBeVisible();
+    expect(panelScope.getByRole("link", { name: "Play" })).toHaveAttribute(
       "href",
-      "/nogs/nog-packet",
+      "/nogs/nog-packet/play",
     );
-    expect(panelScope.getByRole("link", { name: "Notebook" })).toHaveAttribute(
+    expect(panelScope.getByRole("link", { name: "Nap" })).toHaveAttribute(
+      "href",
+      "/nogs/nog-packet/rest",
+    );
+    expect(panelScope.getByRole("link", { name: "Notebooks" })).toHaveAttribute(
       "href",
       "/nogs/nog-packet/notebook",
-    );
-    expect(panelScope.getByRole("link", { name: "Analysis" })).toHaveAttribute(
-      "href",
-      "/nogs/nog-packet/analysis",
-    );
-    expect(panelScope.getByRole("link", { name: "Customize" })).toHaveAttribute(
-      "href",
-      "/nogs/nog-packet/customize",
-    );
-    expect(panelScope.getByRole("link", { name: "Settings" })).toHaveAttribute(
-      "href",
-      "/profile/account",
     );
 
     const firstLink = panelScope.getAllByRole("link")[0];
@@ -410,7 +375,8 @@ describe("CustomizeView Figma fidelity", () => {
 });
 
 describe("NogRoomView and RoomRail Figma fidelity", () => {
-  it("renders an untruncated 'Nog Room' heading and omits the room-owned ☰ menu, settings gear, subject chip, vitals tiles, 'See analysis'/'Customize' pills, and RoomRail", () => {
+  it("renders the Living Sanctuary stats card, solo Teach bar toggle, and bottom-right radial wheel links without RoomRail", async () => {
+    const user = userEvent.setup();
     render(
       <NogRoomView
         nog={sampleNog}
@@ -422,45 +388,49 @@ describe("NogRoomView and RoomRail Figma fidelity", () => {
       />,
     );
 
-    const roomHeading = screen.getByRole("heading", {
-      level: 1,
-      name: "Nog Room",
-    });
-    expect(roomHeading).toBeVisible();
-    expect(roomHeading.className).not.toMatch(/\btruncate\b/);
-
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Packet" }),
-    ).toBeVisible();
-    expect(screen.getByText(/^Lvl\.\s*2$/)).toBeVisible();
+    expect(screen.getByText(/Lvl\.\s*2\s*·\s*Sprout/i)).toBeVisible();
+    expect(screen.getByText("Packet")).toBeVisible();
+    expect(screen.getByText("BRAIN CAPACITY")).toBeVisible();
     expect(screen.getByRole("progressbar")).toBeVisible();
-    expect(screen.getByRole("link", { name: "My Notebook" })).toHaveAttribute(
-      "href",
-      "/nogs/nog-packet/notebook",
-    );
+    expect(screen.getByText("HAPPINESS")).toBeVisible();
+    expect(screen.getByText("CLARITY")).toBeVisible();
+    expect(screen.getByText("VITALITY")).toBeVisible();
 
-    for (const action of ["Feed", "Water", "Bath", "Play", "Rest"]) {
+    await user.click(screen.getByRole("button", { name: /teach packet/i }));
+    for (const action of ["Feed", "Water", "Bath"]) {
       expect(screen.getByRole("link", { name: action })).toHaveAttribute(
         "href",
         `/nogs/nog-packet/${action.toLowerCase()}`,
       );
     }
 
+    expect(screen.getByRole("link", { name: "Notebook" })).toHaveAttribute(
+      "href",
+      "/nogs/nog-packet/notebook",
+    );
+    expect(screen.getByRole("link", { name: "Brain Map" })).toHaveAttribute(
+      "href",
+      "/nogs/nog-packet/analysis",
+    );
+    expect(screen.getByRole("link", { name: "Customize" })).toHaveAttribute(
+      "href",
+      "/nogs/nog-packet/customize",
+    );
+    expect(screen.getByRole("link", { name: "Rest" })).toHaveAttribute(
+      "href",
+      "/nogs/nog-packet/rest",
+    );
+    expect(screen.getByRole("link", { name: "Play Quiz" })).toHaveAttribute(
+      "href",
+      "/nogs/nog-packet/play",
+    );
+    expect(screen.getByRole("link", { name: "Party Arena" })).toHaveAttribute(
+      "href",
+      "/arena",
+    );
+
     expect(
       screen.queryByRole("button", { name: /open menu/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /settings/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Networking")).not.toBeInTheDocument();
-    expect(screen.queryByText("Happiness")).not.toBeInTheDocument();
-    expect(screen.queryByText("Clarity")).not.toBeInTheDocument();
-    expect(screen.queryByText("Vitality")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /see analysis/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /customize/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("navigation", { name: /nog room sections/i }),
