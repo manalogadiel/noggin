@@ -6,7 +6,7 @@ export default function AuthLayout({
   children: ReactNode;
 }>) {
   return (
-    <div className="noggin-public-bg flex min-h-[100dvh] flex-col overflow-x-clip">
+    <div className="game-world game-world--public">
       {children}
     </div>
   );

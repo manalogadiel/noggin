@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { Wordmark } from "@/components/shell/wordmark";
 
 export interface PublicHeaderAction {
   label: string;
@@ -26,53 +24,36 @@ export function PublicHeader({
   active,
   action = DEFAULT_ACTION,
 }: PublicHeaderProps) {
-  const navPill = (
-    <div className="noggin-glass-pill grid h-14 w-full max-w-[320px] grid-cols-2 items-center p-1.5 md:w-auto md:max-w-none">
-      {NAV_TABS.map((tab) => {
-        const isActive = active === tab.key;
-        return (
-          <Link
-            key={tab.key}
-            href={tab.href}
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "noggin-display inline-flex h-full min-h-11 items-center justify-center rounded-[var(--noggin-radius-pill)] px-5 text-[1.0625rem] font-semibold transition-colors md:w-[140px] md:text-[1.1875rem]",
-              isActive
-                ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow-[0_4px_12px_var(--noggin-shadow),inset_0_-2px_8px_var(--noggin-shadow-inset)]"
-                : "text-[var(--noggin-forest)] hover:bg-[var(--noggin-glass-hover)]",
-            )}
-          >
-            {tab.label}
-          </Link>
-        );
-      })}
-    </div>
-  );
+  const showNav = active === "home" || active === "discover";
 
   return (
-    <header className="relative z-20 mx-auto w-full max-w-[1280px] px-4 pt-5 md:px-10 md:pt-10">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 md:flex-nowrap md:gap-x-6">
-        <Wordmark
-          tone="forest"
-          size="lg"
-          href="/"
-          className="text-[1.875rem] md:text-[clamp(2rem,4vw,3.3125rem)]"
-        />
+    <header className="pub-header">
+      <div className="pub-header__left">
+        <Link href="/" className="wordmark" aria-label="Noggin home">
+          Noggin
+        </Link>
+      </div>
 
-        <nav aria-label="Main" className="hidden md:flex md:w-auto">
-          {navPill}
-        </nav>
+      <div className="pub-header__center">
+        {showNav && (
+          <nav className="pub-nav-pill" aria-label="Main navigation">
+            {NAV_TABS.map((tab) => (
+              <Link
+                key={tab.key}
+                href={tab.href}
+                aria-current={active === tab.key ? "page" : undefined}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+      </div>
 
-        <Link
-          href={action.href}
-          className="noggin-primary-pill noggin-display inline-flex h-11 min-h-11 items-center justify-center px-5 text-[1rem] font-bold whitespace-nowrap md:h-14 md:px-6 md:text-[1.1875rem]"
-        >
+      <div className="pub-header__right">
+        <Link href={action.href} className="pub-cta-pill">
           {action.label}
         </Link>
-
-        <nav aria-label="Main" className="flex w-full justify-center md:hidden">
-          {navPill}
-        </nav>
       </div>
     </header>
   );
