@@ -122,46 +122,33 @@ export function RestView({
   }
 
   return (
-    <div className="relative flex min-h-[calc(100dvh-76px)] items-center justify-center overflow-hidden rounded-[28px] px-4 py-8 md:px-8">
+    <div className="game-world nap-world">
       {/* Blurred Starry Night Backdrop */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/game/bg/sanctuary-night.jpg"
         alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover blur-[5px]"
+        className="scene-bg-img nap-bg-img"
       />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[rgb(14_16_46_/_0.64)] via-[rgb(24_24_68_/_0.58)] to-[rgb(12_14_40_/_0.76)]"
-      />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 text-[var(--ng-c-ffe588)] opacity-75">
-        <span className="absolute top-[14%] left-[12%] text-xl">✦</span>
-        <span className="absolute top-[22%] left-[48%] text-base">✧</span>
-        <span className="absolute right-[10%] bottom-[24%] text-lg">✦</span>
-        <span className="absolute top-[10%] right-[12%] text-3xl">🌙</span>
+      <div className="nap-bg-blur" aria-hidden="true" />
+      <div className="nap-stars" aria-hidden="true">
+        <span className="nap-star nap-star--1">✦</span>
+        <span className="nap-star nap-star--2">✧</span>
+        <span className="nap-star nap-star--3">✦</span>
+        <span className="nap-moon">🌙</span>
       </div>
 
-      <div className="relative z-10 w-full max-w-[1080px]">
+      <div className="nap-stage">
         {resting ? (
-          <section className="mx-auto flex max-w-[720px] flex-col items-center text-center text-white">
-            <p className="m-0 text-xs font-black tracking-[0.14em] text-[var(--ng-c-ffe588)] uppercase">
-              🌙 RESTING · STREAK PAUSED
-            </p>
-            <h1
-              className="mt-2 text-[clamp(2.5rem,6vw,4.25rem)] font-black tracking-tight text-white drop-shadow-[0_4px_0_rgb(20_18_54)]"
-              style={{ fontFamily: "var(--noggin-font-display), sans-serif" }}
-            >
-              Nog Resting
-            </h1>
-            <p className="mt-1 text-base font-semibold text-[var(--ng-c-fff4d9)]">
+          <section className="nap-resting-center">
+            <p className="nap-resting-badge">🌙 RESTING · STREAK PAUSED</p>
+            <h1 className="nap-hero-title">Nog Resting</h1>
+            <p className="stage-sub m-0 text-[var(--ng-c-e9e4ff)]">
               Sweet Dreams, {nog.name}
             </p>
 
-            <div className="relative mt-5 flex w-full max-w-[420px] flex-col items-center">
-              <span
-                aria-hidden="true"
-                className="nog-float mb-1 text-lg font-black tracking-[0.25em] text-[var(--ng-c-ffe588)]"
-              >
+            <div className="nap-nog-bed w-full max-w-[420px]">
+              <span aria-hidden="true" className="nap-zzz-float">
                 Z z z
               </span>
               <NogStage
@@ -172,55 +159,57 @@ export function RestView({
                 height={721}
                 sizes="(max-width: 768px) 88vw, 420px"
                 priority
-                className="mx-auto w-full"
+                className="nap-nog-img"
               />
+              <div className="nap-bed-shadow" aria-hidden="true" />
             </div>
 
-            <p
-              aria-live="polite"
-              className="mt-4 text-lg font-extrabold text-[var(--ng-c-ffe588)]"
-            >
+            <p aria-live="polite" className="nap-back-note">
               Back on {backOnDate}
             </p>
 
             {error && (
               <p
                 role="alert"
-                className="mt-3 rounded-xl bg-[rgb(185_28_28_/_0.25)] px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-xl bg-[rgb(185_28_28_/_0.25)] px-4 py-2 text-sm font-semibold text-white"
               >
                 {error}
               </p>
             )}
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3.5">
-              <Link href={roomHref} className="ng-btn ng-btn--gold px-6 py-3 text-sm">
+            <div className="nap-resting-actions">
+              <Link href={roomHref} className="nap-cta-btn no-underline">
                 Return to Nog Room
               </Link>
-              <Link href={notebookHref} className="ng-btn ng-btn--leaf px-6 py-3 text-sm">
+              <Link href={notebookHref} className="nap-wake-btn no-underline">
                 View Notebook
               </Link>
               <button
                 type="button"
                 onClick={handleWake}
                 disabled={pending}
-                className="ng-btn ng-btn--purple px-6 py-3 text-sm"
+                className="nap-wake-btn"
               >
                 {pending ? "Waking…" : "Wake Nog"}
               </button>
             </div>
           </section>
         ) : (
-          <section className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+          <section className="nap-split">
             {/* Tapered Purple Rest Shell */}
-            <div className="ng-shell ng-shell--purple max-w-[540px]">
-              <header className="ng-shell__head">
-                <span className="ng-shell__badge">🌙 REST MODE</span>
-                <h1 className="ng-shell__title">TAKE A REST!</h1>
+            <div className="qs-sc-shell qs-sc-shell--nap w-full">
+              <header className="qs-sc-header">
+                <span className="qs-sc-badge">🌙 REST MODE</span>
+                <h1 className="qs-sc-title">TAKE A REST!</h1>
                 <span aria-hidden="true" />
               </header>
 
-              <div className="ng-shell__body flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-3" role="group" aria-label="Rest duration options">
+              <div className="qs-sc-body qs-sc-body--nap">
+                <div
+                  className="nap-dur-grid"
+                  role="group"
+                  aria-label="Rest duration options"
+                >
                   {REST_OPTIONS.map((opt) => {
                     const isActive = selectedDays === opt.days;
                     return (
@@ -230,28 +219,16 @@ export function RestView({
                         aria-pressed={isActive}
                         disabled={pending}
                         onClick={() => setSelectedDays(opt.days)}
-                        className={cn(
-                          "flex flex-col items-center gap-1 rounded-2xl border-2 px-3 py-3.5 text-center transition",
-                          isActive
-                            ? "border-[var(--ng-c-f5be2c)] bg-[var(--ng-c-fffdf5)] text-[var(--noggin-forest)] shadow-[0_5px_0_rgb(194_134_10_/_0.42)]"
-                            : "border-[var(--ng-c-e3d6b4)] bg-white/80 text-[var(--noggin-forest)] shadow-[0_4px_0_rgb(201_188_154)] hover:-translate-y-0.5",
-                        )}
+                        className={cn("nap-dur-btn", isActive && "is-on")}
                       >
-                        <strong
-                          className="text-lg font-black"
-                          style={{ fontFamily: "var(--noggin-font-display), sans-serif" }}
-                        >
-                          {opt.cardTitle}
-                        </strong>
-                        <span className="text-xs font-bold text-[var(--noggin-ink)]">
-                          {opt.sub}
-                        </span>
+                        <strong>{opt.cardTitle}</strong>
+                        <span>{opt.sub}</span>
                       </button>
                     );
                   })}
                 </div>
 
-                <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--ng-c-efe7cf)] px-3.5 py-2">
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--ng-c-efe3c4)] px-3.5 py-2">
                   <label
                     htmlFor={selectId}
                     className="text-xs font-black tracking-wide text-[var(--noggin-forest)] uppercase"
@@ -286,7 +263,7 @@ export function RestView({
                   type="button"
                   onClick={handleStartRest}
                   disabled={pending}
-                  className="ng-btn ng-btn--gold w-full py-3.5 text-base"
+                  className="nap-cta-btn w-full"
                 >
                   {pending ? "Starting…" : "🌙 Start Resting →"}
                 </button>
@@ -294,11 +271,8 @@ export function RestView({
             </div>
 
             {/* Grounded Sleeping Nog */}
-            <div className="relative flex flex-col items-center justify-center">
-              <span
-                aria-hidden="true"
-                className="nog-float mb-2 text-lg font-black tracking-[0.25em] text-[var(--ng-c-ffe588)]"
-              >
+            <div className="nap-nog-bed">
+              <span aria-hidden="true" className="nap-zzz-float">
                 Z z z
               </span>
               <NogStage
@@ -309,8 +283,9 @@ export function RestView({
                 height={721}
                 sizes="(max-width: 1024px) 90vw, 480px"
                 priority
-                className="mx-auto w-full max-w-[460px]"
+                className="nap-nog-img"
               />
+              <div className="nap-bed-shadow" aria-hidden="true" />
             </div>
           </section>
         )}
