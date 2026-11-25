@@ -1,3 +1,9 @@
+import {
+  computePeriodEnd,
+  findSalesProduct,
+  SALES_CATALOG,
+  totalCoinsForProduct,
+} from "../../domain/billing";
 import { createDefaultEconomyState } from "../../domain/economy";
 import { nextReviewIntervalDays } from "../../domain/thought-card";
 import { growthStage, trainingMeter } from "../../domain/training";
@@ -8,6 +14,8 @@ import type {
   ApplyDigestInput,
   ApplyDigestResult,
   AttemptRepository,
+  BillingOrder,
+  BillingRepository,
   BrainAnswerResult,
   CheckAttemptRecord,
   CheckReservationKey,
@@ -35,6 +43,7 @@ import type {
   NotebookRepository,
   OwnedCheckAttempt,
   OwnedMessage,
+  PaymentGateway,
   PlayerEconomyState,
   ProfileRepository,
   ProfileSettings,
@@ -45,12 +54,15 @@ import type {
   QuotaResult,
   RecordCheckInput,
   ReviewThoughtCardInput,
+  SalesProduct,
+  SalesProductCode,
   SavedDigestRecord,
   SaveFollowUpPageResult,
   SaveGeneratedQuestionsInput,
   SpeechToText,
   SubjectRecord,
   SubjectRepository,
+  SubscriptionRecord,
   SynthesizedAudio,
   TextToSpeech,
   ThoughtCardRecord,
@@ -120,6 +132,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
   const voiceCacheStore = new Map<string, SynthesizedAudio>();
   const economyStore = new Map<string, PlayerEconomyState>();
   const coinLedgerStore: CoinLedgerEntry[] = [];
+  const billingOrderStore: BillingOrder[] = [];
+  const subscriptionStore: SubscriptionRecord[] = [];
   const appliedDigests = new Map<string, SavedDigestRecord>();
   const reservationQueues = new Map<string, Promise<void>>();
   const caps: Record<UsageKind, number> = { ...DEFAULT_CAPS, ...options.caps };
@@ -1201,6 +1215,145 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
     },
   };
 
+  const paymentGateway: PaymentGateway = {
+    providerName: "sandbox",
+    async authorizePurchase({ userId, product, idempotencyKey }) {
+      return {
+        provider: "sandbox",
+        providerRef: `fake_${userId}_${product.code}_${idempotencyKey}`,
+      };
+    },
+  };
+
+  const billing: BillingRepository = {
+    async listProducts(): Promise<SalesProduct[]> {
+      return [...SALES_CATALOG];
+    },
+    async getActiveSubscription(userId: string): Promise<SubscriptionRecord | null> {
+      return (
+        subscriptionStore.find(
+          (sub) => sub.userId === userId && sub.status === "active",
+        ) ?? null
+      );
+    },
+    async listOrders(userId: string, limit: number = 15): Promise<BillingOrder[]> {
+      return billingOrderStore
+        .filter((order) => order.userId === userId)
+        .slice(0, limit);
+    },
+    async createOrder(input): Promise<BillingOrder> {
+      const existing = billingOrderStore.find(
+        (order) =>
+          order.userId === input.userId &&
+          order.idempotencyKey === input.idempotencyKey,
+      );
+      if (existing) {
+        return existing;
+      }
+      const product = findSalesProduct(input.productCode);
+      if (!product) {
+        throw new Error(`Unknown product: ${input.productCode}`);
+      }
+      const order: BillingOrder = {
+        id: nextId("order"),
+        userId: input.userId,
+        productCode: input.productCode as SalesProductCode,
+        idempotencyKey: input.idempotencyKey,
+        status: "pending",
+        amountCentavos: product.priceCentavos,
+        currency: product.currency,
+        provider: input.provider,
+        providerRef: null,
+        coinsCredited: 0,
+        paidAt: null,
+        createdAt: clock.now().toISOString(),
+      };
+      billingOrderStore.unshift(order);
+      return order;
+    },
+    async fulfillOrder(input): Promise<BillingOrder> {
+      const order = billingOrderStore.find(
+        (o) => o.id === input.orderId && o.userId === input.userId,
+      );
+      if (!order) {
+        throw new Error(`Order not found: ${input.orderId}`);
+      }
+      if (order.status === "paid") {
+        return order;
+      }
+      const product = findSalesProduct(order.productCode);
+      if (!product) {
+        throw new Error(`Product not found: ${order.productCode}`);
+      }
+
+      const now = clock.now();
+      const nowIso = now.toISOString();
+      let credited = 0;
+
+      if (product.kind === "coin_pack") {
+        credited = totalCoinsForProduct(product);
+        await economy.applyTransaction(input.userId, {
+          delta: credited,
+          reason: "topup_purchase",
+          itemRef: product.code,
+        });
+      } else {
+        for (const sub of subscriptionStore) {
+          if (sub.userId === input.userId && sub.status === "active") {
+            sub.status = "cancelled";
+            sub.updatedAt = nowIso;
+          }
+        }
+        const periodEnd = computePeriodEnd(
+          now,
+          product.billingInterval ?? "month",
+        ).toISOString();
+        subscriptionStore.unshift({
+          id: nextId("sub"),
+          userId: input.userId,
+          planCode: "plus",
+          productCode: product.code,
+          status: "active",
+          currentPeriodStart: nowIso,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: false,
+          provider: order.provider,
+          providerSubscriptionId: input.providerRef,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        });
+        const currentEcon = await economy.getOrInit(input.userId);
+        economyStore.set(input.userId, {
+          ...currentEcon,
+          ownedSkinPacks: {
+            pastel: true,
+            neon: true,
+            dark: true,
+            sunset: true,
+          },
+          updatedAt: nowIso,
+        });
+      }
+
+      order.status = "paid";
+      order.providerRef = input.providerRef;
+      order.coinsCredited = credited;
+      order.paidAt = nowIso;
+      return order;
+    },
+    async cancelSubscription(userId: string): Promise<SubscriptionRecord | null> {
+      const active = subscriptionStore.find(
+        (sub) => sub.userId === userId && sub.status === "active",
+      );
+      if (!active) {
+        return null;
+      }
+      active.cancelAtPeriodEnd = true;
+      active.updatedAt = clock.now().toISOString();
+      return active;
+    },
+  };
+
   return {
     deps: {
       currentUser,
@@ -1218,6 +1371,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       attempts,
       usage,
       economy,
+      billing,
+      paymentGateway,
       listener,
       brain,
       grader,
@@ -1242,6 +1397,8 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       voiceCache: voiceCacheStore,
       economy: economyStore,
       coinLedger: coinLedgerStore,
+      billingOrders: billingOrderStore,
+      subscriptions: subscriptionStore,
     },
     setUser(userId: string | null) {
       currentUserId = userId ?? "";

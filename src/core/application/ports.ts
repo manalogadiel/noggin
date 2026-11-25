@@ -694,3 +694,54 @@ export interface EconomyRepository {
   ): Promise<PlayerEconomyState>;
   listLedger(userId: string, limit?: number): Promise<CoinLedgerEntry[]>;
 }
+
+export type {
+  BillingInterval,
+  BillingOrder,
+  BillingOrderStatus,
+  BillingSummary,
+  SalesProduct,
+  SalesProductCode,
+  SalesProductKind,
+  SubscriptionRecord,
+  SubscriptionStatus,
+} from "../domain/billing";
+
+import type {
+  BillingOrder,
+  SalesProduct,
+  SalesProductCode,
+  SubscriptionRecord,
+} from "../domain/billing";
+
+export interface PaymentIntentResult {
+  provider: string;
+  providerRef: string;
+}
+
+export interface PaymentGateway {
+  readonly providerName: string;
+  authorizePurchase(input: {
+    userId: string;
+    product: SalesProduct;
+    idempotencyKey: string;
+  }): Promise<PaymentIntentResult>;
+}
+
+export interface BillingRepository {
+  listProducts(): Promise<SalesProduct[]>;
+  getActiveSubscription(userId: string): Promise<SubscriptionRecord | null>;
+  listOrders(userId: string, limit?: number): Promise<BillingOrder[]>;
+  createOrder(input: {
+    userId: string;
+    productCode: SalesProductCode;
+    idempotencyKey: string;
+    provider: string;
+  }): Promise<BillingOrder>;
+  fulfillOrder(input: {
+    userId: string;
+    orderId: string;
+    providerRef: string;
+  }): Promise<BillingOrder>;
+  cancelSubscription(userId: string): Promise<SubscriptionRecord | null>;
+}

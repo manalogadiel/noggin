@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   ActivityRepository,
   AskHistoryRepository,
+  BillingRepository,
   EconomyRepository,
   NogRepository,
   ProfileRepository,
@@ -17,6 +18,7 @@ import {
   createAttemptRepository,
   type SupabaseAttemptRepository,
 } from "./attempt-repository";
+import { createBillingRepository } from "./billing-repository";
 import { createEconomyRepository } from "./economy-repository";
 import { createNogRepository } from "./nog-repository";
 import {
@@ -61,6 +63,7 @@ export interface SupabaseRepositories {
   usage: UsageRepository;
   askHistory: AskHistoryRepository;
   economy: EconomyRepository;
+  billing: BillingRepository;
 }
 
 export function createSupabaseRepositories(
@@ -82,5 +85,6 @@ export function createSupabaseRepositories(
     usage: createUsageRepository({ service, userId }),
     askHistory: createAskHistoryRepository({ session, service, userId }),
     economy: createEconomyRepository({ session, userId }),
+    billing: createBillingRepository({ session, userId }),
   };
 }
