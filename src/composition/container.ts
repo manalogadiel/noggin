@@ -14,6 +14,7 @@ import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import { createHitpayPaymentGateway } from "@/adapters/billing/hitpay-payment-gateway";
 import { createPaymongoPaymentGateway } from "@/adapters/billing/paymongo-payment-gateway";
 import { createSandboxPaymentGateway } from "@/adapters/billing/sandbox-payment-gateway";
 import { createActivityRepository } from "@/adapters/supabase/repositories/activity-repository";
@@ -825,12 +826,21 @@ export async function createContainer(): Promise<AppContainer> {
       ? repositories.billing
       : createBillingRepository({ session, service, userId });
 
+  const hitpayApiKey = process.env.HITPAY_API_KEY?.trim() ?? "";
+  const hitpayEnv = (process.env.HITPAY_ENV ?? "sandbox").trim().toLowerCase();
+  const hitpaySandbox = hitpayEnv !== "live" && hitpayEnv !== "production";
   const paymongoSecret = process.env.PAYMONGO_SECRET_KEY?.trim() ?? "";
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
-  const paymentGateway: PaymentGateway = paymongoSecret
-    ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
-    : createSandboxPaymentGateway();
+  const paymentGateway: PaymentGateway = hitpayApiKey
+    ? createHitpayPaymentGateway({
+        apiKey: hitpayApiKey,
+        appUrl,
+        sandbox: hitpaySandbox,
+      })
+    : paymongoSecret
+      ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
+      : createSandboxPaymentGateway();
 
   return {
     currentUser,
