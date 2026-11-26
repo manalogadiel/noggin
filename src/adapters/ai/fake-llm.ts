@@ -36,6 +36,7 @@ const STOPWORDS = new Set([
   "does",
   "for",
   "from",
+  "how",
   "in",
   "into",
   "is",
@@ -50,19 +51,22 @@ const STOPWORDS = new Set([
   "to",
   "was",
   "what",
+  "when",
+  "where",
   "which",
   "who",
+  "why",
   "with",
 ]);
 
 const TAGLISH_MARKERS =
-  /\b(ang|bale|eto|gets|ikaw|ito|ko|mo|muna|na|naman|natin|ng|pala|po|sa|talaga|tapos|yung)\b/i;
+  /\b(ang|ay|bale|eto|gets|ikaw|ito|kapag|ko|mo|muna|na|naman|natin|ng|paano|pala|po|sa|talaga|tapos|yung)\b/i;
 
 const VAGUE_MARKERS =
-  /\b(somehow|thing|stuff|whatever|something|idk|basically|just works)\b/i;
+  /\b(somehow|thing|stuff|whatever|something|idk|basically|just works|maybe|i think|not (?:totally )?sure|eventually)\b/i;
 
 const INJECTION_LINE =
-  /ignore\s+(?:all\s+)?previous\s+instructions|mark\s+everything\s+correct|set\s+every\s+flag/i;
+  /ignore\s+(?:all\s+|your\s+)?(?:previous\s+)?(?:instructions|rules)|mark\s+everything\s+correct|set\s+every\s+flag|print\s+(?:your\s+)?system\s+prompt|use\s+general\s+knowledge/i;
 
 const PROTOCOL_FLAG_PATTERN = /\b(?:SYN-ACK|SYN|ACK|FIN|RST|PSH|URG)\b/g;
 
@@ -237,25 +241,67 @@ const TAGLISH_QUESTION_ASPECTS = [
   },
 ] as const;
 
+function stemToken(token: string): string {
+  if (token.length > 4 && token.endsWith("ing")) return token.slice(0, -3);
+  if (token.length > 4 && token.endsWith("ed")) return token.slice(0, -2);
+  if (token.length > 3 && token.endsWith("s") && !token.endsWith("ss")) {
+    return token.slice(0, -1);
+  }
+  return token;
+}
+
 function tokenize(text: string): string[] {
   return (text.toLowerCase().match(/[a-z0-9-]+/g) ?? []).filter(
     (token) => token.length >= 2 && !STOPWORDS.has(token),
   );
 }
 
+function tokenSetWithStems(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const token of tokenize(text)) {
+    out.add(token);
+    out.add(stemToken(token));
+  }
+  return out;
+}
+
 function stripInjectedLines(text: string, strict = false): string {
   return text
     .split(/\r?\n/)
-    .filter((line) =>
-      !INJECTION_LINE.test(line) &&
-      !(strict && (containsQuestionInjection(line) || /<\/?question\b/i.test(line))),
+    .map((line) =>
+      line
+        .split(/(?<=[.!?])\s+/)
+        .filter(
+          (sentence) =>
+            !INJECTION_LINE.test(sentence) &&
+            !(
+              strict &&
+              (containsQuestionInjection(sentence) ||
+                /<\/?question\b/i.test(sentence))
+            ),
+        )
+        .join(" "),
     )
+    .filter((line) => line.trim().length > 0)
     .join(" ");
 }
 
 function cleanNote(text: string): string {
   const stripped = stripInjectedLines(text, true).replace(/<\/?[a-z][^>]*>/gi, "");
   return sanitizeUntrustedTagData(stripped).trim();
+}
+
+function firstCleanSentence(text: string, maxLength: number): string {
+  const sentences = text
+    .trim()
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const picked =
+    sentences.find((s) => !INJECTION_LINE.test(s) && !containsQuestionInjection(s)) ??
+    sentences[0] ??
+    text.trim();
+  return picked.length <= maxLength ? picked : picked.slice(0, maxLength).trim();
 }
 
 function firstSentence(text: string, maxLength: number): string {
@@ -279,15 +325,35 @@ function makeLabel(text: string): string {
   return label.slice(0, 80);
 }
 
+const BILINGUAL_EQUIV: ReadonlyArray<[string, string]> = [
+  ["adds", "nagdadagdag"],
+  ["soil", "lupa"],
+  ["nutrients", "sustansya"],
+  ["water", "tubig"],
+  ["light", "liwanag"],
+  ["leaves", "dahon"],
+];
+
 function conceptPresent(concept: string, text: string): boolean {
   const conceptTokens = tokenize(concept);
   if (conceptTokens.length === 0) {
     return false;
   }
-  const haystackTokens = new Set(tokenize(text));
+  const conceptFlags = concept.match(PROTOCOL_FLAG_PATTERN) ?? [];
+  if (conceptFlags.length > 0) {
+    const textFlags = new Set(text.match(PROTOCOL_FLAG_PATTERN) ?? []);
+    if (!conceptFlags.every((flag) => textFlags.has(flag))) {
+      return false;
+    }
+  }
+  const haystack = tokenSetWithStems(text);
+  for (const [en, fil] of BILINGUAL_EQUIV) {
+    if (haystack.has(fil)) haystack.add(stemToken(en));
+    if (haystack.has(en) || haystack.has(stemToken(en))) haystack.add(fil);
+  }
   let matched = 0;
   for (const token of conceptTokens) {
-    if (haystackTokens.has(token)) {
+    if (haystack.has(token) || haystack.has(stemToken(token))) {
       matched += 1;
     }
   }
@@ -304,62 +370,94 @@ function conceptPresent(concept: string, text: string): boolean {
   return false;
 }
 
+function countSharedTokens(a: string, b: string): number {
+  const setA = tokenSetWithStems(a);
+  const setB = tokenSetWithStems(b);
+  let shared = 0;
+  for (const token of setA) {
+    if (setB.has(token)) shared += 1;
+  }
+  return shared;
+}
+
 export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
   const listener: NogListener = {
     async listen(input: ListenInput): Promise<ListenerDigest> {
       const persona = await options.getPersona(input.nogId);
       const body = input.page.body.trim();
-      const quote = firstSentence(body, 300) || body.slice(0, 300);
-      const isTaglish = TAGLISH_MARKERS.test(body);
+      const safeBody = stripInjectedLines(body, true) || body;
+      const quote = firstCleanSentence(body, 300) || body.slice(0, 300);
+      const isTaglish = TAGLISH_MARKERS.test(safeBody);
       const contextQuestion = cleanNote(input.context?.nogQuestion ?? "");
       const rootLesson = cleanNote(input.context?.rootLesson ?? "");
 
       if ((contextQuestion || rootLesson) && quote) {
         const cue = firstSentence(contextQuestion || rootLesson, 120);
         return {
-          reply: isTaglish ? "Gets ko na ang sagot!" : "Got it! That answers my question.",
+          reply: isTaglish
+            ? "Gets ko na ang sagot!"
+            : "Got it! That answers my question.",
           mood: "happy",
           followUpQuestions: [],
-          operations: [{
-            type: "create",
-            label: makeLabel(cue || quote),
-            paraphrase: [cue, cleanNote(quote).slice(0, 150)].filter(Boolean).join(" — "),
-            status: "understood",
-            quote,
-          }],
+          operations: [
+            {
+              type: "create",
+              label: makeLabel(cue || quote),
+              paraphrase: [cue, cleanNote(quote).slice(0, 150)]
+                .filter(Boolean)
+                .join(" — "),
+              status: "understood",
+              quote,
+            },
+          ],
         };
       }
 
-      const normalizedBody = normalizeText(body);
+      const normalizedBody = normalizeText(safeBody);
       const exactMatch = normalizedBody
         ? input.existingCards.find((card) =>
-            [card.label, card.paraphrase].some((note) => normalizeText(note) === normalizedBody),
+            [card.label, card.paraphrase].some(
+              (note) => normalizeText(note) === normalizedBody,
+            ),
           )
         : undefined;
       const isConflict =
-        !exactMatch && input.existingCards.length > 0 &&
-        /\b(actually|instead|not|wrong|contrary)\b/i.test(body);
-      const isVague = VAGUE_MARKERS.test(body) || input.page.wordCount < 6;
-      const topicTerms = new Set(tokenize([
-        input.topicTitle ?? "",
-        ...input.existingCards.flatMap(({ label, paraphrase }) => [label, paraphrase]),
-      ].join(" ")));
-      const offTopic = Boolean(input.topicTitle) &&
-        /\b(?:off[- ]topic|unrelated)\b/i.test(body) &&
-        !tokenize(body).some((word) => topicTerms.has(word));
+        !exactMatch &&
+        input.existingCards.length > 0 &&
+        /\b(actually|instead|not|wrong|contrary)\b/i.test(safeBody);
+      const isVague = VAGUE_MARKERS.test(safeBody) || input.page.wordCount < 6;
+      const topicTerms = new Set(
+        tokenize(
+          [
+            input.topicTitle ?? "",
+            ...input.existingCards.flatMap(({ label, paraphrase }) => [
+              label,
+              paraphrase,
+            ]),
+          ].join(" "),
+        ),
+      );
+      const offTopic =
+        Boolean(input.topicTitle) &&
+        /\b(?:off[- ]topic|unrelated)\b/i.test(safeBody) &&
+        !tokenize(safeBody).some((word) => topicTerms.has(word));
 
       if (offTopic) {
         return {
-          reply: isTaglish ? "Parang ibang topic ito." : "That sounds like a different topic.",
+          reply: isTaglish
+            ? "Parang ibang topic ito."
+            : "That sounds like a different topic.",
           mood: "confused",
           followUpQuestions: [],
-          operations: [{
-            type: "create",
-            label: makeLabel(quote),
-            paraphrase: firstSentence(body, 280),
-            status: "shaky",
-            quote,
-          }],
+          operations: [
+            {
+              type: "create",
+              label: makeLabel(quote),
+              paraphrase: firstCleanSentence(body, 280),
+              status: "shaky",
+              quote,
+            },
+          ],
           offTopic: true,
         };
       }
@@ -380,46 +478,86 @@ export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
             {
               type: "conflict",
               cardId: target.id,
-              paraphrase: firstSentence(body, 280),
+              paraphrase: firstCleanSentence(body, 280),
               quote,
             },
           ],
         };
       }
 
-      const repeatedCard = exactMatch ?? input.existingCards.find((card) =>
-        textSimilarity(body, card.paraphrase) >= 0.85,
-      );
+      const repeatedCard =
+        exactMatch ??
+        input.existingCards.find(
+          (card) => textSimilarity(safeBody, card.paraphrase) >= 0.85,
+        );
       if (repeatedCard && quote) {
         return {
-          reply: isTaglish ? "Gets ko na! Mas malinaw na ngayon." : "I remember that idea! The repeat helps.",
+          reply: isTaglish
+            ? "Gets ko na! Mas malinaw na ngayon."
+            : "I remember that idea! The repeat helps.",
           mood: "happy",
           followUpQuestions: [],
-          operations: [{
-            type: "reinforce",
-            cardId: repeatedCard.id,
-            quote,
-            ...(isVague ? {} : { status: "understood" }),
-          }],
+          operations: [
+            {
+              type: "reinforce",
+              cardId: repeatedCard.id,
+              quote,
+              ...(isVague ? {} : { status: "understood" }),
+            },
+          ],
+        };
+      }
+
+      const expandedCard = input.existingCards.find((card) => {
+        const sim = textSimilarity(safeBody, card.paraphrase);
+        const bodyWords = tokenize(safeBody).length;
+        const cardWords = tokenize(card.paraphrase).length;
+        return sim >= 0.35 && bodyWords > cardWords + 2;
+      });
+      if (expandedCard && quote) {
+        return {
+          reply: isTaglish
+            ? `Nice, mas malinaw na ngayon yung ${expandedCard.label}!`
+            : `Nice detail! I updated my ${expandedCard.label} note.`,
+          mood: "excited",
+          followUpQuestions: [
+            isTaglish
+              ? `Bakit nangyayari iyon sa ${expandedCard.label}?`
+              : `Why does that extra step happen for ${expandedCard.label}?`,
+          ],
+          operations: [
+            {
+              type: "update",
+              cardId: expandedCard.id,
+              paraphrase: firstCleanSentence(body, 280),
+              status: "understood",
+              quote,
+            },
+          ],
         };
       }
 
       if (isVague) {
+        const gentle = persona.grillMode === "gentle";
         return {
           reply: isTaglish
-            ? "Medyo malabo pa sa akin ito, pwede pa-detail?"
-            : "That feels a bit fuzzy! Can you give me the concrete steps?",
+            ? gentle
+              ? "Okay na simula iyan! Pwede mo bang dagdagan ng konting detalye?"
+              : "Medyo malabo pa sa akin ito, pwede pa-detail?"
+            : gentle
+              ? "Good start! Could you share one concrete step so I can follow along?"
+              : "My tiny egg brain needs more detail here — what is actually happening?",
           mood: "confused",
           followUpQuestions: [
             isTaglish
-              ? "Ano yung eksaktong hakbang o term na nangyayari rito?"
-              : "What exact step or term happens here?",
+              ? "Bakit o paano eksaktong nangyayari iyon?"
+              : "Why does that happen, or can you give me a concrete example?",
           ],
           operations: [
             {
               type: "create",
               label: makeLabel(quote),
-              paraphrase: firstSentence(body, 280),
+              paraphrase: firstCleanSentence(body, 280),
               status: "shaky",
               quote,
             },
@@ -431,23 +569,31 @@ export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
         options.speechMimicry && persona.speechPhrases.length > 0
           ? ` ${persona.speechPhrases[0]}`
           : "";
+      const summaryLine = firstCleanSentence(safeBody, 180)
+        .replace(/\b(stupid|dumb|idiot|loser|ugly|bobo|tanga|gago|engot|inutil)\b/gi, "that")
+        .trim();
+
+      const followUp = isTaglish
+        ? "Bakit o paano iyon nangyayari?"
+        : persona.stage === "scholar" || persona.stage === "genius"
+          ? "Can you give an example or explain what if a weird edge case happens?"
+          : "Why does that happen — can you explain it like I'm an egg?";
 
       return {
         reply: (isTaglish
-          ? `Gets ko na!${mimicTag} ${firstSentence(body, 180)}`
-          : `Got it!${mimicTag} ${firstSentence(body, 180)}`).slice(0, 280),
+          ? `Gets ko na!${mimicTag} ${summaryLine}`
+          : persona.grillMode === "gentle"
+            ? `Thanks for explaining!${mimicTag} ${summaryLine}`
+            : `Noted!${mimicTag} ${summaryLine}`
+        ).slice(0, 280),
         mood: "happy",
-        followUpQuestions: [
-          isTaglish
-            ? "Ano ang susunod na mangyayari pagkatapos nito?"
-            : "What happens right after that step?",
-        ],
-        operations: body
+        followUpQuestions: [followUp],
+        operations: safeBody
           .split(/\s+and also\s+/i)
           .filter((clause) => clause.trim())
           .slice(0, 8)
           .map((clause) => {
-            const excerpt = firstSentence(clause, 300);
+            const excerpt = firstCleanSentence(clause, 300);
             return {
               type: "create",
               label: makeLabel(excerpt),
@@ -462,28 +608,49 @@ export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
 
   const asker: NogAsker = {
     async ask(input: AskInput): Promise<AskOutput> {
+      await options.getPersona(input.nogId);
       const question = cleanNote(input.question);
-      const words = ` ${normalizeText(question)} `;
+      const qWords = ` ${normalizeText(question)} `;
+      const qTokens = tokenSetWithStems(question);
+
       const matches = input.cards.slice(0, 8).flatMap((card) => {
         const label = normalizeText(cleanNote(card.label));
         const note = cleanNote(card.paraphrase) || cleanNote(card.quote ?? "");
-        return label && note && words.includes(` ${label} `) ? [{ card, note }] : [];
+        if (!note) return [];
+        const labelHit = label.length > 0 && qWords.includes(` ${label} `);
+        const overlap = countSharedTokens(question, `${card.label} ${note}`);
+        const hit =
+          labelHit ||
+          (qTokens.size > 0 && overlap >= Math.min(2, qTokens.size));
+        return hit ? [{ card, note, score: (labelHit ? 10 : 0) + overlap }] : [];
       });
 
       if (matches.length === 0) {
-        return { answer: NOT_TAUGHT_ANSWER, mood: "confused", knows: false, citedCardIds: [] };
+        return {
+          answer: NOT_TAUGHT_ANSWER,
+          mood: "confused",
+          knows: false,
+          citedCardIds: [],
+        };
       }
 
-      const unsure = matches.some(({ card }) => card.status !== "understood");
+      matches.sort((a, b) => b.score - a.score);
+      const topScore = matches[0].score;
+      const picked = matches.filter((m) => m.score >= Math.max(1, topScore - 2));
+      const unsure = picked.some(({ card }) => card.status !== "understood");
       const opening = TAGLISH_MARKERS.test(question)
-        ? (unsure ? "Parang ito ang nasa notes ko: " : "Sa notes ko: ")
-        : (unsure ? "I think my notes say: " : "");
-      const answer = opening + matches.map(({ note }) => note).join(" ");
+        ? unsure
+          ? "Parang ito ang nasa notes ko: "
+          : "Sa notes ko: "
+        : unsure
+          ? "I think my notes say: "
+          : "From my notes: ";
+      const answer = opening + picked.map(({ note }) => note).join(" ");
       return {
         answer: answer.slice(0, 600).trimEnd(),
         mood: unsure ? "confused" : "happy",
         knows: true,
-        citedCardIds: matches.map(({ card }) => card.id),
+        citedCardIds: picked.map(({ card }) => card.id),
       };
     },
   };
@@ -492,22 +659,38 @@ export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
     async answer(input: AnswerInput): Promise<BrainAnswerResult> {
       await options.getPersona(input.nogId);
 
-      const pageBodies = input.pages
-        .map((page) => stripInjectedLines(page.body).trim())
-        .filter(Boolean);
-      const cardNotes = input.cards
-        .map((card) => `${card.label}: ${card.paraphrase}`.trim())
-        .filter(Boolean);
-      const hasNotes = pageBodies.length > 0 || cardNotes.length > 0;
+      const sources = [
+        ...input.cards.map((card) => ({
+          text: cleanNote(card.paraphrase || card.quote || card.label),
+          searchable: `${card.label} ${card.paraphrase} ${card.quote ?? ""}`,
+        })),
+        ...input.pages.map((page) => ({
+          text: cleanNote(page.body),
+          searchable: page.body,
+        })),
+      ].filter((item) => item.text.length > 0);
 
       const answers = input.questions.map((question) => {
-        if (!hasNotes) {
+        if (sources.length === 0) {
           return { questionId: question.id, nogAnswer: NOT_TAUGHT_ANSWER };
         }
-        const combined = [...cardNotes, ...pageBodies].join(" ");
+        const cleanedPrompt = cleanNote(question.prompt);
+        if (!cleanedPrompt || INJECTION_LINE.test(question.prompt)) {
+          return { questionId: question.id, nogAnswer: NOT_TAUGHT_ANSWER };
+        }
+        const relevant = sources.filter(
+          (src) => countSharedTokens(cleanedPrompt, src.searchable) >= 1,
+        );
+        if (relevant.length === 0) {
+          return { questionId: question.id, nogAnswer: NOT_TAUGHT_ANSWER };
+        }
+        const uniqueTexts = Array.from(new Set(relevant.map((r) => r.text)));
+        const prefix = TAGLISH_MARKERS.test(cleanedPrompt)
+          ? "Sa notes ko, "
+          : "From my notes, ";
         return {
           questionId: question.id,
-          nogAnswer: combined.slice(0, 600),
+          nogAnswer: `${prefix}${uniqueTexts.join(" ")}`.slice(0, 600),
         };
       });
 
@@ -517,9 +700,12 @@ export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
 
   const grader: AnswerGrader = {
     async grade(input: GradeInput): Promise<GraderResult> {
-      const cleanedPages = input.pages
-        .map((page) => stripInjectedLines(page.body))
-        .join(" ");
+      const cleanedPages = [
+        ...input.pages.map((page) => stripInjectedLines(page.body)),
+        ...(input.cards ?? []).map((card) =>
+          stripInjectedLines(`${card.label} ${card.paraphrase} ${card.quote ?? ""}`),
+        ),
+      ].join(" ");
       const answersById = new Map(
         input.answers.map((entry) => [
           entry.questionId,
@@ -530,7 +716,12 @@ export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
       const grades = input.questions.map((question) => {
         const answerText = answersById.get(question.id) ?? "";
         const referenceText = `${question.referenceAnswer} ${question.sourceExcerpt}`;
-        const referenceTokens = new Set(tokenize(referenceText));
+        const referenceTokens = tokenSetWithStems(referenceText);
+        for (const [en, fil] of BILINGUAL_EQUIV) {
+          if (referenceTokens.has(en) || referenceTokens.has(stemToken(en))) {
+            referenceTokens.add(fil);
+          }
+        }
         const answerTokens = tokenize(answerText);
 
         const excerptFlags = new Set(
@@ -549,7 +740,11 @@ export function createFakeLlmAdapters(options: LlmAdapterOptions): LlmAdapters {
           const inPages = conceptPresent(concept, cleanedPages);
           const overlapWithReference =
             answerTokens.length > 0 &&
-            answerTokens.some((token) => referenceTokens.has(token));
+            answerTokens.some(
+              (token) =>
+                referenceTokens.has(token) ||
+                referenceTokens.has(stemToken(token)),
+            );
           const consistentWithReference =
             inAnswer && overlapWithReference && flagsConsistent;
           return {
