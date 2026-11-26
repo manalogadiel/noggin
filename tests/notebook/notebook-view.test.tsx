@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentType, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -150,15 +150,21 @@ function lessonTitle(lesson: LessonPage) {
 }
 
 describe("Notebook", () => {
-  it("lists topics, opens the first topic, and displays its pages and thought cards", async () => {
+  it("opens on the 3D bookshelf, lets you open a topic spread, and displays its pages and thought cards without RoomRail", async () => {
     const user = userEvent.setup();
-    await renderNotebook();
+    const { refresh } = await renderNotebook();
 
     expect(screen.getByRole("heading", { level: 1, name: "Notebook" })).toBeVisible();
     expect(listTopics).toHaveBeenCalledWith({ nogId: nog.id });
     expect(getTopicNotebook).toHaveBeenCalledWith({ nogId: nog.id, topicId: tcp.id });
-    expect(screen.getByRole("heading", { level: 2, name: tcp.title })).toBeVisible();
-    expect(screen.getByText(dns.title)).toBeVisible();
+    expect(screen.getByRole("region", { name: "3D notebooks shelf" })).toBeVisible();
+    expect(screen.getByRole("button", { name: new RegExp(tcp.title, "i") })).toBeVisible();
+    expect(screen.getByRole("button", { name: new RegExp(dns.title, "i") })).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: /nog room sections/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: new RegExp(tcp.title, "i") }));
+    await expectSelected(tcp, refresh);
+
     const firstTitle = lessonTitle(firstPage);
     const secondTitle = lessonTitle(followUp);
     expect(firstTitle.compareDocumentPosition(secondTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -173,46 +179,44 @@ describe("Notebook", () => {
     expect(screen.getByText(synCard.label)).toBeVisible();
     expect(screen.getByText(synCard.paraphrase)).toBeVisible();
     expect(screen.getByText(/^shaky$/i)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Teach this topic" })).toHaveAttribute("href", `${roomHref}/feed?topic=${tcp.id}`);
+    expect(screen.getByRole("link", { name: "Teach this topic" })).toHaveAttribute("href", `${roomHref}?teach=feed&topic=${tcp.id}`);
     expect(screen.getByRole("link", { name: "Quick check" })).toHaveAttribute("href", `${roomHref}/play?topic=${tcp.id}`);
-
-    const rail = within(screen.getByRole("navigation"));
-    expect(rail.getByRole("link", { name: "Notebook" })).toHaveAttribute("href", notebookHref);
-    expect(rail.getByRole("link", { name: "Analysis" })).toHaveAttribute("href", `${roomHref}/analysis`);
+    expect(screen.getByRole("button", { name: /all notebooks/i })).toBeVisible();
   });
 
-  it("filters topics case-insensitively without fetching a new list", async () => {
+  it("filters topics case-insensitively on the shelf without fetching a new list", async () => {
     const user = userEvent.setup();
-    await renderNotebook(`${notebookHref}?topic=${dns.id}`);
+    await renderNotebook();
     const search = screen.getByRole("searchbox", { name: "Find a topic" });
     const initialReads = listTopics.mock.calls.length;
 
-    expect(screen.getByText(tcp.title)).toBeVisible();
+    expect(screen.getByRole("button", { name: new RegExp(tcp.title, "i") })).toBeVisible();
     await user.type(search, "dNs");
-    expect(screen.queryByText(tcp.title)).not.toBeInTheDocument();
-    expect(screen.getAllByText(dns.title)).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: new RegExp(tcp.title, "i") })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: new RegExp(dns.title, "i") })).toBeVisible();
     expect(listTopics).toHaveBeenCalledTimes(initialReads);
 
     await user.clear(search);
-    expect(screen.getByText(tcp.title)).toBeVisible();
+    expect(screen.getByRole("button", { name: new RegExp(tcp.title, "i") })).toBeVisible();
   });
 
-  it("restores the selected topic from the URL and writes a newly selected topic to it", async () => {
+  it("restores the selected topic from the URL and switches topics via the 3D bookshelf", async () => {
     const user = userEvent.setup();
     const { refresh } = await renderNotebook(`${notebookHref}?topic=${dns.id}`);
 
     expect(screen.getByRole("heading", { level: 2, name: dns.title })).toBeVisible();
     expect(getTopicNotebook).toHaveBeenCalledWith({ nogId: nog.id, topicId: dns.id });
-    await user.click(screen.getByText(tcp.title));
+    await user.click(screen.getByRole("button", { name: /all notebooks/i }));
+    await user.click(screen.getByRole("button", { name: new RegExp(tcp.title, "i") }));
     await expectSelected(tcp, refresh);
     expect(screen.getByText(synCard.label)).toBeVisible();
   });
 
-  it("links an untaught topic to Feed for that topic", async () => {
+  it("links an untaught topic to in-room Feed for that topic", async () => {
     await renderNotebook(`${notebookHref}?topic=${dns.id}`);
 
     expect(screen.getByText("Nothing taught yet")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Teach this topic" })).toHaveAttribute("href", `${roomHref}/feed?topic=${dns.id}`);
+    expect(screen.getByRole("link", { name: "Teach this topic" })).toHaveAttribute("href", `${roomHref}?teach=feed&topic=${dns.id}`);
     expect(screen.queryByText(synCard.label)).not.toBeInTheDocument();
   });
 
@@ -288,7 +292,7 @@ describe("Notebook", () => {
 
     await submitTopic(user, tls.title);
     expect(await screen.findByText(/your nog is tired for today.*try again tomorrow/i)).toBeVisible();
-    expect(screen.getByRole("heading", { level: 2, name: tcp.title })).toBeVisible();
+    expect(screen.getByText(tcp.title)).toBeVisible();
   });
 
   it("associates an invalid-title response with the New topic field", async () => {

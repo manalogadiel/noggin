@@ -31,8 +31,8 @@ export function BrainMeter({
       className={cn(
         "rounded-[28px] p-4 shadow-[0_12px_28px_var(--noggin-shadow)] transition-colors duration-200 motion-reduce:transition-none sm:p-5",
         overloaded
-          ? "bg-[var(--noggin-meter-low-soft)] ring-2 ring-[var(--noggin-danger)]"
-          : "surface-sage border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
+          ? "bg-[var(--noggin-meter-low-soft)] shadow-[0_5px_0_var(--game-coral-lip),0_12px_28px_var(--noggin-shadow)]"
+          : "surface-sage bg-[var(--noggin-sage)]",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">

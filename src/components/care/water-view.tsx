@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowLeft,
   BookOpen,
   CalendarClock,
   Check,
@@ -16,7 +15,6 @@ import { useCallback, useMemo, useState } from "react";
 import { reviewCardAction } from "@/app/(app)/nogs/[id]/water/actions";
 import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
-import { RoomRail } from "@/components/room/room-rail";
 import type {
   NogRecord,
   ThoughtCardRecord,
@@ -172,18 +170,9 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={activeRoom.src} alt="" className="scene-bg-img" />
       <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
-      <RoomRail nogId={nog.id} />
 
       <header className="stage-top">
         <div className="flex items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nog.name}'s room`}
-            className="stage-close-btn"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
           <span className="pill pill--dark">
             Water
           </span>
@@ -191,7 +180,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
       </header>
 
       <div
-        className="stage-body stage-body--with-rail"
+        className="stage-body"
         style={{ justifyContent: "flex-start" }}
       >
         {step === "select" && (
@@ -227,6 +216,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                 <div className="w-full max-w-[200px] lg:max-w-[230px]">
                   <NogStage
                     scene="room"
+                    tint={nog.colors?.body ?? null}
                     alt={`${nog.name} with a fresh memory`}
                     poster="/nog/blob-closeup.png"
                     width={1254}
@@ -262,10 +252,10 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                       <li key={card.id}>
                         <label
                           className={cn(
-                            "surface-white flex min-h-15 cursor-pointer items-center justify-between gap-4 rounded-[var(--noggin-radius-pill)] border px-6 py-3.5 transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                            "surface-white flex min-h-15 cursor-pointer items-center justify-between gap-4 rounded-[var(--noggin-radius-pill)] px-6 py-3.5 transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
                             checked
-                              ? "border-[var(--noggin-leaf-strong)] ring-2 ring-[var(--noggin-leaf-strong)]"
-                              : "border-[var(--noggin-sage-strong)]",
+                              ? "bg-[var(--noggin-mint-light)] shadow-[0_4px_0_var(--lip-leaf),0_10px_22px_var(--noggin-shadow)]"
+                              : "shadow-[0_4px_0_var(--lip-white),0_8px_18px_var(--noggin-shadow)]",
                           )}
                         >
                           <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
@@ -294,7 +284,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleCard(card.id)}
-                              className="peer h-6 w-6 cursor-pointer appearance-none rounded-[8px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] transition-colors checked:bg-[var(--noggin-leaf-strong)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf)]"
+                              className="peer h-6 w-6 cursor-pointer appearance-none rounded-[8px] bg-[var(--noggin-mint)] shadow-[inset_0_2px_4px_rgb(42_66_14_/_0.14)] transition-colors checked:bg-[var(--noggin-leaf-strong)] checked:shadow-[0_2px_0_var(--lip-leaf)] focus-visible:outline-none"
                             />
                             <Check
                               aria-hidden="true"
@@ -347,7 +337,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
               </span>
             </div>
 
-            <section className="surface-sage rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8">
+            <section className="surface-sage rounded-[28px] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="noggin-display text-[0.9375rem] font-extrabold uppercase tracking-wide text-[var(--noggin-forest)]">
                   Recall:
@@ -395,7 +385,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
               {errorMessage && (
                 <p
                   role="alert"
-                  className="mt-4 rounded-[18px] border border-[var(--noggin-danger)] bg-[var(--noggin-white)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
+                  className="mt-4 rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)] shadow-[0_4px_12px_rgb(160_38_38_/_0.1)]"
                 >
                   {errorMessage}
                 </p>
@@ -435,6 +425,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
             <div className="w-full max-w-[280px] lg:max-w-[360px]">
               <NogStage
                 scene="room"
+                tint={nog.colors?.body ?? null}
                 alt={`${nog.name} feeling refreshed`}
                 poster="/nog/blob-closeup.png"
                 width={1254}

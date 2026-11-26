@@ -45,7 +45,7 @@ export function NogCard({ nog }: { nog: NogCardSummary }) {
     <Link
       href={`/nogs/${nog.id}`}
       aria-label={`${nog.name}, ${nog.subjectName}, ${stageLabel}`}
-      className="group flex h-full min-h-[320px] flex-col items-center justify-between rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group flex h-full min-h-[320px] flex-col items-center justify-between rounded-[24px] bg-[var(--noggin-mint-light)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <div className="flex flex-1 flex-col items-center justify-center">
         <Image
@@ -76,7 +76,7 @@ export function HatchNewCard() {
   return (
     <Link
       href="/adopt"
-      className="group flex h-full min-h-[320px] flex-col items-center justify-center rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group flex h-full min-h-[320px] flex-col items-center justify-center rounded-[24px] bg-[var(--noggin-mint-light)] p-6 text-center shadow-[0_12px_28px_var(--noggin-shadow),inset_0_-2px_12px_var(--noggin-shadow-inset)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <span
         aria-hidden="true"

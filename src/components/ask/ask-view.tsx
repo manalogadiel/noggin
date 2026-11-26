@@ -1,14 +1,12 @@
 "use client";
 
-import { ChevronLeft, RefreshCw, Send } from "lucide-react";
-import Link from "next/link";
+import { RefreshCw, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useId, useMemo, useRef, useState } from "react";
 import { askNogAction } from "@/app/(app)/actions/ask-actions";
 import { AskAnswer, type AskCitedNote } from "@/components/ask/ask-answer";
 import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
-import { RoomRail } from "@/components/room/room-rail";
 import { MicButton } from "@/components/voice/mic-button";
 import type { MicMode } from "@/core/application/ports";
 import { ASK_MAX_WORDS } from "@/core/domain/ask";
@@ -143,7 +141,7 @@ export function AskView({ nog, topics, history, micMode }: AskViewProps) {
 
   const fallbackAnswer = exchanges[0]?.answer ?? null;
   const teachHref = (forTopic: string | null) =>
-    `/nogs/${nog.id}/feed${forTopic ? `?topic=${encodeURIComponent(forTopic)}` : ""}`;
+    `/nogs/${nog.id}?teach=feed${forTopic ? `&topic=${encodeURIComponent(forTopic)}` : ""}`;
 
   let bubble: React.ReactNode;
   if (waiting) {
@@ -200,17 +198,9 @@ export function AskView({ nog, topics, history, micMode }: AskViewProps) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={activeRoom.src} alt="" className="scene-bg-img" />
       <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
-      <RoomRail nogId={nog.id} />
 
       <header className="stage-top">
         <div className="flex items-center gap-3">
-          <Link
-            href={`/nogs/${nog.id}`}
-            aria-label="Back to room"
-            className="stage-close-btn"
-          >
-            <ChevronLeft className="h-6 w-6" aria-hidden="true" />
-          </Link>
           <h1 className="stage-h1" style={{ fontSize: "32px" }}>
             Ask {nog.name}
           </h1>
@@ -218,7 +208,7 @@ export function AskView({ nog, topics, history, micMode }: AskViewProps) {
       </header>
 
       <div
-        className="stage-body stage-body--with-rail"
+        className="stage-body"
         style={{ justifyContent: "flex-start" }}
       >
         <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-3">

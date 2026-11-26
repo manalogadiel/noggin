@@ -41,7 +41,7 @@ export default function PricingPage() {
           </header>
 
           <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <article className="flex flex-col justify-between rounded-[24px] border-2 border-[var(--noggin-panel)] bg-[var(--noggin-white)] p-6">
+            <article className="flex flex-col justify-between rounded-[24px] bg-[var(--noggin-white)] p-6 shadow-[0_6px_0_var(--ng-c-e4d8ba),0_14px_28px_var(--noggin-shadow)]">
               <div>
                 <p className="text-[0.8125rem] font-bold uppercase tracking-wider text-[var(--noggin-leaf-strong)]">
                   Free Plan
@@ -76,7 +76,7 @@ export default function PricingPage() {
               </div>
             </article>
 
-            <article className="flex flex-col justify-between rounded-[24px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-mint)] p-6">
+            <article className="flex flex-col justify-between rounded-[24px] bg-[var(--noggin-mint)] p-6 shadow-[0_6px_0_var(--lip-leaf),0_16px_32px_var(--noggin-shadow)]">
               <div>
                 <p className="text-[0.8125rem] font-bold uppercase tracking-wider text-[var(--noggin-forest)]">
                   Noggin Plus Subscription
@@ -134,7 +134,7 @@ export default function PricingPage() {
               {coinPacks.map((pack) => (
                 <div
                   key={pack.code}
-                  className="flex flex-col justify-between rounded-[20px] border border-[var(--noggin-panel)] bg-[var(--noggin-white)] p-5"
+                  className="flex flex-col justify-between rounded-[20px] bg-[var(--noggin-white)] p-5 shadow-[0_5px_0_var(--ng-c-e4d8ba),0_12px_24px_var(--noggin-shadow)]"
                 >
                   <div>
                     <h3 className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
@@ -152,7 +152,7 @@ export default function PricingPage() {
             </div>
           </section>
 
-          <section className="mt-10 rounded-[20px] border border-[var(--noggin-panel)] bg-[var(--noggin-white)] p-6 text-[0.9375rem] leading-[1.6] text-[var(--noggin-ink)]">
+          <section className="mt-10 rounded-[20px] bg-[var(--noggin-white)] p-6 text-[0.9375rem] leading-[1.6] text-[var(--noggin-ink)] shadow-[0_5px_0_var(--ng-c-e4d8ba),0_12px_24px_var(--noggin-shadow)]">
             <h2 className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]">
               Billing, Delivery &amp; Policies
             </h2>

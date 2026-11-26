@@ -88,6 +88,7 @@ export default async function NogNotebookPage({
       selectedTopic={selectedTopic}
       pages={pages}
       thoughtCards={thoughtCards}
+      initialTopicExplicit={Boolean(requestedTopicId)}
     />
   );
 }

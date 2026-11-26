@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -224,18 +224,9 @@ describe("Bath repair flow (/nogs/[id]/bath)", () => {
     expect(new URLSearchParams(fixInFeed.search).get("card")).toBe(
       shakyCard.id,
     );
-
-    const rail = within(
-      screen.getByRole("navigation", { name: /nog room sections/i }),
-    );
-    expect(rail.getByRole("link", { name: "Room" })).toHaveAttribute(
-      "href",
-      roomHref,
-    );
-    expect(rail.getByRole("link", { name: "Check" })).toHaveAttribute(
-      "href",
-      `${roomHref}/play`,
-    );
+    expect(
+      screen.queryByRole("navigation", { name: /nog room sections/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("preselects the item matching ?card= or ?topic= from the URL", async () => {

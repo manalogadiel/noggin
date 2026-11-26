@@ -63,7 +63,7 @@ export function ThoughtCardsSection({
   nogName,
   cards,
 }: ThoughtCardsSectionProps) {
-  const feedHref = `/nogs/${nogId}/feed`;
+  const feedHref = `/nogs/${nogId}?teach=feed`;
 
   return (
     <section
@@ -130,7 +130,7 @@ export function ThoughtCardsSection({
                 <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {groupCards.map((card) => {
                     const freshness = FRESHNESS_META[card.freshness];
-                    const bathHref = `/nogs/${nogId}/bath?card=${encodeURIComponent(card.id)}`;
+                    const bathHref = `/nogs/${nogId}?teach=bath&card=${encodeURIComponent(card.id)}`;
 
                     return (
                       <li
