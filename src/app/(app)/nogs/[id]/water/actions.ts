@@ -18,6 +18,7 @@ export async function reviewCardAction(
   const result = await container.reviewCard(input);
 
   if (result.status === "ok") {
+    revalidatePath("/home");
     revalidatePath(`/nogs/${input.nogId}`);
     revalidatePath(`/nogs/${input.nogId}/water`);
     revalidatePath(`/nogs/${input.nogId}/analysis`);

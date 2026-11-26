@@ -16,10 +16,12 @@ import type {
 } from "@/core/application/use-cases/teach-lesson";
 
 function revalidateNogLearningPaths(nogId: string) {
+  revalidatePath("/home");
   revalidatePath(`/nogs/${nogId}`);
   revalidatePath(`/nogs/${nogId}/feed`);
   revalidatePath(`/nogs/${nogId}/notebook`);
   revalidatePath(`/nogs/${nogId}/analysis`);
+  revalidatePath("/profile", "layout");
 }
 
 export async function teachLessonAction(

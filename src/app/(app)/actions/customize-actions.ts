@@ -14,7 +14,9 @@ export async function customizeNogAction(
   const result = await container.customizeNog(input);
 
   if (result.status === "ok") {
+    revalidatePath("/home");
     revalidatePath(`/nogs/${input.nogId}`);
+    revalidatePath(`/nogs/${input.nogId}/customize`);
   }
 
   return result;
