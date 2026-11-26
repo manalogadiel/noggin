@@ -279,6 +279,29 @@ describe("Account tab (/profile/account) and saveAccountAction", () => {
     expect(signOutAction).toHaveBeenCalledOnce();
   });
 
+  it("lets the learner switch companion voice and toggle auto-read replies in Sound & Audio", async () => {
+    const user = userEvent.setup();
+    const { GameUiProvider } = await import("@/components/game-ui/game-ui-context");
+    const AccountPage = await loadAccountPage();
+    render(<GameUiProvider>{await AccountPage()}</GameUiProvider>);
+
+    const puckBtn = screen.getByRole("button", { name: /puck/i });
+    const ledaBtn = screen.getByRole("button", { name: /leda/i });
+    expect(puckBtn).toHaveAttribute("aria-pressed", "true");
+    expect(ledaBtn).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(ledaBtn);
+    expect(ledaBtn).toHaveAttribute("aria-pressed", "true");
+    expect(puckBtn).toHaveAttribute("aria-pressed", "false");
+
+    const autoReadSwitch = screen.getByRole("switch", {
+      name: /auto-read replies/i,
+    });
+    expect(autoReadSwitch).toHaveAttribute("aria-checked", "false");
+    await user.click(autoReadSwitch);
+    expect(autoReadSwitch).toHaveAttribute("aria-checked", "true");
+  });
+
   it("provides loading and error boundaries for /profile/account", async () => {
     const loadLoading = loadingModules[`${routeBase}/loading.tsx`];
     if (!loadLoading) {
