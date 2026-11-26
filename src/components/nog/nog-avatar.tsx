@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { NogStage } from "@/components/nog-3d/nog-stage";
+import { type NogRoomTheme, NogStage } from "@/components/nog-3d/nog-stage";
+import type { NogStageSlug } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
 import styles from "./nog-avatar.module.css";
 import type { PetReaction } from "./use-petting";
@@ -12,7 +13,12 @@ export interface NogAvatarProps {
   message: string | null;
   tapCount: number;
   onTap: () => void;
+  stage?: NogStageSlug;
   tint?: string | null;
+  equippedAccessories?: readonly (string | null)[];
+  mood?: string | null;
+  speaking?: boolean;
+  roomTheme?: NogRoomTheme;
   className?: string;
   variant?: "default" | "sanctuary";
   children?: ReactNode;
@@ -24,7 +30,12 @@ export function NogAvatar({
   message,
   tapCount,
   onTap,
+  stage,
   tint,
+  equippedAccessories,
+  mood,
+  speaking,
+  roomTheme,
   className,
   variant = "default",
   children,
@@ -53,12 +64,18 @@ export function NogAvatar({
         >
           <NogStage
             scene="room"
+            stage={stage}
             alt=""
             poster="/nog/blob-closeup.png"
             width={1254}
             height={1254}
             sizes="400px"
             tint={tint}
+            equippedAccessories={equippedAccessories}
+            reaction={reaction}
+            mood={mood}
+            speaking={speaking}
+            roomTheme={roomTheme}
             priority
             decorative
             className="w-full"
@@ -97,12 +114,18 @@ export function NogAvatar({
         >
           <NogStage
             scene="room"
+            stage={stage}
             alt=""
             poster="/nog/blob-closeup.png"
             width={1254}
             height={1254}
             sizes="(min-width: 1024px) 600px, 340px"
             tint={tint}
+            equippedAccessories={equippedAccessories}
+            reaction={reaction}
+            mood={mood}
+            speaking={speaking}
+            roomTheme={roomTheme}
             priority
             decorative
             className="w-full"
