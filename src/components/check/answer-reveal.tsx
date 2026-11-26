@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, CheckCircle2, X, XCircle } from "lucide-react";
-import Link from "next/link";
+import { Check, CheckCircle2, X, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { SpeakButton } from "@/components/voice/speak-button";
@@ -21,6 +20,7 @@ function detectReducedMotion(): boolean {
 export interface AnswerRevealProps {
   nogId?: string;
   nogName: string;
+  nogTint?: string | null;
   topicTitle: string;
   attempt: QuickCheckAttempt;
   questionNumber: number;
@@ -32,8 +32,8 @@ export interface AnswerRevealProps {
 }
 
 export function AnswerReveal({
-  nogId,
   nogName,
+  nogTint = null,
   topicTitle,
   attempt,
   questionNumber,
@@ -95,20 +95,11 @@ export function AnswerReveal({
   const isLastQuestion = questionNumber >= totalQuestions;
   const progressPercent =
     totalQuestions > 0 ? Math.round((questionNumber / totalQuestions) * 100) : 0;
-  const roomHref = `/nogs/${nogId ?? attempt.nogId}`;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="qs-top-bar">
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nogName}'s room`}
-            className="stage-close-btn"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
           <h1 className="stage-h1">Play</h1>
 
           <span className="qs-round-pill [overflow-wrap:anywhere]">
@@ -126,7 +117,7 @@ export function AnswerReveal({
       <div className="qs-live-stage gap-5">
         <section
           aria-labelledby="quiz-progress-heading"
-          className="qs-live-head items-center rounded-full border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] px-5 py-2.5 shadow-sm"
+          className="qs-live-head items-center rounded-full bg-[var(--noggin-sage)] px-5 py-2.5 shadow-[0_4px_0_var(--lip-mint),0_10px_20px_rgb(24_40_8_/_0.14)]"
         >
           <h2
             id="quiz-progress-heading"
@@ -179,7 +170,7 @@ export function AnswerReveal({
           <div
             data-attempt-id={attempt.id}
             className={cn(
-              "qs-bubble qs-bubble--nog border-2 border-[var(--noggin-leaf)]",
+              "qs-bubble qs-bubble--nog",
               isComplete && (attempt.correct ? "is-ok" : "is-miss"),
             )}
           >
@@ -224,7 +215,7 @@ export function AnswerReveal({
             )}
 
             {isComplete && (
-              <div className="flex flex-col gap-2.5 border-t border-[var(--noggin-mint-light)] pt-3">
+              <div className="mt-1 flex flex-col gap-2.5 pt-2">
                 <div className="flex flex-wrap items-center gap-2">
                   {attempt.correct ? (
                     <span className="qs-verdict-chip is-ok inline-flex items-center gap-1.5">
@@ -314,6 +305,7 @@ export function AnswerReveal({
             <div className="w-[clamp(140px,14.5vw,210px)]">
               <NogStage
                 scene="room"
+                tint={nogTint}
                 alt={`${nogName} answering question ${questionNumber}`}
                 poster="/nog/blob-closeup.png"
                 width={1254}

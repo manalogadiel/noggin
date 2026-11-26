@@ -1,11 +1,10 @@
 "use client";
 
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useId } from "react";
 import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
-import { RoomRail } from "@/components/room/room-rail";
 import type { NogRecord, TopicSummary } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +32,6 @@ export function TopicPicker({
   const inputId = useId();
   const fieldErrorId = useId();
   const { activeRoom } = useGameUi();
-  const roomHref = `/nogs/${nog.id}`;
   const feedBaseHref = `/nogs/${nog.id}/feed`;
 
   return (
@@ -41,18 +39,9 @@ export function TopicPicker({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={activeRoom.src} alt="" className="scene-bg-img" />
       <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
-      <RoomRail nogId={nog.id} />
 
       <header className="stage-top">
         <div className="flex items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nog.name}'s room`}
-            className="stage-close-btn"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
           <span className="pill pill--dark">
             {nog.name}
           </span>
@@ -60,7 +49,7 @@ export function TopicPicker({
       </header>
 
       <div
-        className="stage-body stage-body--with-rail"
+        className="stage-body"
         style={{ justifyContent: "flex-start" }}
       >
         <section className="surface-sage grid grid-cols-1 items-center gap-6 rounded-[var(--noggin-radius-card)] p-6 sm:p-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,340px)] lg:gap-8 lg:p-10">
@@ -99,8 +88,8 @@ export function TopicPicker({
                   aria-describedby={fieldError ? fieldErrorId : undefined}
                   disabled={isSubmitting}
                   className={cn(
-                    "g-input min-h-12 w-full flex-1 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-4 py-2.5 text-[1rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)]",
-                    fieldError && "ring-2 ring-[var(--noggin-danger)]",
+                    "g-input min-h-12 w-full flex-1 rounded-[var(--noggin-radius-pill)] px-4 py-2.5 text-[1rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus-visible:outline-none",
+                    fieldError ? "bg-[var(--noggin-danger-soft)]" : "bg-[var(--noggin-mint)]",
                   )}
                 />
 
@@ -164,6 +153,7 @@ export function TopicPicker({
           <div className="mx-auto w-full max-w-[280px] lg:max-w-[320px]">
             <NogStage
               scene="peek"
+              tint={nog.colors?.body ?? null}
               alt={`${nog.name} peeking out excitedly to learn a new topic`}
               poster="/nog/egg-peek.png"
               width={1192}

@@ -49,7 +49,7 @@ export function ThoughtCardDrawer({
   return (
     <section
       aria-label={`${nogName}'s thought cards`}
-      className="rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] p-4 shadow-[0_10px_24px_var(--noggin-shadow)] sm:p-5"
+      className="surface-mint rounded-[28px] bg-[var(--noggin-mint-light)] p-4 shadow-[0_10px_24px_var(--noggin-shadow)] sm:p-5"
     >
       <button
         type="button"
@@ -89,7 +89,7 @@ export function ThoughtCardDrawer({
                 className={cn(
                   "rounded-[20px] p-3.5 transition-colors",
                   isHighlighted
-                    ? "bg-[var(--noggin-mint-light)] ring-2 ring-[var(--noggin-leaf-strong)]"
+                    ? "bg-[var(--noggin-white)] shadow-[0_4px_0_var(--lip-leaf),0_8px_16px_var(--noggin-shadow)]"
                     : "bg-[var(--noggin-mint)]",
                 )}
               >

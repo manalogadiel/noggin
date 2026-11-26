@@ -391,11 +391,11 @@ export function ArenaPreview() {
                         aria-hidden="true"
                         className="flex items-center gap-3 py-2"
                       >
-                        <span className="h-px flex-1 border-t-2 border-dashed border-[var(--noggin-leaf-strong)]/40" />
+                        <span className="h-[2px] flex-1 rounded-full bg-[var(--noggin-leaf-strong)]/20" />
                         <span className="noggin-display rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-3 py-0.5 text-[0.75rem] font-bold tracking-wide text-[var(--noggin-forest)] uppercase">
                           Promotion zone
                         </span>
-                        <span className="h-px flex-1 border-t-2 border-dashed border-[var(--noggin-leaf-strong)]/40" />
+                        <span className="h-[2px] flex-1 rounded-full bg-[var(--noggin-leaf-strong)]/20" />
                       </li>
                     ) : null}
                   </Fragment>

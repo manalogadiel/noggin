@@ -59,7 +59,7 @@ export function TopicSidebar({
   return (
     <aside
       aria-label="Topics"
-      className="flex w-full min-w-0 flex-col gap-2.5 rounded-[22px] border border-[var(--noggin-leaf)] bg-[rgb(255_253_247_/_0.92)] px-3.5 py-2.5 shadow-[0_8px_22px_rgb(24_40_8_/_0.14)] backdrop-blur-md"
+      className="flex w-full min-w-0 flex-col gap-2.5 rounded-[22px] bg-[rgb(255_253_247_/_0.94)] px-3.5 py-2.5 shadow-[0_5px_0_var(--ng-c-dfd2b2),0_10px_22px_rgb(24_40_8_/_0.14)] backdrop-blur-md"
     >
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full shrink-0 sm:w-52">
@@ -77,7 +77,7 @@ export function TopicSidebar({
             placeholder="Find a topic"
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            className="min-h-9 w-full rounded-[var(--noggin-radius-pill)] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-white)] py-1.5 pr-3.5 pl-9 text-[0.875rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[0_2px_8px_var(--noggin-shadow)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)]"
+            className="min-h-9 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] py-1.5 pr-3.5 pl-9 text-[0.875rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_6px_rgb(42_66_14_/_0.08)] focus-visible:outline-none"
           />
         </div>
 
@@ -130,7 +130,7 @@ export function TopicSidebar({
           type="button"
           aria-expanded={isAddOpen}
           onClick={onToggleAdd}
-          className="noggin-display inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--noggin-radius-pill)] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] px-3.5 py-1.5 text-[0.875rem] font-extrabold text-[var(--noggin-forest)] transition-colors duration-150 hover:bg-[var(--noggin-mint-light)] motion-reduce:transition-none"
+          className="gbtn gbtn--white gbtn--sm shrink-0"
         >
           <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span>Add Topic</span>
@@ -166,8 +166,8 @@ export function TopicSidebar({
                   aria-describedby={fieldError ? fieldErrorId : undefined}
                   disabled={isSubmitting}
                   className={cn(
-                    "min-h-10 w-full rounded-[14px] bg-[var(--noggin-mint)] px-3.5 py-1.5 text-[0.9375rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)]",
-                    fieldError && "ring-2 ring-[var(--noggin-danger)]",
+                    "min-h-10 w-full rounded-[14px] px-3.5 py-1.5 text-[0.9375rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus-visible:outline-none",
+                    fieldError ? "bg-[var(--noggin-danger-soft)]" : "bg-[var(--noggin-mint)]",
                   )}
                 />
               </div>

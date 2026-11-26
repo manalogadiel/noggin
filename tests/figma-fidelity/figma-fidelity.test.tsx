@@ -74,6 +74,20 @@ vi.mock("@/app/(app)/actions/customize-actions", () => ({
   customizeNogAction: customizeNogActionMock,
 }));
 
+vi.mock("@/app/(app)/actions/lesson-actions", () => ({
+  teachLessonAction: vi.fn(),
+  reviseLessonAction: vi.fn(),
+  answerFollowUpAction: vi.fn(),
+}));
+
+vi.mock("@/app/(app)/actions/topic-actions", () => ({
+  addTopicAction: vi.fn(),
+}));
+
+vi.mock("@/app/(app)/nogs/[id]/water/actions", () => ({
+  reviewCardAction: vi.fn(),
+}));
+
 vi.mock("@/components/nog-3d/nog-stage", () => ({
   NogStage: ({
     scene,
@@ -400,14 +414,6 @@ describe("NogRoomView and RoomRail Figma fidelity", () => {
     expect(screen.getByText("CLARITY")).toBeVisible();
     expect(screen.getByText("VITALITY")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: /teach packet/i }));
-    for (const action of ["Feed", "Water", "Bath"]) {
-      expect(screen.getByRole("link", { name: action })).toHaveAttribute(
-        "href",
-        `/nogs/nog-packet/${action.toLowerCase()}`,
-      );
-    }
-
     expect(screen.getByRole("link", { name: "Notebook" })).toHaveAttribute(
       "href",
       "/nogs/nog-packet/notebook",
@@ -432,6 +438,14 @@ describe("NogRoomView and RoomRail Figma fidelity", () => {
       "href",
       "/arena",
     );
+
+    await user.click(screen.getByRole("button", { name: /teach packet/i }));
+    for (const action of ["Feed", "Water", "Bath"]) {
+      expect(screen.getByRole("button", { name: new RegExp(`^${action}`, "i") })).toBeVisible();
+    }
+    expect(
+      screen.getByRole("button", { name: /switch active notebook/i }),
+    ).toBeVisible();
 
     expect(
       screen.queryByRole("button", { name: /open menu/i }),

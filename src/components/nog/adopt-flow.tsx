@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { completeOnboardingAction } from "@/app/(app)/actions/nog-actions";
@@ -162,18 +161,16 @@ export function AdoptFlow() {
       updateState((prev) => ({
         ...prev,
         equippedSlots,
-        ...(result.topicId
-          ? {
-              notebookCovers: {
-                ...prev.notebookCovers,
-                [result.topicId]: coverStyle,
-              },
-              notebookTitles: {
-                ...prev.notebookTitles,
-                [result.topicId]: trimmedTitle,
-              },
-            }
-          : {}),
+        notebookCovers: {
+          ...prev.notebookCovers,
+          [result.nogId]: coverStyle,
+          ...(result.topicId ? { [result.topicId]: coverStyle } : {}),
+        },
+        notebookTitles: {
+          ...prev.notebookTitles,
+          [result.nogId]: trimmedTitle,
+          ...(result.topicId ? { [result.topicId]: trimmedTitle } : {}),
+        },
       }));
 
       router.push(`/nogs/${result.nogId}`);
@@ -186,14 +183,7 @@ export function AdoptFlow() {
   }
 
   const stageTop = (
-    <div className="stage-top">
-      <Link
-        href="/nogs"
-        className="stage-close-btn"
-        aria-label="Exit to My Nogs"
-      >
-        <span aria-hidden="true">×</span>
-      </Link>
+    <div className="stage-top justify-center">
       <div className="stage-progress-track" aria-hidden="true">
         <div
           className="stage-progress-fill"

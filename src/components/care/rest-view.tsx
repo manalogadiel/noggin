@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { formatRestBackOnDate, isNogResting } from "@/lib/rest-schedule";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ const REST_OPTIONS = [
 ] as const;
 
 export interface RestViewProps {
-  nog: { id: string; name: string };
+  nog: { id: string; name: string; colors?: { body?: string | null } };
   restUntil: string | null;
   now?: Date;
   onStartRest: (days: number) => unknown;
@@ -61,7 +61,6 @@ export function RestView({
   onStartRest,
   onWake,
 }: RestViewProps) {
-  const selectId = useId();
   const [fallbackNow] = useState<Date>(() => new Date());
   const [selectedDays, setSelectedDays] = useState<number>(2);
   const [pending, setPending] = useState(false);
@@ -207,8 +206,8 @@ export function RestView({
               <div className="qs-sc-body qs-sc-body--nap">
                 <div
                   className="nap-dur-grid"
-                  role="group"
-                  aria-label="Rest duration options"
+                  role="radiogroup"
+                  aria-label="Rest duration"
                 >
                   {REST_OPTIONS.map((opt) => {
                     const isActive = selectedDays === opt.days;
@@ -216,7 +215,8 @@ export function RestView({
                       <button
                         key={opt.days}
                         type="button"
-                        aria-pressed={isActive}
+                        role="radio"
+                        aria-checked={isActive}
                         disabled={pending}
                         onClick={() => setSelectedDays(opt.days)}
                         className={cn("nap-dur-btn", isActive && "is-on")}
@@ -226,28 +226,6 @@ export function RestView({
                       </button>
                     );
                   })}
-                </div>
-
-                <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--ng-c-efe3c4)] px-3.5 py-2">
-                  <label
-                    htmlFor={selectId}
-                    className="text-xs font-black tracking-wide text-[var(--noggin-forest)] uppercase"
-                  >
-                    Return Later
-                  </label>
-                  <select
-                    id={selectId}
-                    value={String(selectedDays)}
-                    onChange={(event) => setSelectedDays(Number(event.target.value))}
-                    disabled={pending}
-                    className="rounded-xl border border-[var(--ng-c-d7c9a3)] bg-white px-3 py-1.5 text-xs font-extrabold text-[var(--noggin-forest)]"
-                  >
-                    {REST_OPTIONS.map((option) => (
-                      <option key={option.days} value={String(option.days)}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
                 </div>
 
                 {error && (

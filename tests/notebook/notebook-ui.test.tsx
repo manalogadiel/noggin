@@ -39,7 +39,6 @@ describe("Botanical 3D Notebooks & Expand Pages", () => {
       </GameUiProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: "All Notebooks (3D)" }));
     expect(screen.getByRole("region", { name: "3D notebooks shelf" })).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: /Unlock extra notebook slot/i }));

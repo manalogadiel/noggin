@@ -68,7 +68,7 @@ export function AccountMenu({ displayName }: AccountMenuProps) {
         <Menu.Positioner sideOffset={10} align="end" className="z-50">
           <Menu.Popup className="min-w-[200px] rounded-[20px] bg-[var(--noggin-white)] p-2 shadow-[0_12px_32px_var(--noggin-shadow)] outline-none">
             <Menu.Group>
-              <Menu.GroupLabel className="noggin-display border-b border-[var(--noggin-mint)] px-3 py-2.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+              <Menu.GroupLabel className="noggin-display px-3 py-2.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
                 {label}
               </Menu.GroupLabel>
               <Menu.Item

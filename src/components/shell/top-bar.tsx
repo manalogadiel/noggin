@@ -47,7 +47,9 @@ export function TopBar({
   const [tasksOpen, setTasksOpen] = useState(false);
 
   const isRoomsOpen = modal?.type === "rooms";
-  const { title, isHome } = resolvePageTitle(pathname, isRoomsOpen);
+  const { title: routeTitle, isHome } = resolvePageTitle(pathname, isRoomsOpen);
+  const isInRoomTeach = Boolean(!isRoomsOpen && isHome && sanctuary?.teachMode);
+  const title = isInRoomTeach ? (sanctuary?.teachTitle ?? "") : routeTitle;
   const userName = displayName?.trim() || "Student";
   const xpPct = Math.min(100, Math.round((state.xp / Math.max(1, state.xpMax)) * 100));
 
@@ -64,7 +66,8 @@ export function TopBar({
       xp: 40,
       icon: "✏️",
       done: Boolean(sanctuary?.teachDone),
-      href: activeNogId ? `${roomBaseHref}/feed` : "/adopt",
+      teachMode: "feed" as const,
+      href: activeNogId ? `${roomBaseHref}?teach=feed` : "/adopt",
     },
     {
       id: "t-water",
@@ -73,7 +76,8 @@ export function TopBar({
       xp: 50,
       icon: "💧",
       done: Boolean(sanctuary?.waterDone),
-      href: activeNogId ? `${roomBaseHref}/water` : "/adopt",
+      teachMode: "water" as const,
+      href: activeNogId ? `${roomBaseHref}?teach=water` : "/adopt",
     },
     {
       id: "t-pet",
@@ -82,6 +86,7 @@ export function TopBar({
       xp: 15,
       icon: "💚",
       done: Boolean(sanctuary?.petDone),
+      teachMode: null as "feed" | "water" | null,
       href: null as string | null,
     },
   ];
@@ -130,6 +135,16 @@ export function TopBar({
           >
             <ChevronLeft className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
             <span>Home</span>
+          </button>
+        ) : isInRoomTeach ? (
+          <button
+            type="button"
+            className="topbar-yellow-3d"
+            onClick={() => sanctuary?.onExitTeach?.()}
+            aria-label={sanctuary?.teachMode === "live" ? "Back to Feed" : "Back to Home"}
+          >
+            <ChevronLeft className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+            <span>{sanctuary?.teachMode === "live" ? "Back" : "Home"}</span>
           </button>
         ) : isHome ? (
           <>
@@ -206,7 +221,18 @@ export function TopBar({
                                 <strong>{t.label}</strong>
                                 <span className="tnum">{rewardText}</span>
                               </div>
-                              {!isClaimed && !t.done && t.href ? (
+                              {!isClaimed && !t.done && t.teachMode && sanctuary?.onOpenTeach ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTasksOpen(false);
+                                    sanctuary.onOpenTeach?.(t.teachMode!);
+                                  }}
+                                  className="tasks-row__btn"
+                                >
+                                  Go
+                                </button>
+                              ) : !isClaimed && !t.done && t.href ? (
                                 <Link
                                   href={t.href}
                                   onClick={() => setTasksOpen(false)}

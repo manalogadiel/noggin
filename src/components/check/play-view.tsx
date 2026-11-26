@@ -180,6 +180,7 @@ export function PlayView({ nog, topics, initialTopicId }: PlayViewProps) {
             key={currentAttempt.id}
             nogId={nog.id}
             nogName={nog.name}
+            nogTint={nog.colors?.body ?? null}
             topicTitle={checkData.topic.title}
             attempt={currentAttempt}
             questionNumber={currentIndex + 1}

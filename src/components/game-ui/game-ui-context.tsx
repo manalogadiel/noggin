@@ -168,12 +168,18 @@ export type ActiveModal =
   | { type: "skinShop" }
   | { type: "expandPages"; bookId: string; bookTitle: string; cover: BookCoverStyle };
 
+export type SanctuaryTeachMode = "hub" | "feed" | "live" | "water" | "bath";
+
 export interface SanctuaryContextInfo {
   nogId: string;
   nogName: string;
   teachDone: boolean;
   waterDone: boolean;
   petDone: boolean;
+  teachMode?: SanctuaryTeachMode | null;
+  teachTitle?: string;
+  onExitTeach?: () => void;
+  onOpenTeach?: (mode: SanctuaryTeachMode) => void;
   onRequestPetToast?: () => void;
 }
 

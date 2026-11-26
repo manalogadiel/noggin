@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WaterPage from "@/app/(app)/nogs/[id]/water/page";
@@ -209,26 +209,9 @@ describe("Water review flow (/nogs/[id]/water)", () => {
     expect(
       screen.getByRole("button", { name: "Start Reviewing →" }),
     ).toBeEnabled();
-
-    const rail = within(
-      screen.getByRole("navigation", { name: /nog room sections/i }),
-    );
-    expect(rail.getByRole("link", { name: "Room" })).toHaveAttribute(
-      "href",
-      roomHref,
-    );
-    expect(rail.getByRole("link", { name: "Notebook" })).toHaveAttribute(
-      "href",
-      `${roomHref}/notebook`,
-    );
-    expect(rail.getByRole("link", { name: "Analysis" })).toHaveAttribute(
-      "href",
-      `${roomHref}/analysis`,
-    );
-    expect(rail.getByRole("link", { name: "Check" })).toHaveAttribute(
-      "href",
-      `${roomHref}/play`,
-    );
+    expect(
+      screen.queryByRole("navigation", { name: /nog room sections/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the empty state and a room link when no thought cards are due", async () => {
