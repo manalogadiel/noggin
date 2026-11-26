@@ -18,6 +18,7 @@ export interface FollowUpItem {
 
 export interface NogChatProps {
   nogName: string;
+  nogTint?: string | null;
   bubbleText: string;
   isDizzy?: boolean;
   showBrainFogRetry?: boolean;
@@ -32,6 +33,7 @@ export interface NogChatProps {
 
 export function NogChat({
   nogName,
+  nogTint = null,
   bubbleText,
   isDizzy = false,
   showBrainFogRetry = false,
@@ -60,10 +62,10 @@ export function NogChat({
           role="status"
           aria-live="polite"
           className={cn(
-            "relative z-10 w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
+            "relative z-10 w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_5px_0_var(--lip-mint),0_10px_22px_var(--noggin-shadow)]",
             isDizzy
-              ? "border-2 border-[var(--noggin-danger)] bg-[var(--noggin-cream)] text-[var(--noggin-danger)]"
-              : "border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] text-[var(--noggin-forest)]",
+              ? "bg-[var(--noggin-meter-low-soft)] text-[var(--noggin-danger)] shadow-[0_5px_0_var(--game-coral-lip),0_10px_22px_var(--noggin-shadow)]"
+              : "bg-[var(--noggin-sage)] text-[var(--noggin-forest)]",
           )}
         >
           <p className="[overflow-wrap:anywhere]">{bubbleText}</p>
@@ -85,8 +87,8 @@ export function NogChat({
             className={cn(
               "pointer-events-none absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45",
               isDizzy
-                ? "border-r-2 border-b-2 border-[var(--noggin-danger)] bg-[var(--noggin-cream)]"
-                : "border-r border-b border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
+                ? "bg-[var(--noggin-meter-low-soft)]"
+                : "bg-[var(--noggin-sage)]",
             )}
           />
         </div>
@@ -95,6 +97,7 @@ export function NogChat({
           {isDizzy ? (
             <NogStage
               scene="dizzy"
+              tint={nogTint}
               alt={`${nogName} looks dizzy from too many words at once`}
               poster="/nog/hatchling-dizzy.png"
               width={1024}
@@ -105,6 +108,7 @@ export function NogChat({
           ) : (
             <NogStage
               scene="room"
+              tint={nogTint}
               alt={`${nogName} listening closely to your lesson`}
               poster="/nog/blob-closeup.png"
               width={1254}
@@ -119,14 +123,14 @@ export function NogChat({
       {alertMessage && (
         <p
           role="alert"
-          className="w-full rounded-[18px] border border-[var(--noggin-danger)] bg-[var(--noggin-cream)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
+          className="w-full rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.875rem] font-semibold text-[var(--noggin-danger)] shadow-[0_4px_12px_rgb(160_38_38_/_0.1)]"
         >
           {alertMessage}
         </p>
       )}
 
       {followUps.length > 0 && (
-        <div className="flex w-full flex-col gap-3 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]">
+        <div className="surface-sage flex w-full flex-col gap-3 rounded-[28px] bg-[var(--noggin-sage)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)]">
           <h2 className="noggin-display text-[1rem] font-extrabold text-[var(--noggin-forest)]">
             {nogName}&rsquo;s questions
           </h2>

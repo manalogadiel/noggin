@@ -99,97 +99,91 @@ export function AccountForm({
           </div>
         </div>
 
-        <fieldset className="space-y-2.5">
+        <fieldset className="space-y-2.5 border-0 p-0">
           <legend className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
             Grill mode
           </legend>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(
               [
-                { value: "roast", label: "Playful roast", desc: "Witty banter & tough follow-ups" },
-                { value: "gentle", label: "Gentle", desc: "Warm encouragement & patient hints" },
+                { value: "roast", label: "Playful roast", activeCls: "prof-vbtn--coral" },
+                { value: "gentle", label: "Gentle", activeCls: "prof-vbtn--leaf" },
               ] as const
-            ).map((option) => (
-              <label
-                key={option.value}
-                className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-[16px] px-4 py-3 shadow-[0_2px_8px_var(--noggin-shadow)] transition-colors",
-                  settings.grillMode === option.value
-                    ? "bg-[var(--noggin-mint-light)] ring-2 ring-[var(--noggin-leaf-strong)]"
-                    : "bg-[var(--noggin-white)]",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="grillMode"
-                  value={option.value}
-                  checked={settings.grillMode === option.value}
-                  onChange={() => {
-                    setSettings((prev) => ({
-                      ...prev,
-                      grillMode: option.value,
-                    }));
-                    setSaved(false);
-                  }}
-                  className="h-4 w-4 accent-[var(--noggin-leaf-strong)]"
-                />
-                <span className="flex flex-col">
-                  <strong className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
-                    {option.label}
-                  </strong>
-                  <span className="text-[0.75rem] text-[var(--noggin-ink)]">
-                    {option.desc}
+            ).map((option) => {
+              const isSelected = settings.grillMode === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "prof-vbtn cursor-pointer transition-transform",
+                    isSelected ? option.activeCls : "prof-vbtn--muted",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="grillMode"
+                    value={option.value}
+                    checked={isSelected}
+                    onChange={() => {
+                      setSettings((prev) => ({
+                        ...prev,
+                        grillMode: option.value,
+                      }));
+                      setSaved(false);
+                    }}
+                    className="sr-only"
+                  />
+                  <span className="prof-vbtn__txt">
+                    <small>Feedback Tone</small>
+                    <strong>{option.label}</strong>
                   </span>
-                </span>
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </div>
         </fieldset>
 
-        <fieldset className="space-y-2.5">
+        <fieldset className="space-y-2.5 border-0 p-0">
           <legend className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
             Microphone mode
           </legend>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(
               [
-                { value: "tap", label: "Tap to talk", desc: "Tap once to record, tap to send" },
-                { value: "hold", label: "Hold to talk", desc: "Hold button while speaking" },
+                { value: "tap", label: "Tap to talk" },
+                { value: "hold", label: "Hold to talk" },
               ] as const
-            ).map((option) => (
-              <label
-                key={option.value}
-                className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-[16px] px-4 py-3 shadow-[0_2px_8px_var(--noggin-shadow)] transition-colors",
-                  settings.micMode === option.value
-                    ? "bg-[var(--noggin-mint-light)] ring-2 ring-[var(--noggin-leaf-strong)]"
-                    : "bg-[var(--noggin-white)]",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="micMode"
-                  value={option.value}
-                  checked={settings.micMode === option.value}
-                  onChange={() => {
-                    setSettings((prev) => ({
-                      ...prev,
-                      micMode: option.value,
-                    }));
-                    setSaved(false);
-                  }}
-                  className="h-4 w-4 accent-[var(--noggin-leaf-strong)]"
-                />
-                <span className="flex flex-col">
-                  <strong className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
-                    {option.label}
-                  </strong>
-                  <span className="text-[0.75rem] text-[var(--noggin-ink)]">
-                    {option.desc}
+            ).map((option) => {
+              const isSelected = settings.micMode === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "prof-vbtn cursor-pointer transition-transform",
+                    isSelected ? "prof-vbtn--blue" : "prof-vbtn--muted",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="micMode"
+                    value={option.value}
+                    checked={isSelected}
+                    onChange={() => {
+                      setSettings((prev) => ({
+                        ...prev,
+                        micMode: option.value,
+                      }));
+                      setSaved(false);
+                    }}
+                    className="sr-only"
+                  />
+                  <span className="prof-vbtn__txt">
+                    <small>Microphone</small>
+                    <strong>{option.label}</strong>
                   </span>
-                </span>
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </div>
         </fieldset>
 

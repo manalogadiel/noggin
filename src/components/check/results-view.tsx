@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowLeft,
   ArrowRight,
   Bath,
   Check,
@@ -62,10 +61,10 @@ export function ResultsView({
   const isGreatJob = scorePercent >= 70;
 
   const roomHref = `/nogs/${nog.id}`;
-  const bathHref = `${roomHref}/bath?topic=${encodeURIComponent(topic.id)}`;
+  const bathHref = `${roomHref}?teach=bath&topic=${encodeURIComponent(topic.id)}`;
   const continueHref =
     incorrectCount > 0
-      ? `${roomHref}/feed?topic=${encodeURIComponent(topic.id)}`
+      ? `${roomHref}?teach=feed&topic=${encodeURIComponent(topic.id)}`
       : roomHref;
 
   function toggleAttempt(attemptId: string) {
@@ -84,14 +83,6 @@ export function ResultsView({
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="qs-top-bar">
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nog.name}'s room`}
-            className="stage-close-btn"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
           <h1 className="stage-h1">Play</h1>
 
           <span className="qs-round-pill inline-flex items-center gap-1.5 [overflow-wrap:anywhere]">

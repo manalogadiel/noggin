@@ -272,14 +272,6 @@ describe("figma-fidelity-2 Feed, Practice Quiz, Water, Bath, Analysis, Notebook,
     ).toBeNull();
 
     expect(screen.queryByText(/game-show check/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        new RegExp(
-          `${nog.name} answers each question from its own notebook while you watch\\.`,
-          "i",
-        ),
-      ),
-    ).toBeVisible();
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Topics" }),
@@ -517,7 +509,7 @@ describe("figma-fidelity-2 Feed, Practice Quiz, Water, Bath, Analysis, Notebook,
     expect(screen.getAllByText(shortPrompt).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("renders Nog Analysis (211:127) with top-left h1 'Nog Analysis' and one leaf-bordered vitals panel with dividers instead of three white cards", () => {
+  it("renders Nog Analysis (211:127) with top-left h1 'Nog Analysis' and one borderless elevated vitals panel", () => {
     render(
       <NogAnalysisView
         nog={nog}
@@ -541,7 +533,7 @@ describe("figma-fidelity-2 Feed, Practice Quiz, Water, Bath, Analysis, Notebook,
     const vitalsPanel = screen.getByRole("region", {
       name: `${nog.name} vitals`,
     });
-    expect(vitalsPanel.className).toMatch(/\bborder\b/);
+    expect(vitalsPanel.className).not.toMatch(/\bborder\b/);
     expect(vitalsPanel.className).toMatch(/rounded-\[28px\]/);
 
     const happinessMeter = within(vitalsPanel).getByRole("meter", {
@@ -552,8 +544,8 @@ describe("figma-fidelity-2 Feed, Practice Quiz, Water, Bath, Analysis, Notebook,
     ).toBeNull();
   });
 
-  it("renders Notebook (211:90) left topic list and right notes panel with a 1px leaf border", () => {
-    render(
+  it("renders Notebook as a borderless 3D bookshelf by default and opens a borderless 2-page spread for an explicit topic", () => {
+    const { unmount } = render(
       <NotebookView
         nog={nog}
         topics={[tcp, dns]}
@@ -563,13 +555,23 @@ describe("figma-fidelity-2 Feed, Practice Quiz, Water, Bath, Analysis, Notebook,
       />,
     );
 
-    const sidebar = screen.getByRole("complementary", { name: "Topics" });
-    const notesPanel = screen.getByRole("region", { name: tcp.title });
+    expect(screen.getByRole("region", { name: "3D notebooks shelf" })).toBeVisible();
+    expect(screen.queryByRole("complementary", { name: "Topics" })).not.toBeInTheDocument();
+    unmount();
 
-    expect(sidebar.className).toMatch(/\bborder\b/);
-    expect(sidebar.className).toMatch(/--noggin-leaf/);
-    expect(notesPanel.className).toMatch(/\bborder\b/);
-    expect(notesPanel.className).toMatch(/--noggin-leaf/);
+    render(
+      <NotebookView
+        nog={nog}
+        topics={[tcp, dns]}
+        selectedTopic={tcp}
+        pages={[originalPage]}
+        thoughtCards={[toRecord(shakyCard)]}
+        initialTopicExplicit={true}
+      />,
+    );
+
+    const notesPanel = screen.getByRole("region", { name: tcp.title });
+    expect(notesPanel.className).not.toMatch(/\bborder\b/);
   });
 
   it("renders My Nogs (63:116) cards as sage panels with 'Lvl. N' instead of a visible stage chip, while keeping stage in the accessible name, and a sage 'Hatch New' card", () => {

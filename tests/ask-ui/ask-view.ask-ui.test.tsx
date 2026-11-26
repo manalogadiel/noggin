@@ -107,11 +107,11 @@ afterEach(() => {
 });
 
 describe("Ask page", () => {
-  it("shows the Nog's name, a back link, an idle line and an All-topics picker", async () => {
+  it("shows the Nog's name, an idle line and an All-topics picker without a duplicate back button", async () => {
     await renderPage();
 
     expect(screen.getByRole("heading", { name: "Ask Pingu" })).toBeVisible();
-    expect(screen.getByRole("link", { name: /back to room/i })).toHaveAttribute("href", `/nogs/${nog.id}`);
+    expect(screen.queryByRole("link", { name: /back to room/i })).not.toBeInTheDocument();
     expect(screen.getByText("Ask me something you taught me!")).toBeVisible();
     const picker = screen.getByRole("combobox", { name: /topic/i });
     expect(within(picker).getAllByRole("option").map((option) => option.textContent)).toEqual([
@@ -132,12 +132,9 @@ describe("Ask page", () => {
     expect(within(recent).getByText("It turns names into addresses!")).toBeVisible();
   });
 
-  it("adds an Ask link to the room rail", async () => {
+  it("omits RoomRail on the Ask page in favor of TopBar navigation", async () => {
     await renderPage();
-    const rail = screen.getByRole("navigation", { name: "Nog room sections" });
-    const link = within(rail).getByRole("link", { name: "Ask" });
-    expect(link).toHaveAttribute("href", `/nogs/${nog.id}/ask`);
-    expect(link).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("navigation", { name: "Nog room sections" })).not.toBeInTheDocument();
   });
 
   it("sends signed-out owners to login and unknown nogs to not found", async () => {
@@ -228,11 +225,11 @@ describe("asking", () => {
     await user.click(askButton());
 
     const teach = await screen.findByRole("link", { name: /teach me this/i });
-    expect(teach).toHaveAttribute("href", `/nogs/${nog.id}/feed?topic=${dns.id}`);
+    expect(teach).toHaveAttribute("href", `/nogs/${nog.id}?teach=feed&topic=${dns.id}`);
     expect(screen.queryByText("From my notes")).not.toBeInTheDocument();
   });
 
-  it("links to the plain feed when asking across all topics", async () => {
+  it("links to in-room feed when asking across all topics", async () => {
     const user = userEvent.setup();
     askNogAction.mockResolvedValue({
       status: "ok", knows: false, answer: "You haven't taught me that yet!", mood: "curious",
@@ -242,7 +239,7 @@ describe("asking", () => {
 
     await user.type(questionBox(), "What is a resolver?");
     await user.click(askButton());
-    expect(await screen.findByRole("link", { name: /teach me this/i })).toHaveAttribute("href", `/nogs/${nog.id}/feed`);
+    expect(await screen.findByRole("link", { name: /teach me this/i })).toHaveAttribute("href", `/nogs/${nog.id}?teach=feed`);
   });
 
   it("blocks questions over 60 words", async () => {

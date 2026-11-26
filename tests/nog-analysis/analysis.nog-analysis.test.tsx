@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentType, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,10 +31,27 @@ vi.mock("next/navigation", async (importOriginal) => ({
   ...await importOriginal<typeof import("next/navigation")>(),
   notFound,
   usePathname: () => window.location.pathname,
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+  }),
 }));
 vi.mock("@/app/(app)/actions/room-actions", () => ({
   petNogAction: vi.fn(),
   saveProfileSettingsAction: vi.fn(),
+}));
+vi.mock("@/app/(app)/actions/lesson-actions", () => ({
+  teachLessonAction: vi.fn(),
+  reviseLessonAction: vi.fn(),
+  answerFollowUpAction: vi.fn(),
+}));
+vi.mock("@/app/(app)/actions/topic-actions", () => ({
+  addTopicAction: vi.fn(),
+}));
+vi.mock("@/app/(app)/nogs/[id]/water/actions", () => ({
+  reviewCardAction: vi.fn(),
 }));
 vi.mock("@/components/nog-3d/nog-stage", () => ({
   NogStage: ({ scene }: NogStageProps) => <div data-nog-scene={scene} />,
@@ -80,18 +97,6 @@ async function renderAnalysis() {
   const Page = await loadAnalysisPage();
   // Resolve the server entry point before mounting its returned UI in jsdom.
   return render(await Page({ params: Promise.resolve({ id: analysis.nog.id }) }));
-}
-
-function expectRoomRail() {
-  const rail = within(screen.getByRole("navigation"));
-  for (const [label, path] of [
-    ["Room", ""],
-    ["Notebook", "/notebook"],
-    ["Analysis", "/analysis"],
-    ["Check", "/play"],
-  ]) {
-    expect(rail.getByRole("link", { name: label })).toHaveAttribute("href", `${roomHref}${path}`);
-  }
 }
 
 describe("Nog analysis", () => {
@@ -207,29 +212,29 @@ describe("Nog analysis", () => {
     expect(screen.getByText(/^Forgotten$/i)).toBeVisible();
   });
 
-  it("links only the shaky and confused cards to Bath with their own card IDs", async () => {
+  it("links only the shaky and confused cards to in-room Bath with their own card IDs", async () => {
     await renderAnalysis();
 
     const fixes = screen.getAllByRole("link", { name: "Fix in Bath" });
     expect(fixes.map((link) => link.getAttribute("href")).sort()).toEqual([
-      `${roomHref}/bath?card=${sequenceNumbers.id}`,
-      `${roomHref}/bath?card=${synAck.id}`,
+      `${roomHref}?teach=bath&card=${sequenceNumbers.id}`,
+      `${roomHref}?teach=bath&card=${synAck.id}`,
     ]);
   });
 
-  it("invites the learner to Feed when the Nog has no thought cards", async () => {
+  it("invites the learner to in-room Feed when the Nog has no thought cards", async () => {
     getNogAnalysis.mockResolvedValue({ ...analysis, cards: [] });
     await renderAnalysis();
 
     expect(screen.getByText(/Packet hasn['’]t learned anything yet/i)).toBeVisible();
-    expect(screen.getByRole("link", { name: /Feed it a lesson/i })).toHaveAttribute("href", `${roomHref}/feed`);
+    expect(screen.getByRole("link", { name: /Feed it a lesson/i })).toHaveAttribute("href", `${roomHref}?teach=feed`);
     expect(screen.queryByRole("link", { name: "Fix in Bath" })).not.toBeInTheDocument();
   });
 
-  it("shows the four named rail links on the Analysis page", async () => {
+  it("omits RoomRail on the Analysis page in favor of the unified TopBar navigation", async () => {
     await renderAnalysis();
 
-    expectRoomRail();
+    expect(screen.queryByRole("navigation", { name: /nog room sections/i })).not.toBeInTheDocument();
   });
 
   it("shows a busy loading skeleton without presenting placeholder meter values", async () => {

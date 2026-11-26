@@ -1,9 +1,28 @@
 "use client";
 
+import { Check, Droplets, Mic, Pencil, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  reviseLessonAction,
+  teachLessonAction,
+} from "@/app/(app)/actions/lesson-actions";
+import { addTopicAction } from "@/app/(app)/actions/topic-actions";
+import { reviewCardAction } from "@/app/(app)/nogs/[id]/water/actions";
 import { Book3dSvg } from "@/components/game-ui/book-3d-svg";
-import { useGameUi } from "@/components/game-ui/game-ui-context";
+import {
+  type BookCoverStyle,
+  type SanctuaryTeachMode,
+  useGameUi,
+} from "@/components/game-ui/game-ui-context";
 import { NogAvatar } from "@/components/nog/nog-avatar";
 import { usePetting } from "@/components/nog/use-petting";
 import type { SaveProfileSettingsHandler } from "@/components/settings/settings-sheet";
@@ -12,7 +31,14 @@ import type {
   NogRecord,
   NogStageSlug,
   ProfileSettings,
+  ThoughtCardRecord,
+  TopicSummary,
 } from "@/core/application/ports";
+import {
+  countWords,
+  DEFAULT_LESSON_WORD_LIMIT,
+  splitLesson,
+} from "@/core/domain/lesson";
 import type { VitalsResult } from "@/core/domain/vitals";
 import { formatRoomRestDate, isNogResting } from "@/lib/rest-schedule";
 
@@ -24,6 +50,12 @@ export interface RoomViewProps {
   onSaveSettings: SaveProfileSettingsHandler;
   onPet: () => Promise<void>;
   onWake?: () => Promise<unknown>;
+  topics?: ReadonlyArray<TopicSummary>;
+  dueCards?: ReadonlyArray<ThoughtCardRecord>;
+  thoughtCards?: ReadonlyArray<ThoughtCardRecord>;
+  initialTeachMode?: SanctuaryTeachMode | null;
+  initialTopicId?: string | null;
+  initialCardId?: string | null;
   now?: Date;
 }
 
@@ -48,6 +80,48 @@ const WORN_ACC_IMG: Record<string, string> = {
   gradcap: "/game/ui/acc-gradcap.svg",
 };
 
+const COVER_SWATCHES: ReadonlyArray<{
+  id: BookCoverStyle;
+  label: string;
+  color: string;
+}> = [
+  { id: "sage", label: "Sage", color: "var(--ng-c-87b64c)" },
+  { id: "honey", label: "Honey", color: "var(--ng-c-f5be2c)" },
+  { id: "gingham", label: "Matcha", color: "var(--ng-c-a6d660)" },
+  { id: "berry", label: "Berry", color: "var(--ng-c-e86058)" },
+  { id: "denim", label: "Sky", color: "var(--ng-c-56b5f5)" },
+  { id: "forest", label: "Forest", color: "var(--noggin-forest)" },
+];
+
+type BrowserSpeechRec = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function getSpeechRecognitionCtor(): (new () => BrowserSpeechRec) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => BrowserSpeechRec;
+    webkitSpeechRecognition?: new () => BrowserSpeechRec;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+let inRoomKeySeq = 0;
+function nextKey(prefix: string): string {
+  inRoomKeySeq += 1;
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${inRoomKeySeq}`;
+}
+
 function clampPct(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -59,21 +133,118 @@ export function NogRoomView({
   progress,
   onPet,
   onWake,
+  topics: initialTopics = [],
+  dueCards: initialDueCards = [],
+  thoughtCards: initialThoughtCards = [],
+  initialTeachMode = null,
+  initialTopicId = null,
+  initialCardId = null,
   now,
 }: RoomViewProps) {
+  const router = useRouter();
   const { reaction, message, tapCount, pet } = usePetting({ onPet });
-  const { state, activeRoom, openModal, awardRewards, showToast, setSanctuary } = useGameUi();
+  const {
+    state,
+    activeRoom,
+    openModal,
+    requestPurchase,
+    updateState,
+    awardRewards,
+    showToast,
+    setSanctuary,
+  } = useGameUi();
+
   const [fallbackNow] = useState<Date>(() => new Date());
   const [lampOn, setLampOn] = useState(false);
-  const [teachMode, setTeachMode] = useState(false);
+  const [teachMode, setTeachMode] = useState<SanctuaryTeachMode | null>(
+    initialTeachMode,
+  );
   const [wokeOverride, setWokeOverride] = useState(false);
   const [waking, setWaking] = useState(false);
+
+  // In-room topics, book picker, water queue, bath queue
+  const [extraTopics, setExtraTopics] = useState<TopicSummary[]>([]);
+  const topics = useMemo(() => {
+    const map = new Map<string, TopicSummary>();
+    for (const t of initialTopics) map.set(t.id, t);
+    for (const t of extraTopics) map.set(t.id, t);
+    return Array.from(map.values());
+  }, [initialTopics, extraTopics]);
+
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(() => {
+    if (initialTopicId && initialTopics.some((t) => t.id === initialTopicId)) {
+      return initialTopicId;
+    }
+    return initialTopics[0]?.id ?? null;
+  });
+  const [bookPickerOpen, setBookPickerOpen] = useState(false);
+  const [bookEditMode, setBookEditMode] = useState(false);
+  const [editingBookId, setEditingBookId] = useState<string | null>(null);
+  const [newBookTitle, setNewBookTitle] = useState("");
+  const [creatingBook, setCreatingBook] = useState(false);
+
+  // In-room Feed composer state
+  const [feedDraft, setFeedDraft] = useState("");
+  const [feedSending, setFeedSending] = useState(false);
+  const [lastUserEcho, setLastUserEcho] = useState<string | null>(null);
+  const [nogTeachReply, setNogTeachReply] = useState<string | null>(null);
+  const [teachDoneLocal, setTeachDoneLocal] = useState(false);
+
+  // In-room Live Voice state
+  const [liveMuted, setLiveMuted] = useState(false);
+  const [liveCaption, setLiveCaption] = useState<string | null>(null);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const speechRecRef = useRef<BrowserSpeechRec | null>(null);
+
+  // In-room Water state
+  const [dueQueue, setDueQueue] = useState<ThoughtCardRecord[]>(() => [
+    ...initialDueCards,
+  ]);
+  const [waterBusy, setWaterBusy] = useState(false);
+  const [waterShowQuote, setWaterShowQuote] = useState(false);
+  const [waterDoneLocal, setWaterDoneLocal] = useState(false);
+
+  // In-room Bath state
+  const bathCandidates = useMemo(
+    () =>
+      initialThoughtCards.filter(
+        (c) => c.status === "confused" || c.status === "shaky",
+      ),
+    [initialThoughtCards],
+  );
+  const [bathIndex, setBathIndex] = useState(() => {
+    if (!initialCardId) return 0;
+    const idx = initialThoughtCards
+      .filter((c) => c.status === "confused" || c.status === "shaky")
+      .findIndex((c) => c.id === initialCardId);
+    return idx >= 0 ? idx : 0;
+  });
+  const [fixingCard, setFixingCard] = useState<ThoughtCardRecord | null>(() => {
+    if (!initialCardId) return null;
+    return initialThoughtCards.find((c) => c.id === initialCardId) ?? null;
+  });
+
+  const activeTopic = useMemo(
+    () => topics.find((t) => t.id === activeTopicId) ?? topics[0] ?? null,
+    [topics, activeTopicId],
+  );
+  const activeBookId = activeTopic?.id ?? nog.id;
+  const coverStyle =
+    state.notebookCovers[activeBookId] ?? state.notebookCovers[nog.id] ?? "sage";
+  const bookTitle =
+    state.notebookTitles[activeBookId] ??
+    activeTopic?.title ??
+    state.notebookTitles[nog.id] ??
+    nog.subjectName ??
+    nog.name;
 
   const level = STAGE_LEVEL[nog.stage] ?? 1;
   const stageName = STAGE_LABEL[nog.stage] ?? "Sprout";
   const clampedProgress = clampPct(progress);
   const happyPct = clampPct(vitals.happiness);
-  const clarityPct = clampPct(vitals.clarity <= 1 ? vitals.clarity * 100 : vitals.clarity);
+  const clarityPct = clampPct(
+    vitals.clarity <= 1 ? vitals.clarity * 100 : vitals.clarity,
+  );
   const vitalityPct = clampPct(vitals.vitality);
 
   const roomBaseHref = `/nogs/${nog.id}`;
@@ -83,20 +254,331 @@ export function NogRoomView({
       ? formatRoomRestDate(nog.restUntil)
       : null;
 
-  const coverStyle = state.notebookCovers[nog.id] ?? "sage";
-  const bookTitle = state.notebookTitles[nog.id] || nog.subjectName || nog.name;
   const happyDone = tapCount > 0 || happyPct >= 80;
+  const wordCount = useMemo(() => countWords(feedDraft), [feedDraft]);
+  const isOverloaded = wordCount > DEFAULT_LESSON_WORD_LIMIT;
+
+  const currentDueCard = dueQueue[0] ?? null;
+  const currentBathCard =
+    bathCandidates[bathIndex % Math.max(1, bathCandidates.length)] ?? null;
+
+  const stopLiveVoice = useCallback(() => {
+    try {
+      speechRecRef.current?.stop();
+    } catch {
+      // ignore recognition stop errors
+    }
+    speechRecRef.current = null;
+  }, []);
+
+  const handleExitTeach = useCallback(() => {
+    setBookPickerOpen(false);
+    setTeachMode((prev) => {
+      if (prev === "live") {
+        stopLiveVoice();
+        return "feed";
+      }
+      return null;
+    });
+  }, [stopLiveVoice]);
+
+  const handleOpenTeach = useCallback(
+    (mode: SanctuaryTeachMode) => {
+      setBookPickerOpen(false);
+      if (mode !== "live") stopLiveVoice();
+      setTeachMode(mode);
+    },
+    [stopLiveVoice],
+  );
+
+  const teachTopbarTitle = useMemo(() => {
+    if (!teachMode) return undefined;
+    if (teachMode === "live") return `Live Voice · ${nog.name}`;
+    if (teachMode === "feed") return `Feed · ${bookTitle}`;
+    if (teachMode === "water") return "Water Recall";
+    if (teachMode === "bath") return "Bath · Clarify";
+    return `Teach ${nog.name}`;
+  }, [bookTitle, nog.name, teachMode]);
 
   useEffect(() => {
     setSanctuary({
       nogId: nog.id,
       nogName: nog.name,
-      teachDone: clampedProgress > 0,
-      waterDone: clarityPct >= 80,
+      teachDone: clampedProgress > 0 || teachDoneLocal,
+      waterDone: clarityPct >= 80 || waterDoneLocal,
       petDone: happyDone,
+      teachMode,
+      teachTitle: teachTopbarTitle,
+      onExitTeach: handleExitTeach,
+      onOpenTeach: handleOpenTeach,
     });
     return () => setSanctuary(null);
-  }, [nog.id, nog.name, clampedProgress, clarityPct, happyDone, setSanctuary]);
+  }, [
+    nog.id,
+    nog.name,
+    clampedProgress,
+    clarityPct,
+    happyDone,
+    teachDoneLocal,
+    waterDoneLocal,
+    teachMode,
+    teachTopbarTitle,
+    handleExitTeach,
+    handleOpenTeach,
+    setSanctuary,
+  ]);
+
+  // Manage browser speech recognition when entering/exiting Live Voice
+  useEffect(() => {
+    if (teachMode !== "live" || liveMuted) {
+      stopLiveVoice();
+      return;
+    }
+
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) {
+      return;
+    }
+
+    const rec = new Ctor();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    rec.onresult = (event) => {
+      let full = "";
+      for (let i = 0; i < event.results.length; i += 1) {
+        full += `${event.results[i][0].transcript} `;
+      }
+      const trimmed = full.trim();
+      setLiveTranscript(trimmed);
+      setLiveCaption(trimmed || `Listening... explain ${bookTitle} to me!`);
+    };
+    rec.onerror = () => {
+      setLiveCaption("Mic paused — tap Unmute or type in Feed chat.");
+    };
+    rec.onend = () => {
+      speechRecRef.current = null;
+    };
+    try {
+      rec.start();
+      speechRecRef.current = rec;
+    } catch {
+      void Promise.resolve().then(() => {
+        setLiveCaption("Couldn't start mic — check browser microphone permission.");
+      });
+    }
+
+    return () => {
+      stopLiveVoice();
+    };
+  }, [teachMode, liveMuted, bookTitle, nog.name, stopLiveVoice]);
+
+  async function speakReply(text: string) {
+    if (typeof window === "undefined" || !text.trim()) return;
+    try {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.volume = Math.max(0, Math.min(1, (state.audio.voice ?? 90) / 100));
+        window.speechSynthesis.speak(utt);
+      }
+    } catch {
+      // ignore TTS failures
+    }
+  }
+
+  async function ensureActiveTopicId(): Promise<string | null> {
+    if (activeTopic) return activeTopic.id;
+    const fallbackTitle = bookTitle || nog.subjectName || `${nog.name} Notes`;
+    const created = await addTopicAction(nog.id, fallbackTitle);
+    if (created.status === "ok" || created.status === "pending" || created.status === "already_exists") {
+      setExtraTopics((prev) => [...prev, created.topic]);
+      setActiveTopicId(created.topic.id);
+      return created.topic.id;
+    }
+    return null;
+  }
+
+  async function sendLessonText(rawText: string, speakOut = false) {
+    const body = rawText.trim();
+    if (!body || feedSending) return;
+    if (countWords(body) > DEFAULT_LESSON_WORD_LIMIT) {
+      setNogTeachReply(
+        `Whoa! Keep each chunk under ${DEFAULT_LESSON_WORD_LIMIT} words — tap Auto-Split!`,
+      );
+      return;
+    }
+
+    setFeedSending(true);
+    setLastUserEcho(body);
+    setNogTeachReply("Mmm… chewing on that…");
+
+    try {
+      const targetTopicId = await ensureActiveTopicId();
+      if (!targetTopicId) {
+        setNogTeachReply("Pick or create a notebook first so I know where to save this!");
+        setFeedSending(false);
+        return;
+      }
+
+      const result =
+        fixingCard?.sourceLessonId
+          ? await reviseLessonAction({
+              nogId: nog.id,
+              topicId: fixingCard.topicId || targetTopicId,
+              lessonId: fixingCard.sourceLessonId,
+              body,
+              idempotencyKey: nextKey("inroom-revise"),
+            })
+          : await teachLessonAction({
+              nogId: nog.id,
+              topicId: targetTopicId,
+              body,
+              idempotencyKey: nextKey("inroom-teach"),
+            });
+
+      if (result.status === "unauthenticated") {
+        router.push(`/login?next=${encodeURIComponent(roomBaseHref)}`);
+        return;
+      }
+
+      if (result.status === "ok") {
+        const followUp = result.digest.followUpQuestions?.[0];
+        const replyLine = followUp
+          ? `${result.digest.reply} ${followUp}`
+          : result.digest.reply;
+        setNogTeachReply(replyLine);
+        setFeedDraft("");
+        setLiveTranscript("");
+        setFixingCard(null);
+        setTeachDoneLocal(true);
+        awardRewards(10, 15);
+        showToast("Saved to Notebook! +15 EXP · +10 coins");
+        if (speakOut) {
+          void speakReply(replyLine);
+        }
+        router.refresh();
+        return;
+      }
+
+      if (result.status === "overload") {
+        setNogTeachReply("Whoa! My tiny brain is spinning! Keep it under 120 words.");
+      } else if (result.status === "tired_for_today") {
+        setNogTeachReply("I'm full for today! Let's study more tomorrow.");
+      } else if (result.status === "brain_fog") {
+        setNogTeachReply("Saved your note! My brain got a little foggy — try again soon.");
+      } else {
+        setNogTeachReply("Hmm, I couldn't catch that. Try sending it again!");
+      }
+    } catch {
+      setNogTeachReply("Brain fog! Couldn't save that right now — try again.");
+    } finally {
+      setFeedSending(false);
+    }
+  }
+
+  function handleFeedSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void sendLessonText(feedDraft, false);
+  }
+
+  function handleAutoSplit() {
+    const chunks = splitLesson(feedDraft, DEFAULT_LESSON_WORD_LIMIT);
+    if (chunks.length > 0) {
+      setFeedDraft(chunks[0]);
+      showToast(`Split into ${chunks.length} chunks — ready to send part 1!`);
+    }
+  }
+
+  async function handleWaterRemembered() {
+    if (!currentDueCard || waterBusy) return;
+    setWaterBusy(true);
+    try {
+      const res = await reviewCardAction({
+        nogId: nog.id,
+        cardId: currentDueCard.id,
+        outcome: "remembered",
+      });
+      if (res.status === "unauthenticated") {
+        router.push(`/login?next=${encodeURIComponent(roomBaseHref)}`);
+        return;
+      }
+      if (res.status === "ok") {
+        setDueQueue((prev) => prev.slice(1));
+        setWaterShowQuote(false);
+        setWaterDoneLocal(true);
+        awardRewards(0, 15);
+        setNogTeachReply(`💧 Refreshed "${currentDueCard.label}"! Memory stronger!`);
+        showToast("+15 EXP · Memory refreshed!");
+        router.refresh();
+      } else {
+        showToast("Couldn't refresh right now — try again.");
+      }
+    } catch {
+      showToast("Couldn't refresh right now — try again.");
+    } finally {
+      setWaterBusy(false);
+    }
+  }
+
+  async function handleWaterReexplain() {
+    if (!currentDueCard || waterBusy) return;
+    setWaterBusy(true);
+    try {
+      await reviewCardAction({
+        nogId: nog.id,
+        cardId: currentDueCard.id,
+        outcome: "forgot",
+      });
+    } catch {
+      // proceed to feed anyway
+    } finally {
+      setWaterBusy(false);
+    }
+    setActiveTopicId(currentDueCard.topicId);
+    setFixingCard(currentDueCard);
+    setNogTeachReply(
+      `Let's re-explain "${currentDueCard.label}" in your own words!`,
+    );
+    setTeachMode("feed");
+  }
+
+  function handleBathClarify() {
+    if (!currentBathCard) {
+      setTeachMode("feed");
+      return;
+    }
+    setActiveTopicId(currentBathCard.topicId);
+    setFixingCard(currentBathCard);
+    setNogTeachReply(
+      `Help me clarify "${currentBathCard.label}" in your own words!`,
+    );
+    setTeachMode("feed");
+  }
+
+  async function handleCreateInRoomNotebook(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = newBookTitle.trim();
+    if (!trimmed || creatingBook) return;
+    setCreatingBook(true);
+    try {
+      const res = await addTopicAction(nog.id, trimmed);
+      if (res.status === "ok" || res.status === "pending" || res.status === "already_exists") {
+        setExtraTopics((prev) => [...prev, res.topic]);
+        setActiveTopicId(res.topic.id);
+        setNewBookTitle("");
+        setBookPickerOpen(false);
+        showToast(`Switched notebook to ${res.topic.title}`);
+        router.refresh();
+      } else if (res.status === "invalid_title") {
+        showToast("Use 1 to 60 letters or numbers.");
+      } else {
+        showToast("Couldn't create notebook right now.");
+      }
+    } finally {
+      setCreatingBook(false);
+    }
+  }
 
   async function handleWakeClick() {
     if (waking) return;
@@ -112,14 +594,56 @@ export function NogRoomView({
   }
 
   const equippedIds = state.equippedSlots.filter((x): x is string => Boolean(x));
-  const bubbleText = restingDate
-    ? `Zzz... resting until ${restingDate}`
-    : (message ?? "✨ Ready to learn!");
+  const bubbleText = (() => {
+    if (teachMode === "live") {
+      if (liveMuted) return "Mic muted — tap Unmute whenever you're ready!";
+      return liveCaption ?? `Listening... explain ${bookTitle} to me!`;
+    }
+    if (teachMode === "feed") {
+      if (isOverloaded) {
+        return "Whoa! My tiny brain is spinning! Keep each lesson under 120 words.";
+      }
+      if (nogTeachReply) return nogTeachReply;
+      if (fixingCard) {
+        return `Help me understand "${fixingCard.label}" clearly!`;
+      }
+      return `I'm listening! Tell me about ${bookTitle} in your own words.`;
+    }
+    if (teachMode === "water") {
+      return dueQueue.length > 0
+        ? `💧 ${dueQueue.length} ${dueQueue.length === 1 ? "thought needs" : "thoughts need"} a quick refresh!`
+        : "All my memories feel super fresh right now!";
+    }
+    if (teachMode === "bath") {
+      return currentBathCard
+        ? `Hmm, I'm a little fuzzy on "${currentBathCard.label}" — help me clear it up!`
+        : "Squeaky clean! Everything I learned makes sense!";
+    }
+    if (teachMode === "hub") {
+      return `What should we work on for ${bookTitle}?`;
+    }
+    if (restingDate) return `Zzz... resting until ${restingDate}`;
+    if (message) return message;
+    if (dueQueue.length > 0) {
+      return `💧 ${dueQueue.length} ${dueQueue.length === 1 ? "note needs" : "notes need"} water!`;
+    }
+    return "✨ Ready to learn!";
+  })();
+
   const isIdleBubble = !teachMode && !message;
+  const editBookTopic =
+    topics.find((t) => t.id === (editingBookId ?? activeTopic?.id)) ??
+    activeTopic ??
+    null;
+  const editBookId = editBookTopic?.id ?? activeBookId;
+  const editBookTitle = editBookTopic
+    ? state.notebookTitles[editBookTopic.id] ?? editBookTopic.title
+    : bookTitle;
+  const editBookCover = state.notebookCovers[editBookId] ?? "sage";
 
   return (
     <div
-      className={`game-world game-world--hub ${teachMode ? "is-teach-mode" : ""} ${lampOn ? "is-lamp-night" : ""}`}
+      className={`game-world game-world--hub ${teachMode ? "is-teach-mode" : ""} ${teachMode === "live" ? "is-live-mode" : ""} ${lampOn ? "is-lamp-night" : ""}`}
       data-room-bg={activeRoom.id}
     >
       {/* Full-Bleed Centered Sanctuary Backdrop */}
@@ -151,29 +675,32 @@ export function NogRoomView({
           >
             <span className="room-hotspot__tip">Notebooks</span>
           </Link>
-          <Link
-            href={`${roomBaseHref}/water`}
+          <button
+            type="button"
+            onClick={() => handleOpenTeach("water")}
             className="room-hotspot room-hotspot--sprout"
             title="Water Potted Sprout"
             aria-label="Water potted sprout"
           >
             <span className="room-hotspot__tip">Water Sprout</span>
-          </Link>
+          </button>
         </div>
       )}
 
-      {/* Teach Mode Floating 3D Notebook Trigger */}
-      {teachMode && (
-        <Link
-          href={`${roomBaseHref}/notebook`}
+      {/* Teach Mode Floating 3D Notebook Trigger (Opens Blurred Choose Notebook Overlay) */}
+      {teachMode && !bookPickerOpen && (
+        <button
+          type="button"
+          onClick={() => setBookPickerOpen((v) => !v)}
+          aria-expanded={bookPickerOpen}
+          aria-label={`Switch active notebook (${bookTitle})`}
           className="live-book-btn live-book-btn--float"
-          aria-label={`Open ${bookTitle} notebook`}
         >
           <span className="live-book-btn__svg">
-            <Book3dSvg style={coverStyle} title={bookTitle} uid={`hud-${nog.id}`} />
+            <Book3dSvg style={coverStyle} title={bookTitle} uid={`hud-${activeBookId}`} />
           </span>
           <span className="live-book-btn__tag">{bookTitle}</span>
-        </Link>
+        </button>
       )}
 
       <div className="game-main-pane">
@@ -379,7 +906,11 @@ export function NogRoomView({
             </span>
             <span className="home-arc-btn__lbl">Rest</span>
           </IntentLink>
-          <button type="button" onClick={() => openModal({ type: "rooms" })} className="home-arc-btn home-arc-btn--4">
+          <button
+            type="button"
+            onClick={() => openModal({ type: "rooms" })}
+            className="home-arc-btn home-arc-btn--4"
+          >
             <span className="home-arc-btn__ico">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/game/ui/icon-rooms-clay.svg" alt="" />
@@ -399,7 +930,7 @@ export function NogRoomView({
         </nav>
 
         <div className={`gamestage-main ${teachMode ? "gamestage-main--teach" : ""}`}>
-          {/* LEFT / CENTER: Living Nog Stage */}
+          {/* LEFT / CENTER: Living Nog Stage (Auto-Centers in Teach Mode) */}
           <section className="gamestage-left" aria-label={`${nog.name} pet stage`}>
             {!teachMode && restingDate && (
               <div className="gamestage-rest-banner" role="status">
@@ -419,7 +950,7 @@ export function NogRoomView({
                       aria-label={`Open ${bookTitle} notebook`}
                     >
                       <span className="floor-mini-book__svg">
-                        <Book3dSvg style={coverStyle} title={bookTitle} uid={`flr-${nog.id}`} />
+                        <Book3dSvg style={coverStyle} title={bookTitle} uid={`flr-${activeBookId}`} />
                       </span>
                       <span className="floor-mini-book__tip">{bookTitle}</span>
                     </Link>
@@ -440,13 +971,15 @@ export function NogRoomView({
                 )}
 
                 <div className="gamestage-pet-wrap">
-                  <div
-                    className={`nog-bubble ${isIdleBubble ? "nog-bubble--idle" : ""}`}
-                    role="status"
-                    aria-live="polite"
-                  >
-                    {bubbleText}
-                  </div>
+                  {!bookPickerOpen && (
+                    <div
+                      className={`nog-bubble ${isIdleBubble ? "nog-bubble--idle" : ""}`}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {bubbleText}
+                    </div>
+                  )}
                   {tapCount > 0 && (
                     <span key={`heart-${tapCount}`} className="pet-heart-pop" aria-hidden="true">
                       ♥
@@ -463,7 +996,7 @@ export function NogRoomView({
                     <NogAvatar
                       variant="sanctuary"
                       name={nog.name}
-                      reaction={reaction}
+                      reaction={isOverloaded ? "annoyed" : reaction}
                       message={null}
                       tapCount={tapCount}
                       onTap={pet}
@@ -490,7 +1023,8 @@ export function NogRoomView({
               </div>
             </div>
 
-            {!teachMode ? (
+            {/* IDLE HOME: Wake CTA or Hero Teach Button */}
+            {!teachMode && (
               <div className="gamestage-ctas">
                 {restingDate ? (
                   <button
@@ -513,8 +1047,8 @@ export function NogRoomView({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setTeachMode(true)}
-                    aria-expanded={teachMode}
+                    onClick={() => handleOpenTeach("hub")}
+                    aria-expanded={Boolean(teachMode)}
                     className="gbtn gbtn--leaf gbtn--lg home-teach-hero-btn"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -523,38 +1057,257 @@ export function NogRoomView({
                   </button>
                 )}
               </div>
-            ) : (
-              <nav className="teach-mode-bar" aria-label="Teach actions">
-                <IntentLink
-                  href={`${roomBaseHref}/feed`}
-                  className="toy-btn toy-btn--feed"
-                >
-                  <span>Feed</span>
-                </IntentLink>
-                <IntentLink
-                  href={`${roomBaseHref}/water`}
-                  className="toy-btn toy-btn--water"
-                >
-                  <span>Water</span>
-                </IntentLink>
-                <IntentLink
-                  href={`${roomBaseHref}/bath`}
-                  className="toy-btn toy-btn--bath"
-                >
-                  <span>Bath</span>
-                </IntentLink>
+            )}
+
+            {/* IN-ROOM FEED: Floating AI Chat Composer + Live Voice Mic */}
+            {!bookPickerOpen && teachMode === "feed" && (
+              <div className="feed-inroom-wrap">
+                {lastUserEcho && <div className="feed-user-echo">{lastUserEcho}</div>}
+                {isOverloaded && (
+                  <div className="flex items-center justify-between gap-3 rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-2 text-xs font-bold text-[var(--noggin-danger)]">
+                    <span>Over 120 words — split into smaller chunks.</span>
+                    <button
+                      type="button"
+                      onClick={handleAutoSplit}
+                      className="gbtn gbtn--coral gbtn--sm"
+                    >
+                      Auto-Split
+                    </button>
+                  </div>
+                )}
+                <form className="ai-chat-row" onSubmit={handleFeedSubmit}>
+                  <div className="ai-chat-pill">
+                    <span
+                      className="ai-chat-cap tnum"
+                      title="Brain capacity"
+                      style={
+                        isOverloaded
+                          ? { background: "var(--noggin-danger-soft)", color: "var(--noggin-danger)" }
+                          : undefined
+                      }
+                    >
+                      {wordCount}/{DEFAULT_LESSON_WORD_LIMIT}
+                    </span>
+                    <input
+                      type="text"
+                      className="ai-chat-input"
+                      aria-label={`Teach ${nog.name} about ${bookTitle}`}
+                      placeholder={
+                        fixingCard
+                          ? `Clarify "${fixingCard.label}" for ${nog.name}...`
+                          : `Teach ${nog.name} about ${bookTitle}...`
+                      }
+                      value={feedDraft}
+                      disabled={feedSending}
+                      onChange={(e) => setFeedDraft(e.target.value)}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="submit"
+                      disabled={feedSending || isOverloaded || wordCount === 0}
+                      className="ai-chat-send disabled:opacity-50"
+                      aria-label="Send lesson"
+                    >
+                      <Send className="h-[18px] w-[18px]" strokeWidth={2.6} aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLiveMuted(false);
+                      setTeachMode("live");
+                    }}
+                    className="ai-live-mic-btn"
+                    title="Start Live Voice Teaching"
+                    aria-label="Start Live Voice Mode"
+                  >
+                    <Mic className="h-[22px] w-[22px]" strokeWidth={2.4} aria-hidden="true" />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* IN-ROOM LIVE VOICE HUD */}
+            {!bookPickerOpen && teachMode === "live" && (
+              <div className="live-voice-hud">
+                <div className={`live-orb-wrap ${liveMuted ? "is-muted" : ""}`}>
+                  <span className="live-orb-ring" aria-hidden="true" />
+                  <div className="live-wave-bars" aria-hidden="true">
+                    <i /><i /><i /><i /><i />
+                  </div>
+                </div>
+                <div className="live-voice-actions">
+                  <button
+                    type="button"
+                    onClick={() => setLiveMuted((v) => !v)}
+                    className="gbtn gbtn--white gbtn--sm"
+                  >
+                    {liveMuted ? "Unmute" : "Mute"}
+                  </button>
+                  {liveTranscript.trim().length > 0 && (
+                    <button
+                      type="button"
+                      disabled={feedSending}
+                      onClick={() => void sendLessonText(liveTranscript, true)}
+                      className="gbtn gbtn--leaf gbtn--sm"
+                    >
+                      {feedSending ? "Saving…" : "Teach This"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopLiveVoice();
+                      setTeachMode("feed");
+                    }}
+                    className="live-end-btn"
+                    aria-label="End Live Voice"
+                  >
+                    End Live
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* IN-ROOM WATER: Compact Floating Recall Card */}
+            {!bookPickerOpen && teachMode === "water" && (
+              <div className="inroom-care-card">
+                <div className="inroom-care-card__head">
+                  <strong>Water · Refresh {bookTitle}</strong>
+                  <span className="pill pill--honey tnum">{dueQueue.length} due</span>
+                </div>
+                {currentDueCard ? (
+                  <>
+                    <p className="inroom-care-card__q">
+                      <strong>{currentDueCard.label}:</strong> &ldquo;{currentDueCard.paraphrase}&rdquo;
+                    </p>
+                    {waterShowQuote && currentDueCard.quote && (
+                      <p className="m-0 rounded-[14px] bg-[var(--noggin-mint-light)] px-3 py-2 text-xs font-semibold text-[var(--noggin-forest)]">
+                        Your words: &ldquo;{currentDueCard.quote}&rdquo;
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {!waterShowQuote && currentDueCard.quote && (
+                        <button
+                          type="button"
+                          onClick={() => setWaterShowQuote(true)}
+                          className="gbtn gbtn--mint gbtn--sm mr-auto"
+                        >
+                          Show my words
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={waterBusy}
+                        onClick={() => void handleWaterReexplain()}
+                        className="gbtn gbtn--white gbtn--sm"
+                      >
+                        Re-explain
+                      </button>
+                      <button
+                        type="button"
+                        disabled={waterBusy}
+                        onClick={() => void handleWaterRemembered()}
+                        className="gbtn gbtn--leaf gbtn--sm"
+                      >
+                        {waterBusy ? "Saving…" : "Still Fresh ✓"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="inroom-care-card__q">
+                    All {bookTitle} memories are fresh and hydrated!
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* IN-ROOM BATH: Compact Floating Missed Concept Card */}
+            {!bookPickerOpen && teachMode === "bath" && (
+              <div className="inroom-care-card">
+                <div className="inroom-care-card__head">
+                  <strong>Bath · Clarify Mistake</strong>
+                  <span className="pill">
+                    {bathCandidates.length > 0 ? `${bathCandidates.length} to fix` : "Clean ✓"}
+                  </span>
+                </div>
+                {currentBathCard ? (
+                  <>
+                    <p className="inroom-care-card__q">
+                      <strong>{currentBathCard.label}</strong> — {currentBathCard.paraphrase}
+                    </p>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {bathCandidates.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setBathIndex((i) => (i + 1) % bathCandidates.length)}
+                          className="gbtn gbtn--white gbtn--sm mr-auto"
+                        >
+                          Next ({(bathIndex % bathCandidates.length) + 1}/{bathCandidates.length})
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleBathClarify}
+                        className="gbtn gbtn--leaf gbtn--sm"
+                      >
+                        Clarify in Chat →
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="inroom-care-card__q">
+                    Squeaky clean! No muddy concepts right now.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* PERSISTENT FIXED-BOTTOM TEACH MODE BAR: Feed · Water · Bath */}
+            {!bookPickerOpen && teachMode && teachMode !== "live" && (
+              <nav
+                className={`teach-mode-bar ${teachMode !== "hub" ? "teach-mode-bar--docked" : ""}`}
+                aria-label="Teach actions"
+              >
                 <button
                   type="button"
-                  onClick={() => setTeachMode(false)}
-                  className="toy-btn toy-btn--white"
+                  onClick={() => handleOpenTeach("feed")}
+                  aria-pressed={teachMode === "feed"}
+                  className={`toy-btn toy-btn--feed ${teachMode === "feed" ? "is-active" : ""}`}
                 >
-                  Done
+                  <Pencil className="h-[18px] w-[18px]" strokeWidth={2.4} aria-hidden="true" />
+                  <span>Feed</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenTeach("water")}
+                  aria-pressed={teachMode === "water"}
+                  className={`toy-btn toy-btn--water ${teachMode === "water" ? "is-active" : ""}`}
+                >
+                  <Droplets className="h-[18px] w-[18px]" strokeWidth={2.4} aria-hidden="true" />
+                  <span>Water</span>
+                  {dueQueue.length > 0 && (
+                    <span className="toy-dot tnum">{dueQueue.length}</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenTeach("bath")}
+                  aria-pressed={teachMode === "bath"}
+                  className={`toy-btn toy-btn--bath ${teachMode === "bath" ? "is-active" : ""}`}
+                >
+                  <Sparkles className="h-[18px] w-[18px]" strokeWidth={2.4} aria-hidden="true" />
+                  <span>Bath</span>
+                  {bathCandidates.length > 0 && (
+                    <span className="toy-dot tnum">{bathCandidates.length}</span>
+                  )}
                 </button>
               </nav>
             )}
           </section>
 
-          {/* RIGHT: Organic Stats Card */}
+          {/* RIGHT: Organic Stats Card (Hidden Automatically in Teach Mode) */}
           {!teachMode && (
             <aside className="gamestage-right" aria-label={`${nog.name} stats and care`}>
               <div className="gamestage-card">
@@ -649,6 +1402,186 @@ export function NogRoomView({
           )}
         </div>
       </div>
+
+      {/* Centered Blurred Full-Screen 3D Notebook Selector Overlay */}
+      {teachMode && bookPickerOpen && (
+        <div
+          className="live-book-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choose a notebook"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setBookPickerOpen(false);
+          }}
+        >
+          <div className="live-book-modal__inner">
+            <div className="live-book-modal__head">
+              <strong>{bookEditMode ? "Edit Notebook" : "Choose Notebook"}</strong>
+              <div className="inline-flex items-center gap-2.5">
+                <button
+                  type="button"
+                  className={`book-edit-toggle-btn ${bookEditMode ? "is-on" : ""}`}
+                  aria-label="Edit notebooks"
+                  aria-pressed={bookEditMode}
+                  onClick={() => {
+                    setBookEditMode((v) => !v);
+                    if (!editingBookId && activeTopic) setEditingBookId(activeTopic.id);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="tasks-close-btn"
+                  aria-label="Close notebook picker"
+                  onClick={() => setBookPickerOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="live-book-modal__grid">
+              {topics.map((t, idx) => {
+                const tTitle = state.notebookTitles[t.id] ?? t.title;
+                const tCover =
+                  state.notebookCovers[t.id] ??
+                  COVER_SWATCHES[idx % COVER_SWATCHES.length].id;
+                const isSelected = bookEditMode
+                  ? editBookId === t.id
+                  : activeTopic?.id === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      if (bookEditMode) {
+                        setEditingBookId(t.id);
+                        return;
+                      }
+                      setActiveTopicId(t.id);
+                      setBookPickerOpen(false);
+                      showToast(`Switched notebook to ${tTitle}`);
+                    }}
+                    className={`live-book-float ${isSelected ? "is-active" : ""} ${bookEditMode && isSelected ? "is-editing" : ""}`}
+                  >
+                    <span className="live-book-float__svg">
+                      <Book3dSvg style={tCover} title={tTitle} uid={`mdl-${t.id}`} />
+                    </span>
+                    <span className="live-book-float__name" title={tTitle}>
+                      {tTitle}
+                    </span>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() =>
+                  requestPurchase({
+                    title: "UNLOCK NOTEBOOK SLOT",
+                    itemLabel: "Extra Notebook Slot",
+                    cost: 150,
+                    onConfirm: () => {
+                      updateState((prev) => ({
+                        ...prev,
+                        coins: Math.max(0, prev.coins - 150),
+                      }));
+                      showToast("Unlocked extra notebook slot! (-150 coins)");
+                    },
+                  })
+                }
+                className="live-book-float live-book-float--locked"
+              >
+                <span className="live-book-float__lock slot-glow-card tnum">
+                  <span className="slot-glow-plus">+</span>
+                  <span className="slot-glow-price">🪙 150</span>
+                </span>
+                <span className="live-book-float__name">Add Slot</span>
+              </button>
+            </div>
+
+            {bookEditMode && editBookTopic ? (
+              <div className="book-edit-bar">
+                <div className="book-edit-title-row">
+                  <input
+                    className="book-edit-input"
+                    type="text"
+                    value={editBookTitle}
+                    maxLength={30}
+                    placeholder="Notebook title (max 30)"
+                    onChange={(e) => {
+                      const val = e.target.value.slice(0, 30);
+                      updateState((prev) => ({
+                        ...prev,
+                        notebookTitles: {
+                          ...prev.notebookTitles,
+                          [editBookTopic.id]: val,
+                        },
+                      }));
+                    }}
+                  />
+                  <span className="book-edit-count tnum">
+                    {editBookTitle.length}/30
+                  </span>
+                </div>
+                <div className="live-book-modal__swatches">
+                  <span>Cover:</span>
+                  {COVER_SWATCHES.map((cs) => {
+                    const isOn = editBookCover === cs.id;
+                    return (
+                      <button
+                        key={cs.id}
+                        type="button"
+                        className={`live-book-swatch ${isOn ? "is-on" : ""}`}
+                        style={{ backgroundColor: cs.color }}
+                        title={cs.label}
+                        aria-label={`${cs.label} cover`}
+                        onClick={() => {
+                          updateState((prev) => ({
+                            ...prev,
+                            notebookCovers: {
+                              ...prev.notebookCovers,
+                              [editBookId]: cs.id,
+                            },
+                          }));
+                          showToast(`Updated ${editBookTitle} cover`);
+                        }}
+                      >
+                        {isOn && (
+                          <Check className="h-3.5 w-3.5 text-white" strokeWidth={3.2} aria-hidden="true" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => void handleCreateInRoomNotebook(e)}
+                className="flex w-full max-w-[440px] items-center gap-2 rounded-full bg-[rgb(255_253_247_/_0.94)] p-1.5 pl-4 shadow-[0_8px_22px_rgb(18_32_6_/_0.26)]"
+              >
+                <input
+                  type="text"
+                  maxLength={60}
+                  value={newBookTitle}
+                  onChange={(e) => setNewBookTitle(e.target.value)}
+                  placeholder="New notebook title..."
+                  aria-label="New notebook title"
+                  className="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingBook || !newBookTitle.trim()}
+                  className="gbtn gbtn--leaf gbtn--sm shrink-0 disabled:opacity-55"
+                >
+                  {creatingBook ? "Adding…" : "+ Add"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

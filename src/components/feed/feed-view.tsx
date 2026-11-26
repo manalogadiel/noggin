@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Lightbulb, RefreshCw } from "lucide-react";
+import { Lightbulb, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
@@ -14,7 +14,6 @@ import {
   type AddTopicActionResult,
 } from "@/app/(app)/actions/topic-actions";
 import { useGameUi } from "@/components/game-ui/game-ui-context";
-import { RoomRail } from "@/components/room/room-rail";
 import type {
   LessonPage,
   MicMode,
@@ -513,18 +512,9 @@ function FeedWorkspace({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={activeRoom.src} alt="" className="scene-bg-img" />
       <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
-      <RoomRail nogId={nog.id} />
 
       <header className="stage-top">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nog.name}'s room`}
-            className="stage-close-btn"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
           <h1
             className="stage-h1"
             style={{ fontSize: "32px" }}
@@ -546,7 +536,7 @@ function FeedWorkspace({
       </header>
 
       <div
-        className="stage-body stage-body--with-rail gap-5"
+        className="stage-body gap-5"
         style={{ justifyContent: "flex-start" }}
       >
         {duplicateMessage && (
@@ -612,7 +602,7 @@ function FeedWorkspace({
             {isFirstLesson && (
               <section
                 aria-label="Lesson guidance"
-                className="surface-mint rounded-[24px] border border-[var(--noggin-sage-strong)] p-5"
+                className="surface-mint rounded-[24px] p-5"
               >
                 <div className="flex items-center gap-2 text-[var(--noggin-forest)]">
                   <Lightbulb
@@ -646,6 +636,7 @@ function FeedWorkspace({
 
             <NogChat
               nogName={nog.name}
+              nogTint={nog.colors?.body ?? null}
               bubbleText={bubbleText}
               isDizzy={isOverloaded}
               showBrainFogRetry={Boolean(pendingRetry) && !isOverloaded}

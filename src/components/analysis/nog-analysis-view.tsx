@@ -1,10 +1,8 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
-import { RoomRail } from "@/components/room/room-rail";
 import type { NogRecord } from "@/core/application/ports";
 import type { AnalysisCard } from "@/core/application/use-cases/get-nog-analysis";
 import type { GrowthStage } from "@/core/domain/training";
@@ -45,19 +43,11 @@ export function NogAnalysisView({
 
   return (
     <div className="game-world nb-world nb-textured-bg">
-      <div className="stage-body stage-body--with-rail max-w-[1260px] gap-6">
-        <header className="open-book-toolbar">
-          <div className="flex items-center gap-3">
-            <Link
-              href={roomHref}
-              aria-label={`Back to ${nog.name}'s room`}
-              className="stage-close-btn"
-            >
-              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            </Link>
-
-            <h1 className="stage-h1">Nog Analysis</h1>
-          </div>
+      <div className="stage-body max-w-[1260px] gap-6">
+        <header className="stage-top px-0">
+          <h1 className="stage-h1" style={{ fontSize: "30px" }}>
+            Nog Analysis
+          </h1>
 
           <span className="qs-brain-pill uppercase tracking-wider">
             Brain Map
@@ -69,6 +59,7 @@ export function NogAnalysisView({
             <div className="w-full max-w-[280px] lg:max-w-[330px] nog-bob">
               <NogStage
                 scene="room"
+                tint={nog.colors?.body ?? null}
                 alt={`${nog.name} in its room`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
@@ -90,14 +81,14 @@ export function NogAnalysisView({
 
           <section
             aria-label={`${nog.name} vitals`}
-            className="overflow-hidden rounded-[28px] border border-[var(--noggin-leaf)] bg-[var(--noggin-cream)] shadow-[0_14px_34px_var(--noggin-shadow)]"
+            className="surface-white overflow-hidden rounded-[28px] bg-[var(--noggin-cream)] p-2 shadow-[0_6px_0_var(--ng-c-dfd2b2),0_14px_34px_var(--noggin-shadow)]"
           >
-            <div className="divide-y divide-[var(--noggin-leaf)]/45">
+            <div className="flex flex-col gap-1">
               {meters.map((meter) => (
                 <VitalMeterRow key={meter.key} meter={meter} />
               ))}
 
-              <p className="px-5 py-3.5 text-center text-[0.875rem] font-medium text-[var(--noggin-ink)] sm:px-7">
+              <p className="m-2 rounded-[16px] bg-[var(--noggin-mint)] px-5 py-3 text-center text-[0.875rem] font-semibold text-[var(--noggin-forest)] sm:px-7">
                 Your Nog faints if any vital reaches 0
               </p>
             </div>
@@ -159,8 +150,6 @@ export function NogAnalysisView({
                         cy={pos.y}
                         r={isActive ? 28 : 22}
                         fill={fillColor}
-                        stroke="var(--noggin-white)"
-                        strokeWidth={isActive ? "4" : "2"}
                       />
                       <text
                         x={pos.x}
@@ -192,7 +181,7 @@ export function NogAnalysisView({
                   </p>
                 </div>
                 <Link
-                  href={`${roomHref}/water`}
+                  href={`${roomHref}?teach=water`}
                   className="gbtn gbtn--sm bg-[var(--ng-c-318fd6)] text-white w-full no-underline"
                 >
                   Practice Concepts in Water →
@@ -208,8 +197,6 @@ export function NogAnalysisView({
           cards={cards}
         />
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

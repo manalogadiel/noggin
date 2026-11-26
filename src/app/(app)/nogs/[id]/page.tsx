@@ -6,12 +6,15 @@ import {
   saveProfileSettingsAction,
 } from "@/app/(app)/actions/room-actions";
 import { wakeNogAction } from "@/app/(app)/nogs/[id]/rest/actions";
+import type { SanctuaryTeachMode } from "@/components/game-ui/game-ui-context";
 import { NogRoomView } from "@/components/room/nog-room-view";
 import { createContainer } from "@/composition/container";
 import {
   DEFAULT_PROFILE_SETTINGS,
   type NogStageSlug,
   type ProfileSettings,
+  type ThoughtCardRecord,
+  type TopicSummary,
 } from "@/core/application/ports";
 import { DEFAULT_GROWTH_THRESHOLDS } from "@/core/domain/training";
 
@@ -21,6 +24,23 @@ export const metadata: Metadata = {
 
 export interface NogRoomPageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{
+    teach?: string | string[];
+    topic?: string | string[];
+    card?: string | string[];
+  }>;
+}
+
+function firstParam(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
+}
+
+function parseTeachMode(raw: string | null): SanctuaryTeachMode | null {
+  if (raw === "hub" || raw === "feed" || raw === "live" || raw === "water" || raw === "bath") {
+    return raw;
+  }
+  return null;
 }
 
 function stageProgressPercent(
@@ -74,30 +94,61 @@ function RoomLoadError({ nogId }: { nogId: string }) {
   );
 }
 
-export default async function NogRoomPage({ params }: NogRoomPageProps) {
-  const { id } = await params;
+export default async function NogRoomPage({ params, searchParams }: NogRoomPageProps) {
+  const [{ id }, resolvedSearch] = await Promise.all([
+    params,
+    searchParams ??
+      Promise.resolve(
+        {} as {
+          teach?: string | string[];
+          topic?: string | string[];
+          card?: string | string[];
+        },
+      ),
+  ]);
+
+  const initialTeachMode = parseTeachMode(firstParam(resolvedSearch.teach));
+  const initialTopicId = firstParam(resolvedSearch.topic);
+  const initialCardId = firstParam(resolvedSearch.card);
 
   let roomResult;
   let masteredCount = 0;
   let initialSettings: ProfileSettings = DEFAULT_PROFILE_SETTINGS;
+  let topics: TopicSummary[] = [];
+  let dueCards: ThoughtCardRecord[] = [];
+  let cards: ThoughtCardRecord[] = [];
   let now = new Date();
 
   try {
     const container = await createContainer();
     now = container.clock?.now() ?? new Date();
-    const [room, analysisResult, settingsResult] = await Promise.all([
-      container.getNogRoom({ nogId: id }),
-      container.getNogAnalysis({ nogId: id }).catch(() => null),
-      container.getProfileSettings().catch(() => null),
-    ]);
+    const [room, analysisResult, settingsResult, topicsResult, dueResult] =
+      await Promise.all([
+        container.getNogRoom({ nogId: id }),
+        container.getNogAnalysis({ nogId: id }).catch(() => null),
+        container.getProfileSettings().catch(() => null),
+        typeof container.listTopics === "function"
+          ? container.listTopics({ nogId: id }).catch(() => null)
+          : Promise.resolve(null),
+        typeof container.listDueCards === "function"
+          ? container.listDueCards({ nogId: id }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
     roomResult = room;
 
     if (roomResult.status === "ok") {
+      cards = roomResult.cards ?? [];
       if (analysisResult?.status === "ok") {
         masteredCount = analysisResult.masteredCount;
       }
       if (settingsResult?.status === "ok") {
         initialSettings = settingsResult.settings;
+      }
+      if (topicsResult?.status === "ok") {
+        topics = topicsResult.topics;
+      }
+      if (dueResult?.status === "ok") {
+        dueCards = dueResult.cards;
       }
     }
   } catch {
@@ -125,6 +176,12 @@ export default async function NogRoomPage({ params }: NogRoomPageProps) {
       onSaveSettings={saveProfileSettingsAction}
       onPet={onPet}
       onWake={wakeNogAction.bind(null, nog.id)}
+      topics={topics}
+      dueCards={dueCards}
+      thoughtCards={cards}
+      initialTeachMode={initialTeachMode}
+      initialTopicId={initialTopicId}
+      initialCardId={initialCardId}
       now={now}
     />
   );

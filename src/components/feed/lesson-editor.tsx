@@ -75,8 +75,8 @@ export function LessonEditor({
       className={cn(
         "flex min-w-0 flex-col gap-4 rounded-[28px] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] transition-colors duration-200 motion-reduce:transition-none sm:p-6",
         isOverloaded
-          ? "bg-[var(--noggin-meter-low-soft)] ring-2 ring-[var(--noggin-danger)]"
-          : "surface-sage border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]",
+          ? "bg-[var(--noggin-meter-low-soft)] shadow-[0_5px_0_var(--game-coral-lip),0_14px_34px_var(--noggin-shadow)]"
+          : "surface-sage bg-[var(--noggin-sage)]",
       )}
     >
       {fixingCard && (
@@ -131,8 +131,10 @@ export function LessonEditor({
           onChange={(event) => onDraftChange(event.target.value)}
           disabled={isSaving}
           className={cn(
-            "g-textarea min-h-[210px] w-full resize-y rounded-[22px] bg-[var(--noggin-white)] p-4 text-[1rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_8px_var(--noggin-shadow)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)] disabled:opacity-75",
-            isOverloaded && "ring-2 ring-[var(--noggin-danger)]",
+            "g-textarea min-h-[210px] w-full resize-y rounded-[22px] p-4 text-[1rem] leading-relaxed text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] shadow-[inset_0_2px_8px_var(--noggin-shadow)] focus-visible:outline-none disabled:opacity-75",
+            isOverloaded
+              ? "bg-[var(--noggin-cream)] shadow-[0_4px_0_var(--game-coral-lip),inset_0_2px_8px_var(--noggin-shadow)]"
+              : "bg-[var(--noggin-white)]",
           )}
         />
 

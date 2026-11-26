@@ -15,18 +15,24 @@ const now = new Date("2026-11-22T08:00:00.000Z");
 const nog = { id: "nog-1", name: "Pingu" };
 
 describe("Rest (Figma Nap 257:347 / 259:185)", () => {
-  it("shows Take a Rest! with a Return Later choice defaulting to 2 days", async () => {
+  it("shows Take a Rest! with 4 duration radio tiles defaulting to 2 days and no bordered dropdown", async () => {
     const onStartRest = vi.fn();
     render(<RestView nog={nog} restUntil={null} now={now} onStartRest={onStartRest} onWake={vi.fn()} />);
 
     expect(screen.getByRole("heading", { level: 1, name: /take a rest!/i })).toBeInTheDocument();
-    const select = screen.getByLabelText(/return later/i);
-    expect(select).toHaveValue("2");
-    const options = Array.from((select as HTMLSelectElement).options).map((option) => option.textContent);
-    expect(options).toEqual(["In 1 day", "In 2 days", "In 3 days", "In 1 week"]);
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+
+    const group = screen.getByRole("radiogroup", { name: /rest duration/i });
+    expect(group).toBeVisible();
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(4);
+    expect(screen.getByRole("radio", { name: /^1 Day/i })).toBeVisible();
+    expect(screen.getByRole("radio", { name: /^2 Days/i })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /^3 Days/i })).toBeVisible();
+    expect(screen.getByRole("radio", { name: /^1 Week/i })).toBeVisible();
     expect(screen.getByTestId("nog-stage")).toHaveAttribute("data-scene", "sleeping");
 
-    await userEvent.selectOptions(select, "3");
+    await userEvent.click(screen.getByRole("radio", { name: /^3 Days/i }));
     await userEvent.click(screen.getByRole("button", { name: /start resting/i }));
     expect(onStartRest).toHaveBeenCalledWith(3);
   });

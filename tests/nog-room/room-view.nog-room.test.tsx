@@ -37,8 +37,25 @@ const observeIntersection = vi.fn();
 vi.mock("next/navigation", async (importOriginal) => ({
   ...await importOriginal<typeof import("next/navigation")>(),
   usePathname: () => "/nogs/nog-packet",
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+  }),
 }));
 vi.mock("@/app/(auth)/actions", () => ({ signOutAction: vi.fn() }));
+vi.mock("@/app/(app)/actions/lesson-actions", () => ({
+  teachLessonAction: vi.fn(),
+  reviseLessonAction: vi.fn(),
+  answerFollowUpAction: vi.fn(),
+}));
+vi.mock("@/app/(app)/actions/topic-actions", () => ({
+  addTopicAction: vi.fn(),
+}));
+vi.mock("@/app/(app)/nogs/[id]/water/actions", () => ({
+  reviewCardAction: vi.fn(),
+}));
 
 interface RoomViewProps {
   nog: NogRecord;
@@ -143,17 +160,12 @@ describe("Nog Room view", () => {
     expect(main.queryByRole("navigation", { name: /nog room sections/i })).not.toBeInTheDocument();
   });
 
-  it("links Teach actions (Feed, Water, Bath) and Sanctuary radial hub links to this Nog's pages", async () => {
+  it("links Sanctuary radial hub actions to this Nog's pages and keeps Teach (Feed, Water, Bath) in-room", async () => {
     const user = userEvent.setup();
     await renderRoom();
 
     const main = within(screen.getByRole("main"));
-    await user.click(main.getByRole("button", { name: /teach packet/i }));
-
     for (const [label, path] of [
-      ["Feed", "feed"],
-      ["Water", "water"],
-      ["Bath", "bath"],
       ["Play Quiz", "play"],
       ["Rest", "rest"],
       ["Notebook", "notebook"],
@@ -164,6 +176,25 @@ describe("Nog Room view", () => {
         .toHaveAttribute("href", `${roomHref}/${path}`);
     }
     expect(main.getByRole("link", { name: "Party Arena" })).toHaveAttribute("href", "/arena");
+
+    await user.click(main.getByRole("button", { name: /teach packet/i }));
+
+    const feedBtn = main.getByRole("button", { name: /^feed$/i });
+    const waterBtn = main.getByRole("button", { name: /^water/i });
+    const bathBtn = main.getByRole("button", { name: /^bath/i });
+    expect(feedBtn).toBeVisible();
+    expect(waterBtn).toBeVisible();
+    expect(bathBtn).toBeVisible();
+
+    await user.click(feedBtn);
+    expect(main.getByRole("textbox", { name: /teach packet/i })).toBeVisible();
+    expect(main.getByRole("button", { name: /start live voice/i })).toBeVisible();
+
+    await user.click(waterBtn);
+    expect(main.getByText(/water · refresh/i)).toBeVisible();
+
+    await user.click(bathBtn);
+    expect(main.getByText(/bath · clarify mistake/i)).toBeVisible();
   });
 
   it("opens the unified AppShell slide-out navigation from the top bar menu button with Study & Care links", async () => {

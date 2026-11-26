@@ -202,7 +202,7 @@ describe("Quick Check in Play", () => {
     await user.click(startButton());
 
     expect(await screen.findByText(/you haven['’]t taught me that yet!/i)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Teach it" })).toHaveAttribute("href", `${roomHref}/feed?topic=${tcp.id}`);
+    expect(screen.getByRole("link", { name: "Teach it" })).toHaveAttribute("href", `${roomHref}?teach=feed&topic=${tcp.id}`);
     expect(screen.queryByText(firstQuestion.prompt)).not.toBeInTheDocument();
     expect(runQuickCheckAction).toHaveBeenCalledExactlyOnceWith(checkInput);
     expect(answer).not.toHaveBeenCalled();
@@ -321,8 +321,8 @@ describe("Quick Check in Play", () => {
     expect(screen.getByText(secondQuestion.nogAnswer)).toBeVisible();
     expect(screen.getByText(secondQuestion.concepts[0].concept)).toBeVisible();
     expect(screen.getByText(card.label)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Fix in Bath" })).toHaveAttribute("href", `${roomHref}/bath?topic=${tcp.id}`);
-    expect(screen.getByRole("link", { name: "Continue Training" })).toHaveAttribute("href", `${roomHref}/feed?topic=${tcp.id}`);
+    expect(screen.getByRole("link", { name: "Fix in Bath" })).toHaveAttribute("href", `${roomHref}?teach=bath&topic=${tcp.id}`);
+    expect(screen.getByRole("link", { name: "Continue Training" })).toHaveAttribute("href", `${roomHref}?teach=feed&topic=${tcp.id}`);
 
     await user.click(reviewToggle);
     expect(screen.queryByRole("link", { name: "Fix in Bath" })).not.toBeInTheDocument();
@@ -341,8 +341,10 @@ describe("Quick Check in Play", () => {
     expect(screen.getByText(/you got 1 out of 2 correct!/i)).toBeVisible();
     await user.click(screen.getByText(secondQuestion.prompt));
     const bath = screen.getByRole<HTMLAnchorElement>("link", { name: "Fix in Bath" });
-    expect(bath.pathname).toBe(`${roomHref}/bath`);
-    const topic = new URLSearchParams(bath.search).get("topic");
+    expect(bath.pathname).toBe(roomHref);
+    const bathParams = new URLSearchParams(bath.search);
+    expect(bathParams.get("teach")).toBe("bath");
+    const topic = bathParams.get("topic");
     expect(topic).toBe(tcp.id);
     play.unmount();
 
@@ -357,7 +359,7 @@ describe("Quick Check in Play", () => {
     expect(drawer.getByRole("button", { expanded: true })).toBeVisible();
     const highlightedCard = drawer.getByRole("listitem");
     expect(highlightedCard).toHaveTextContent(card.label);
-    expect(highlightedCard).toHaveClass("ring-2");
+    expect(highlightedCard.className).not.toMatch(/\bring-2\b/);
     const lesson = screen.getByRole("textbox", { name: "Your lesson" });
     expect(lesson).toHaveValue(card.quote);
     fireEvent.change(lesson, { target: { value: correctedLesson } });

@@ -287,7 +287,7 @@ export function NogCollection({ nogs }: NogCollectionProps) {
                           href={`/nogs/${nog.id}`}
                           aria-label={`${nog.name}, ${nog.subjectName}, ${stageLabel}`}
                           onMouseEnter={() => setSelectedId(nog.id)}
-                          className="group flex items-center gap-3.5 rounded-2xl border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-sm transition hover:-translate-y-0.5"
+                          className="group flex items-center gap-3.5 rounded-2xl bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-[0_4px_0_var(--lip-mint),0_8px_18px_var(--noggin-shadow)] transition hover:-translate-y-0.5"
                         >
                           <Image
                             src={imageSrc}
@@ -321,7 +321,7 @@ export function NogCollection({ nogs }: NogCollectionProps) {
                   <li>
                     <Link
                       href="/adopt"
-                      className="flex items-center gap-3.5 rounded-2xl border border-[var(--noggin-sage-strong)] bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-sm transition hover:-translate-y-0.5"
+                      className="flex items-center gap-3.5 rounded-2xl bg-[var(--noggin-mint-light)] px-4 py-2.5 shadow-[0_4px_0_var(--lip-mint),0_8px_18px_var(--noggin-shadow)] transition hover:-translate-y-0.5"
                     >
                       <span
                         aria-hidden="true"

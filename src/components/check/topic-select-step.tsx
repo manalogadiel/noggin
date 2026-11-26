@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   FileUp,
@@ -77,7 +76,7 @@ export function TopicSelectStep({
   });
 
   const roomHref = `/nogs/${nog.id}`;
-  const feedBaseHref = `${roomHref}/feed`;
+  const feedBaseHref = `${roomHref}?teach=feed`;
   const hasReadyTopic = topics.some((topic) => topic.status === "ready");
   const canStart = Boolean(selectedTopicId) && hasReadyTopic && !isThinking;
   const selectedTopic =
@@ -88,14 +87,6 @@ export function TopicSelectStep({
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="qs-top-bar">
           <div className="flex items-center gap-3">
-            <Link
-              href={roomHref}
-              aria-label={`Back to ${nog.name}'s room`}
-              className="stage-close-btn"
-            >
-              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            </Link>
-
             <h1 className="stage-h1">Play</h1>
 
             {selectedTopic && (
@@ -173,6 +164,7 @@ export function TopicSelectStep({
               <div className="w-[clamp(140px,14.5vw,210px)]">
                 <NogStage
                   scene="room"
+                  tint={nog.colors?.body ?? null}
                   alt={`${nog.name} thinking through the quiz questions`}
                   poster="/nog/blob-closeup.png"
                   width={1254}
@@ -198,28 +190,7 @@ export function TopicSelectStep({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <div className="qs-top-bar">
-        <div className="flex items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nog.name}'s room`}
-            className="stage-close-btn"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
-          <h1
-            className="stage-h1"
-            style={{ fontSize: "26px", color: "var(--noggin-white)" }}
-          >
-            Practice Quiz
-          </h1>
-        </div>
-
-        <p className="qs-brain-pill m-0 hidden sm:inline-flex">
-          {nog.name} answers each question from its own notebook while you watch.
-        </p>
-      </div>
+      <h1 className="sr-only">Practice Quiz</h1>
 
       <div className="qs-prep-stage flex-col gap-3">
         {/* Royal-Blue Dot-Matrix START QUIZ Marquee Shell */}
@@ -256,7 +227,7 @@ export function TopicSelectStep({
             <h2 className="sr-only">Topics</h2>
 
             {topics.length === 0 ? (
-              <div className="flex flex-col items-start gap-4 rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-sm">
+              <div className="flex flex-col items-start gap-4 rounded-[24px] bg-[var(--noggin-sage)] p-6 shadow-[0_6px_16px_rgb(34_54_10_/_0.12)]">
                 <p className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]">
                   No topics to quiz yet
                 </p>
@@ -453,14 +424,14 @@ function FeedbackBanner({
   feedBaseHref,
   onRetry,
 }: FeedbackBannerProps) {
-  const teachHref = `${feedBaseHref}?topic=${encodeURIComponent(feedback.topicId)}`;
+  const teachHref = `${feedBaseHref}&topic=${encodeURIComponent(feedback.topicId)}`;
 
   if (feedback.kind === "not_taught") {
     return (
       <div
         role="status"
         aria-live="polite"
-        className="flex flex-col items-start gap-3 rounded-[24px] bg-[var(--noggin-white)] p-5 shadow-[0_10px_24px_var(--noggin-shadow)] ring-2 ring-[var(--noggin-leaf)]"
+        className="flex flex-col items-start gap-3 rounded-[24px] bg-[var(--noggin-white)] p-5 shadow-[0_5px_0_var(--lip-leaf),0_12px_24px_var(--noggin-shadow)]"
       >
         <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
           You haven&apos;t taught me that yet!

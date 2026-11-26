@@ -86,7 +86,7 @@ afterEach(() => {
 });
 
 describe("Quick Check Figma restyle — Question step (113:733)", () => {
-  it("renders h1 'Play', a round back link to the room, topic chip, 'Question n of N', and the question prompt inside a sage region labelled 'Question n'", async () => {
+  it("renders h1 'Play', topic chip, 'Question n of N', and the question prompt inside a borderless sage region labelled 'Question n'", async () => {
     const user = userEvent.setup();
     render(<PlayView nog={nog} topics={[tcp, dns]} initialTopicId={tcp.id} />);
 
@@ -103,11 +103,11 @@ describe("Quick Check Figma restyle — Question step (113:733)", () => {
       ),
     ).toBeNull();
 
-    const backLink = screen.getByRole("link", {
-      name: new RegExp(`back to ${nog.name}['’]s room`, "i"),
-    });
-    expect(backLink).toBeVisible();
-    expect(backLink).toHaveAttribute("href", roomHref);
+    expect(
+      screen.queryByRole("link", {
+        name: new RegExp(`back to ${nog.name}['’]s room`, "i"),
+      }),
+    ).not.toBeInTheDocument();
 
     expect(screen.getByText(tcp.title)).toBeVisible();
     expect(screen.getByText("Question 1 of 2")).toBeVisible();
@@ -125,8 +125,7 @@ describe("Quick Check Figma restyle — Question step (113:733)", () => {
     expect(answerNode).toBeVisible();
     const answerBox = answerNode.closest("[data-attempt-id]");
     expect(answerBox).not.toBeNull();
-    expect(answerBox!.className).toMatch(/border-2/);
-    expect(answerBox!.className).toMatch(/--noggin-leaf/);
+    expect(answerBox!.className).not.toMatch(/\bborder-2\b/);
   });
 
   it("labels the navigation pills 'Previous' and 'Next →' (and 'See results →' on the last question), with a sage 'Quiz Progress' card and frameless Nog on the right", async () => {
@@ -233,11 +232,11 @@ describe("Quick Check Figma restyle — Results step (113:746)", () => {
       ),
     ).toBeNull();
 
-    const backLink = screen.getByRole("link", {
-      name: new RegExp(`back to ${nog.name}['’]s room`, "i"),
-    });
-    expect(backLink).toBeVisible();
-    expect(backLink).toHaveAttribute("href", roomHref);
+    expect(
+      screen.queryByRole("link", {
+        name: new RegExp(`back to ${nog.name}['’]s room`, "i"),
+      }),
+    ).not.toBeInTheDocument();
 
     const bannerH2 = screen.getByRole("heading", {
       level: 2,
@@ -270,7 +269,7 @@ describe("Quick Check Figma restyle — Results step (113:746)", () => {
     expect(screen.getByText(card.label)).toBeVisible();
     expect(screen.getByRole("link", { name: "Fix in Bath" })).toHaveAttribute(
       "href",
-      `${roomHref}/bath?topic=${tcp.id}`,
+      `${roomHref}?teach=bath&topic=${tcp.id}`,
     );
 
     for (const pattern of [
@@ -292,7 +291,7 @@ describe("Quick Check Figma restyle — Results step (113:746)", () => {
     expect(continueLink).toBeVisible();
     expect(continueLink).toHaveAttribute(
       "href",
-      `${roomHref}/feed?topic=${tcp.id}`,
+      `${roomHref}?teach=feed&topic=${tcp.id}`,
     );
     expect(
       screen.getByRole("button", { name: /choose another topic/i }),

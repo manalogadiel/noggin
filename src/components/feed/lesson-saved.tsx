@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useGameUi } from "@/components/game-ui/game-ui-context";
-import { RoomRail } from "@/components/room/room-rail";
 import type { LessonPage, NogRecord, TopicSummary } from "@/core/application/ports";
 import { type FollowUpItem, NogChat } from "./nog-chat";
 
@@ -50,7 +49,6 @@ export function LessonSaved({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={activeRoom.src} alt="" className="scene-bg-img" />
       <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
-      <RoomRail nogId={nog.id} />
 
       <header className="stage-top">
         <div className="flex items-center gap-3">
@@ -64,7 +62,7 @@ export function LessonSaved({
       </header>
 
       <div
-        className="stage-body stage-body--with-rail gap-6"
+        className="stage-body gap-6"
         style={{ justifyContent: "flex-start" }}
       >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
@@ -100,6 +98,7 @@ export function LessonSaved({
 
           <NogChat
             nogName={nog.name}
+            nogTint={nog.colors?.body ?? null}
             bubbleText={replyText}
             followUps={followUps}
             onFollowUpDraftChange={onFollowUpDraftChange}
