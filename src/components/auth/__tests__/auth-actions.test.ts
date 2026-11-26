@@ -77,4 +77,41 @@ describe("signUpFormAction", () => {
     });
     expect(signUp).toHaveBeenCalledOnce();
   });
+
+  it("requires a valid guardian_email for ages 6-12 and forwards it when provided", async () => {
+    const tenYearsAgo = `${new Date().getUTCFullYear() - 10}-01-15`;
+    const missingGuardian = await signUpFormAction(
+      {},
+      buildSignupFormData({ birth_date: tenYearsAgo }),
+    );
+    expect(missingGuardian).toMatchObject({
+      errorField: "guardian_email",
+      birthDate: tenYearsAgo,
+    });
+    expect(signUp).not.toHaveBeenCalled();
+
+    signUp.mockResolvedValue({
+      data: { user: { id: "child-1" }, session: null },
+      error: null,
+    });
+    await expect(
+      signUpFormAction(
+        {},
+        buildSignupFormData({
+          birth_date: tenYearsAgo,
+          guardian_email: "Parent@Example.com",
+        }),
+      ),
+    ).rejects.toMatchObject({ destination: "/adopt" });
+    expect(signUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: {
+          data: expect.objectContaining({
+            birth_date: tenYearsAgo,
+            guardian_email: "parent@example.com",
+          }),
+        },
+      }),
+    );
+  });
 });

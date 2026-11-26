@@ -542,28 +542,51 @@ async function resolvePersona(
   };
 }
 
-async function readDisplayName(
+async function readProfileHeader(
   session: SupabaseClient,
   userId: string,
-): Promise<string | null> {
+): Promise<{ displayName: string | null; birthDate: string | null }> {
   if (typeof session.from !== "function") {
-    return null;
+    return { displayName: null, birthDate: null };
   }
 
   try {
     const { data, error } = await session
       .from("profiles")
-      .select("display_name")
+      .select("display_name, birth_date")
       .eq("id", userId)
-      .maybeSingle<{ display_name: unknown }>();
-    if (error || !data || typeof data.display_name !== "string") {
-      return null;
+      .maybeSingle<{ display_name: unknown; birth_date?: unknown }>();
+    if (error || !data) {
+      return { displayName: null, birthDate: null };
     }
-    const trimmed = data.display_name.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    const displayName =
+      typeof data.display_name === "string" && data.display_name.trim().length > 0
+        ? data.display_name.trim()
+        : null;
+    const birthDate =
+      typeof data.birth_date === "string" && data.birth_date.trim().length > 0
+        ? data.birth_date.trim()
+        : null;
+    return { displayName, birthDate };
   } catch {
-    return null;
+    return { displayName: null, birthDate: null };
   }
+}
+
+function computeAgeTierFromBirthDate(birthDate: string | null): "under_13" | "standard" {
+  if (!birthDate) return "standard";
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(birthDate);
+  if (!match) return "standard";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const now = new Date();
+  let age = now.getUTCFullYear() - year;
+  const mDiff = now.getUTCMonth() + 1 - month;
+  if (mDiff < 0 || (mDiff === 0 && now.getUTCDate() < day)) {
+    age -= 1;
+  }
+  return age < 13 ? "under_13" : "standard";
 }
 
 async function readEmail(session: SupabaseClient): Promise<string | null> {
@@ -587,6 +610,7 @@ export interface AppContainer {
   currentUser: CurrentUser;
   clock?: Clock;
   getDisplayName: () => Promise<string | null>;
+  getAgeTier?: () => Promise<"under_13" | "standard">;
   getEmail: () => Promise<string | null>;
   getFeatures: () => Promise<Record<string, boolean>>;
   getProfileSettings: () => Promise<GetProfileSettingsResult>;
@@ -689,6 +713,7 @@ async function buildContainer(): Promise<AppContainer> {
     return {
       currentUser: anonymousUser,
       getDisplayName: async () => null,
+      getAgeTier: async () => "standard",
       getEmail: async () => null,
       getFeatures: async () => ({}),
       getProfileSettings: async () => ({ status: "unauthenticated" }),
@@ -757,7 +782,7 @@ async function buildContainer(): Promise<AppContainer> {
   let nogListCache: Promise<NogRecord[]> | null = null;
   const cardsByNogCache = new Map<string, Promise<Awaited<ReturnType<NonNullable<SupabaseRepositories["thoughtCards"]["listByNog"]>>>>>();
   const cardsByTopicCache = new Map<string, Promise<Awaited<ReturnType<SupabaseRepositories["thoughtCards"]["listByTopic"]>>>>();
-  let displayNameCache: Promise<string | null> | null = null;
+  let profileHeaderCache: Promise<{ displayName: string | null; birthDate: string | null }> | null = null;
   let profileSettingsCache: Promise<GetProfileSettingsResult> | null = null;
   let learningProgressCache: Promise<GetLearningProgressResult> | null = null;
   let listNogsCache: Promise<ListNogsResult> | null = null;
@@ -767,7 +792,7 @@ async function buildContainer(): Promise<AppContainer> {
     nogListCache = null;
     cardsByNogCache.clear();
     cardsByTopicCache.clear();
-    displayNameCache = null;
+    profileHeaderCache = null;
     profileSettingsCache = null;
     learningProgressCache = null;
     listNogsCache = null;
@@ -958,11 +983,17 @@ async function buildContainer(): Promise<AppContainer> {
   return {
     currentUser,
     clock,
-    getDisplayName: () => {
-      if (!displayNameCache) {
-        displayNameCache = readDisplayName(session, userId);
+    getDisplayName: async () => {
+      if (!profileHeaderCache) {
+        profileHeaderCache = readProfileHeader(session, userId);
       }
-      return displayNameCache;
+      return (await profileHeaderCache).displayName;
+    },
+    getAgeTier: async () => {
+      if (!profileHeaderCache) {
+        profileHeaderCache = readProfileHeader(session, userId);
+      }
+      return computeAgeTierFromBirthDate((await profileHeaderCache).birthDate);
     },
     getEmail: async () => authenticatedEmail ?? readEmail(session),
     getFeatures: async () => ({ ...features }),
