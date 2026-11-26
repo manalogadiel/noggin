@@ -10731,11 +10731,11 @@
 }
 
 .cust-nog-bob {
-  margin-bottom: -24px;
+  margin-bottom: -24px !important;
 }
 
 .cust-nog-bob--baby {
-  margin-bottom: -52px;
+  margin-bottom: -52px !important;
 }
 
 .cust-nog-img {
@@ -10912,6 +10912,26 @@
 .qs-sc-body {
   grid-template-columns: 1fr;
   padding: 14px;
+}
+
+.qs-sc-header {
+  grid-template-columns: auto 1fr;
+  row-gap: 8px;
+  column-gap: 10px;
+  padding: 12px 12px 10px;
+}
+
+.qs-sc-header .qs-sc-title {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  text-align: center;
+  font-size: 24px;
+}
+
+.qs-sc-shell--prep .qs-sc-badge {
+  justify-self: end;
+  font-size: 11px;
+  padding: 4px 10px;
 }
 
 .home-arc-dock {

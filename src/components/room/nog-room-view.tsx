@@ -558,6 +558,19 @@ export function NogRoomView({
                   <div className="gamestage-bars tnum">
                     <div className="gamestage-bar-row" style={{ gridTemplateColumns: "108px 1fr 40px" }}>
                       <span>BRAIN CAPACITY</span>
+                      <div className="gamestage-meter">
+                        <i
+                          style={{
+                            width: `${clampedProgress}%`,
+                            background: "linear-gradient(90deg, var(--ng-c-93c556) 0%, var(--ng-c-5f9128) 100%)",
+                          }}
+                        />
+                      </div>
+                      <span style={{ textAlign: "right" }}>{clampedProgress}%</span>
+                    </div>
+
+                    <div className="gamestage-bar-row" style={{ gridTemplateColumns: "108px 1fr 40px" }}>
+                      <span>LEVEL {level}</span>
                       <div
                         role="progressbar"
                         aria-label={`${nog.name} level progress`}
@@ -569,7 +582,7 @@ export function NogRoomView({
                         <i
                           style={{
                             width: `${clampedProgress}%`,
-                            background: "linear-gradient(90deg, var(--ng-c-93c556) 0%, var(--ng-c-5f9128) 100%)",
+                            background: "linear-gradient(90deg, var(--ng-c-f7cb52) 0%, var(--noggin-leaf) 100%)",
                           }}
                         />
                       </div>

@@ -121,7 +121,7 @@ export function NogStage({
         height={height}
         sizes={sizes}
         priority={priority}
-        className={cn("h-auto w-full object-contain transition-opacity duration-300", ready && "opacity-0")}
+        className={cn("h-auto w-full object-contain", ready && "opacity-0")}
       />
       {tint && (
         // shortcut: tints leaves too in the fallback only
@@ -139,23 +139,25 @@ export function NogStage({
             maskPosition: "center",
           }}
           className={cn(
-            "pointer-events-none absolute inset-0 mix-blend-multiply transition-opacity duration-300",
+            "pointer-events-none absolute inset-0 mix-blend-multiply",
             ready && "opacity-0",
           )}
         />
       )}
       {mounted && (
-        <NogCanvas
-          scene={scene}
-          active={visible}
-          tint={tint}
-          onReady={onReady}
-          onFail={onFail}
-          className={cn(
-            "!absolute inset-0 transition-opacity duration-300",
-            ready ? "opacity-100" : "opacity-0",
-          )}
-        />
+        <div
+          className="absolute inset-0 z-[2]"
+          style={{ opacity: ready ? 1 : 0 }}
+        >
+          <NogCanvas
+            scene={scene}
+            active={visible}
+            tint={tint}
+            onReady={onReady}
+            onFail={onFail}
+            className="h-full w-full"
+          />
+        </div>
       )}
     </div>
   );
