@@ -143,14 +143,14 @@ function useLocalSignUp() {
   return db;
 }
 
-it("shows a clear age message for age 15 and leaves no session or account", async () => {
+it.each([15, 16, 17])("shows a clear age message for age %i and leaves no session or account", async (age) => {
   const { signUpAction } = await loadAuthActions();
   const db = useLocalSignUp();
   const account = credentials();
 
-  const result = await signUpAction(authForm({ ...account, birth_date: birthDate(15), display_name: "Pip" }));
+  const result = await signUpAction(authForm({ ...account, birth_date: birthDate(age), display_name: "Pip" }));
 
-  expect(result?.error).toMatch(/\b16\b/);
+  expect(result?.error).toMatch(/\b18\b/);
   expect(result?.error).toMatch(/age|years|older|under|minimum|at least/i);
   expect(auth.signUp).not.toHaveBeenCalled();
   expect(jar.has(sessionCookie)).toBe(false);
@@ -158,10 +158,10 @@ it("shows a clear age message for age 15 and leaves no session or account", asyn
   await db.createUser(account);
 }, 25_000);
 
-it.each([16, 17])("accepts age %i and saves the display name with pending guardian consent", async (age) => {
+it("accepts age 18 and saves the display name without guardian consent", async () => {
   const { signUpAction } = await loadAuthActions();
   const db = useLocalSignUp();
-  const date = birthDate(age);
+  const date = birthDate(18);
 
   await expect(signUpAction(authForm({ ...credentials(), birth_date: date, display_name: "Pip" })))
     .rejects.toMatchObject({ destination: "/adopt" });
@@ -176,6 +176,6 @@ it.each([16, 17])("accepts age %i and saves the display name with pending guardi
     guardian_consent_at: string | null;
   }>("profiles", { id: eq(user.id) }), "Read age-gated profile");
   expect(profile).toMatchObject({
-    birth_date: date, display_name: "Pip", guardian_consent_status: "pending", guardian_consent_at: null,
+    birth_date: date, display_name: "Pip", guardian_consent_status: "not_required", guardian_consent_at: null,
   });
 }, 25_000);

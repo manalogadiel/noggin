@@ -115,7 +115,7 @@ describe("SignupForm", () => {
       "2026-11-21",
     );
     expect(screen.getByLabelText(/^Birthday\s*\*?$/)).toHaveAccessibleDescription(
-      /ages 16 and up/i,
+      /ages 18 and up/i,
     );
     const consent = screen.getByRole("checkbox", { name: /Privacy notice/i });
     expect(consent).toBeRequired();
@@ -166,7 +166,7 @@ describe("SignupForm", () => {
 
     resolveAction({
       error:
-        "Your Nog is still snug in its shell! Noggin is for ages 16 and up. Come back on your 16th birthday.",
+        "Your Nog is still snug in its shell! Noggin is for ages 18 and up. Come back on your 18th birthday.",
       errorField: "birthday",
       email: "cindy@example.com",
       displayName: "Cindy",
@@ -175,7 +175,7 @@ describe("SignupForm", () => {
     });
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/ages 16 and up/i);
+    expect(alert).toHaveTextContent(/ages 18 and up/i);
     await waitFor(() => expect(alert).toHaveFocus());
     expect(screen.getByLabelText(/^Birthday\s*\*?$/)).toHaveAttribute(
       "aria-invalid",
