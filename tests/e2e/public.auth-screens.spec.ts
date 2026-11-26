@@ -7,7 +7,7 @@ type Credentials = { email: string; password: string };
 const loginHeading = /^Hello, Welcome Back!$/i;
 const signupHeading = /^Hatch your Nog$/i;
 const loginError = "Check your email and password";
-const ageError = /Your Nog is still snug in its shell! Noggin is for ages 16 and up\./i;
+const ageError = /Your Nog is still snug in its shell! Noggin is for ages 18 and up\./i;
 const adultBirthday = "2000-01-01";
 
 const test = localAuthTest.extend<{ findSignupUser: () => Promise<{ id: string } | undefined> }>({
@@ -152,7 +152,7 @@ test("signup provides labeled fields, an eight-character minimum and required pr
   await expect(password).toHaveAccessibleDescription(/At least 8 characters/i);
   const birthday = await expectLabeledField(main, "Birthday", "bday");
   await expect(birthday).toHaveAttribute("type", "date");
-  await expect(birthday).toHaveAccessibleDescription(/ages 16 and up/i);
+  await expect(birthday).toHaveAccessibleDescription(/ages 18 and up/i);
   await expect(privacyAgreement(main)).toHaveAccessibleName(/agree to Noggin saving my lessons and progress/i);
   await expect(privacyAgreement(main)).toHaveJSProperty("required", true);
   await expect(privacyAgreement(main)).not.toBeChecked();
@@ -170,9 +170,9 @@ test("a valid signup creates an account and lands on adoption", async ({ page, l
   await expectSignedIn(page);
 });
 
-test("under-16 signup announces the age rule and creates no Supabase account", async ({ page, localAuth, findSignupUser }) => {
+test("under-18 signup announces the age rule and creates no Supabase account", async ({ page, localAuth, findSignupUser }) => {
   const main = await openPage(page, "/signup");
-  const birthYear = new Date().getUTCFullYear() - 15;
+  const birthYear = new Date().getUTCFullYear() - 17;
   await submitSignup(main, localAuth.credentials, `${birthYear}-01-01`);
 
   const alert = main.getByRole("alert").filter({ hasText: ageError });

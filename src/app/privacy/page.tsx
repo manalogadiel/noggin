@@ -69,10 +69,11 @@ export default function PrivacyPage() {
               <p className="mt-2">
                 We rely on trusted service providers to run Noggin: Supabase
                 (database and sign-in, Singapore), Vercel (website hosting),
-                Groq (AI that reads your lessons and turns speech into text; it
-                does not train on our data), and Google Gemini (reads the
-                Nog&apos;s answers aloud; it only receives the answer text).
-                Data may be processed outside the Philippines.
+                Polar (payment processing and Merchant of Record for Noggin Plus
+                and Coin Packs), Groq (AI that reads your lessons and turns
+                speech into text; it does not train on our data), and Google
+                Gemini (reads the Nog&apos;s answers aloud; it only receives the
+                answer text). Data may be processed outside the Philippines.
               </p>
             </section>
 
@@ -104,9 +105,10 @@ export default function PrivacyPage() {
                 Age
               </h2>
               <p className="mt-2">
-                Noggin is for ages 16 and up. If you&apos;re 16–17 we need a
-                parent&apos;s or guardian&apos;s consent; some features stay
-                limited until then.
+                Noggin is strictly for adult learners and university students
+                ages 18 and up. Accounts and paid plans are not available to
+                anyone under 18. We verify age at sign-up and do not knowingly
+                collect personal information from minors.
               </p>
             </section>
 
@@ -127,9 +129,12 @@ export default function PrivacyPage() {
               </h2>
               <p className="mt-2">
                 Questions or requests: email the Noggin team at{" "}
-                <strong className="font-bold text-[var(--noggin-forest)]">
-                  [contact email to be set before launch]
-                </strong>
+                <a
+                  href="mailto:gadielmanalo19@gmail.com"
+                  className="font-bold text-[var(--noggin-forest)] underline decoration-2 underline-offset-4"
+                >
+                  gadielmanalo19@gmail.com
+                </a>
                 .
               </p>
             </section>

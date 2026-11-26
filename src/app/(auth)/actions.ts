@@ -23,14 +23,14 @@ export type AuthFormState = {
 const DEFAULT_REDIRECT = "/nogs";
 const SIGN_UP_REDIRECT = "/adopt";
 const SIGN_OUT_REDIRECT = "/login";
-const MIN_AGE_YEARS = 16;
+const MIN_AGE_YEARS = 18;
 
 const SIGN_IN_ERROR = "Check your email and password";
 const SIGN_UP_ERROR = "Couldn't create the account";
 const PRIVACY_CONSENT_ERROR =
   "Please agree to the Privacy notice to continue.";
 const AGE_GATE_ERROR =
-  "Your Nog is still snug in its shell! Noggin is for ages 16 and up. Come back on your 16th birthday.";
+  "Your Nog is still snug in its shell! Noggin is for ages 18 and up. Come back on your 18th birthday.";
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const CONTROL_CHAR_PATTERN = /[\u0000-\u001f\u007f]/;
