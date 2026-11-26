@@ -13,24 +13,28 @@ export type AuthActionResult =
 
 export type AuthFormState = {
   error?: string;
-  errorField?: "credentials" | "birthday" | "form";
+  errorField?: "credentials" | "birthday" | "guardian_email" | "form";
   email?: string;
   displayName?: string;
   birthDate?: string;
+  guardianEmail?: string;
   attempt?: number;
 };
 
 const DEFAULT_REDIRECT = "/nogs";
 const SIGN_UP_REDIRECT = "/adopt";
 const SIGN_OUT_REDIRECT = "/login";
-const MIN_AGE_YEARS = 18;
+const MIN_AGE_YEARS = 6;
+const CHILD_AGE_THRESHOLD = 13;
 
 const SIGN_IN_ERROR = "Check your email and password";
 const SIGN_UP_ERROR = "Couldn't create the account";
 const PRIVACY_CONSENT_ERROR =
   "Please agree to the Privacy notice to continue.";
 const AGE_GATE_ERROR =
-  "Your Nog is still snug in its shell! Noggin is for ages 18 and up. Come back on your 18th birthday.";
+  "Your Nog is still snug in its shell! Noggin is for ages 6 and up. Come back on your 6th birthday.";
+const GUARDIAN_EMAIL_ERROR =
+  "Learners under 13 need a valid parent or guardian email address to create an account.";
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const CONTROL_CHAR_PATTERN = /[\u0000-\u001f\u007f]/;
@@ -42,11 +46,14 @@ const signInSchema = z.object({
   next: z.string().optional(),
 });
 
+const emailValueSchema = z.string().trim().max(320).pipe(z.email());
+
 const signUpSchema = z.object({
-  email: z.string().trim().max(320).pipe(z.email()),
+  email: emailValueSchema,
   password: z.string().min(8).max(1024),
   birth_date: z.string().trim().regex(ISO_DATE_PATTERN),
   display_name: z.string().trim().max(80).optional(),
+  guardian_email: z.string().trim().max(320).optional(),
 });
 
 function readFormString(formData: FormData, key: string): string | undefined {
@@ -178,6 +185,7 @@ export async function signUpAction(
     password: readFormString(formData, "password"),
     birth_date: readFormString(formData, "birth_date"),
     display_name: readFormString(formData, "display_name"),
+    guardian_email: readFormString(formData, "guardian_email"),
   });
 
   if (!parsed.success) {
@@ -212,6 +220,13 @@ export async function signUpAction(
   const metadata: Record<string, string> = {
     birth_date: parsed.data.birth_date,
   };
+  if (age < CHILD_AGE_THRESHOLD) {
+    const guardianCheck = emailValueSchema.safeParse(parsed.data.guardian_email ?? "");
+    if (!guardianCheck.success) {
+      return { error: GUARDIAN_EMAIL_ERROR };
+    }
+    metadata.guardian_email = guardianCheck.data.toLowerCase();
+  }
   if (parsed.data.display_name && parsed.data.display_name.length > 0) {
     metadata.display_name = parsed.data.display_name;
   }
@@ -283,6 +298,15 @@ export async function signUpFormAction(
   prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  const guardianEmailValue =
+    formData instanceof FormData
+      ? readFormString(formData, "guardian_email")
+      : undefined;
+  const guardianEmailProp =
+    guardianEmailValue !== undefined && guardianEmailValue.length > 0
+      ? { guardianEmail: guardianEmailValue }
+      : {};
+
   if (
     !(formData instanceof FormData) ||
     formData.get("privacy_accepted") !== "on"
@@ -302,6 +326,7 @@ export async function signUpFormAction(
         formData instanceof FormData
           ? (readFormString(formData, "birth_date") ?? "")
           : "",
+      ...guardianEmailProp,
       attempt: (prevState?.attempt ?? 0) + 1,
     };
   }
@@ -310,10 +335,16 @@ export async function signUpFormAction(
   if (result && "error" in result) {
     return {
       error: result.error,
-      errorField: result.error === AGE_GATE_ERROR ? "birthday" : "form",
+      errorField:
+        result.error === AGE_GATE_ERROR
+          ? "birthday"
+          : result.error === GUARDIAN_EMAIL_ERROR
+            ? "guardian_email"
+            : "form",
       email: readFormString(formData, "email") ?? "",
       displayName: readFormString(formData, "display_name") ?? "",
       birthDate: readFormString(formData, "birth_date") ?? "",
+      ...guardianEmailProp,
       attempt: (prevState?.attempt ?? 0) + 1,
     };
   }

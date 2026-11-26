@@ -115,7 +115,7 @@ describe("SignupForm", () => {
       "2026-11-21",
     );
     expect(screen.getByLabelText(/^Birthday\s*\*?$/)).toHaveAccessibleDescription(
-      /ages 18 and up/i,
+      /ages 13 and up/i,
     );
     const consent = screen.getByRole("checkbox", { name: /Privacy notice/i });
     expect(consent).toBeRequired();
@@ -154,7 +154,7 @@ describe("SignupForm", () => {
     await user.type(screen.getByLabelText(/^Your name\s*\*?$/), "Cindy");
     await user.type(screen.getByLabelText(/^Email\s*\*?$/), "cindy@example.com");
     await user.type(screen.getByLabelText(/^Password\s*\*?$/), "secret123");
-    await user.type(screen.getByLabelText(/^Birthday\s*\*?$/), "2011-01-01");
+    await user.type(screen.getByLabelText(/^Birthday\s*\*?$/), "2023-01-01");
     await user.click(screen.getByRole("checkbox", { name: /Privacy notice/i }));
     await user.click(screen.getByRole("button", { name: "Hatch my Nog" }));
 
@@ -166,16 +166,16 @@ describe("SignupForm", () => {
 
     resolveAction({
       error:
-        "Your Nog is still snug in its shell! Noggin is for ages 18 and up. Come back on your 18th birthday.",
+        "Your Nog is still snug in its shell! Noggin is for ages 6 and up. Come back on your 6th birthday.",
       errorField: "birthday",
       email: "cindy@example.com",
       displayName: "Cindy",
-      birthDate: "2011-01-01",
+      birthDate: "2023-01-01",
       attempt: 1,
     });
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/ages 18 and up/i);
+    expect(alert).toHaveTextContent(/ages 6 and up/i);
     await waitFor(() => expect(alert).toHaveFocus());
     expect(screen.getByLabelText(/^Birthday\s*\*?$/)).toHaveAttribute(
       "aria-invalid",
@@ -184,5 +184,18 @@ describe("SignupForm", () => {
     expect(screen.getByLabelText(/^Birthday\s*\*?$/)).toHaveAccessibleDescription(
       /Your Nog is still snug in its shell/i,
     );
+  });
+
+  it("reveals the required parent or guardian email field when an under-13 birthday (ages 6-12) is entered", async () => {
+    const user = userEvent.setup();
+    render(<SignupForm maxBirthday="2026-11-26" />);
+
+    expect(screen.queryByLabelText(/Parent or guardian email/i)).toBeNull();
+    const tenYearsAgo = `${new Date().getFullYear() - 10}-01-15`;
+    await user.type(screen.getByLabelText(/^Birthday\s*\*?$/), tenYearsAgo);
+
+    const guardianInput = await screen.findByLabelText(/Parent or guardian email/i);
+    expect(guardianInput).toBeRequired();
+    expect(screen.getByText(/Under-13 child privacy mode/i)).toBeVisible();
   });
 });

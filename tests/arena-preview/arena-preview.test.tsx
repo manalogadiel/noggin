@@ -11,9 +11,10 @@ import { BottomBar } from "@/components/shell/bottom-bar";
 import * as navItemsModule from "@/components/shell/nav-items";
 import { Sidebar } from "@/components/shell/sidebar";
 
-const { getFeatures, getDisplayName, redirect, usePathname } = vi.hoisted(() => ({
+const { getFeatures, getDisplayName, getAgeTier, redirect, usePathname } = vi.hoisted(() => ({
   getFeatures: vi.fn<() => Promise<Record<string, boolean>>>(),
   getDisplayName: vi.fn<() => Promise<string | null>>(),
+  getAgeTier: vi.fn<() => Promise<"under_13" | "standard">>(),
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
   }),
@@ -24,6 +25,7 @@ vi.mock("@/composition/container", () => ({
   createContainer: async () => ({
     getFeatures,
     getDisplayName,
+    getAgeTier,
   }),
 }));
 
@@ -100,6 +102,7 @@ beforeEach(() => {
   usePathname.mockReturnValue("/home");
   getDisplayName.mockResolvedValue("Gadiel");
   getFeatures.mockResolvedValue({});
+  getAgeTier.mockResolvedValue("standard");
 });
 
 afterEach(() => {
@@ -197,6 +200,15 @@ describe("Sidebar and BottomBar with showArena", () => {
     for (const link of arenaLinks) {
       expect(link).toHaveAttribute("href", "/arena");
     }
+  });
+
+  it("hides Arena in AppLayout when the learner is under 13 even if features.arena is true", async () => {
+    const user = userEvent.setup();
+    getFeatures.mockResolvedValueOnce({ arena: true });
+    getAgeTier.mockResolvedValueOnce("under_13");
+    render(await AppLayout({ children: <div>Child content</div> }));
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    expect(screen.queryByRole("link", { name: "Arena" })).not.toBeInTheDocument();
   });
 });
 
@@ -371,5 +383,23 @@ describe("/arena page feature flag guard", () => {
     expect(
       screen.getByRole("heading", { name: /Weekly League/i }),
     ).toBeVisible();
+  });
+
+  it("renders the Private Learner Account notice instead of ArenaPreview for learners under 13", async () => {
+    const ArenaPage = await loadArenaPage();
+    getFeatures.mockResolvedValueOnce({ arena: true });
+    getAgeTier.mockResolvedValueOnce("under_13");
+
+    render(await ArenaPage());
+
+    expect(redirect).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Private Learner Account" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("heading", { name: /Weekly League/i })).toBeNull();
+    expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute(
+      "href",
+      "/home",
+    );
   });
 });

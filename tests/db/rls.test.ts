@@ -53,25 +53,47 @@ describe("profile creation and signup", () => {
     expect(profile.plan_code).toBe("free");
   });
 
-  it.each(["underage", "missing birth date"] as const)("rejects direct signup with %s and leaves no account", async (scenario) => {
-    const db = localDb();
-    const account = credentials();
-    const reply = await db.signUp(account, scenario === "underage" ? birthDate(15) : undefined);
-    if (reply.ok) throw new Error("Signup unexpectedly succeeded");
-    expect(reply.status).toBe(500);
-    expect(reply.code).toBe("unexpected_failure");
+  it.each(["underage", "missing birth date", "under-13 without guardian email"] as const)(
+    "rejects direct signup with %s and leaves no account",
+    async (scenario) => {
+      const db = localDb();
+      const account = credentials();
+      const date =
+        scenario === "underage"
+          ? birthDate(5)
+          : scenario === "under-13 without guardian email"
+            ? birthDate(10)
+            : undefined;
+      const reply = await db.signUp(account, date);
+      if (reply.ok) throw new Error("Signup unexpectedly succeeded");
+      expect(reply.status).toBe(500);
+      expect(reply.code).toBe("unexpected_failure");
 
-    // A successful retry with the same email demonstrates the failed signup rolled back.
-    const user = await db.createUser(account);
-    const profile = await db.profile(user.id);
-    expect(profile.birth_date === user.date, "Only the valid signup created a profile").toBe(true);
-  });
+      // A successful retry with the same email demonstrates the failed signup rolled back.
+      const user = await db.createUser(account);
+      const profile = await db.profile(user.id);
+      expect(profile.birth_date === user.date, "Only the valid signup created a profile").toBe(true);
+    },
+  );
 
-  it("creates a pending-consent profile for a 17-year-old using direct signup", async () => {
+  it("creates a pending-consent profile with guardian email for a 10-year-old and standard profile for a 13-year-old", async () => {
     const db = localDb();
-    const { id } = success(await db.signUp(credentials(), birthDate(17)), "Sign up 17-year-old test user");
-    expect(Boolean(id), "Signup returns a user ID").toBe(true);
-    expect((await db.profile(id)).guardian_consent_status).toBe("pending");
+    const child = success(
+      await db.signUp(credentials(), birthDate(10), { guardian_email: "Parent@Example.com" }),
+      "Sign up 10-year-old test user with guardian email",
+    );
+    expect(Boolean(child.id), "Child signup returns a user ID").toBe(true);
+    const childProfile = await db.profile(child.id);
+    expect(childProfile.guardian_consent_status).toBe("pending");
+    expect(childProfile.guardian_email).toBe("parent@example.com");
+
+    const teen = success(
+      await db.signUp(credentials(), birthDate(13)),
+      "Sign up 13-year-old test user without guardian email",
+    );
+    const teenProfile = await db.profile(teen.id);
+    expect(teenProfile.guardian_consent_status).toBe("not_required");
+    expect(teenProfile.guardian_email).toBeNull();
   });
 });
 
@@ -142,7 +164,11 @@ describe("row and column access", () => {
     expect(updated).toEqual({ display_name: "Updated" });
     const renamed = exactlyOne(await client.rows("nogs", query, "PATCH", { name: "Renamed Nog" }), "Rename Nog");
     expect(renamed).toMatchObject({ name: "Renamed Nog" });
-    for (const patch of [{ plan_code: "plus" }, { guardian_consent_status: "granted" }]) {
+    for (const patch of [
+      { plan_code: "plus" },
+      { guardian_consent_status: "granted" },
+      { guardian_email: "spoof@example.com" },
+    ]) {
       expectDenied(await client.rows("profiles", profile, "PATCH", patch), "Write protected profile column");
     }
     for (const patch of [{ stage: "genius" }, { happiness: 100 }]) {

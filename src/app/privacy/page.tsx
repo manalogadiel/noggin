@@ -18,7 +18,7 @@ export default function PrivacyPage() {
               Privacy notice
             </h1>
             <p className="mt-2 text-[0.9375rem] text-[var(--noggin-ink)]">
-              Last updated: 21 November 2026
+              Last updated: 26 November 2026
             </p>
             <p className="mt-5 text-[1rem] leading-[1.65] text-[var(--noggin-ink)]">
               This notice explains in plain language how Noggin collects, uses,
@@ -102,14 +102,39 @@ export default function PrivacyPage() {
 
             <section>
               <h2 className="noggin-display text-[1.375rem] font-bold text-[var(--noggin-forest)]">
-                Age
+                Age &amp; Child Privacy
               </h2>
-              <p className="mt-2">
-                Noggin is strictly for adult learners and university students
-                ages 18 and up. Accounts and paid plans are not available to
-                anyone under 18. We verify age at sign-up and do not knowingly
-                collect personal information from minors.
-              </p>
+              <ul className="mt-2 list-disc space-y-2 pl-5">
+                <li>
+                  <strong className="font-bold text-[var(--noggin-forest)]">
+                    Ages 6–12 (Under 13):
+                  </strong>{" "}
+                  Younger learners can use Noggin with a required parent or
+                  guardian email address at sign-up (used for parent oversight
+                  and account recovery). Under-13 accounts receive private
+                  profiles, restricted social features (no public Arena
+                  leaderboards, no adding friends, and no public sharing), and
+                  stricter privacy protections — no personal information is
+                  collected for ads or third-party marketing.
+                </li>
+                <li>
+                  <strong className="font-bold text-[var(--noggin-forest)]">
+                    Ages 13 and older:
+                  </strong>{" "}
+                  Teens and adults (13+) can create a standard account with an
+                  email address and password without needing a parent email,
+                  with full access to Noggin features.
+                </li>
+                <li>
+                  <strong className="font-bold text-[var(--noggin-forest)]">
+                    Under 18 &amp; Purchases:
+                  </strong>{" "}
+                  Users under 18 do not sign in using restricted
+                  school-administered credentials and may still join lessons or
+                  practice quizzes directly via browser. Any optional paid
+                  upgrades require an adult (18+) or parent/guardian permission.
+                </li>
+              </ul>
             </section>
 
             <section>
