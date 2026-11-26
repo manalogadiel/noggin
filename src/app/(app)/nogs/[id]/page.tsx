@@ -85,14 +85,14 @@ export default async function NogRoomPage({ params }: NogRoomPageProps) {
   try {
     const container = await createContainer();
     now = container.clock?.now() ?? new Date();
-    roomResult = await container.getNogRoom({ nogId: id });
+    const [room, analysisResult, settingsResult] = await Promise.all([
+      container.getNogRoom({ nogId: id }),
+      container.getNogAnalysis({ nogId: id }).catch(() => null),
+      container.getProfileSettings().catch(() => null),
+    ]);
+    roomResult = room;
 
     if (roomResult.status === "ok") {
-      const [analysisResult, settingsResult] = await Promise.all([
-        container.getNogAnalysis({ nogId: id }).catch(() => null),
-        container.getProfileSettings().catch(() => null),
-      ]);
-
       if (analysisResult?.status === "ok") {
         masteredCount = analysisResult.masteredCount;
       }

@@ -61,12 +61,18 @@ export async function getNogAnalysis(
     return { status: "not_found" };
   }
 
-  const rawCards =
+  const [rawCards, rawAttempts] = await Promise.all([
     input.topicId !== undefined
-      ? await deps.thoughtCards.listByTopic(input.nogId, input.topicId)
+      ? deps.thoughtCards.listByTopic(input.nogId, input.topicId)
       : deps.thoughtCards.listByNog
-        ? await deps.thoughtCards.listByNog(input.nogId)
-        : [];
+        ? deps.thoughtCards.listByNog(input.nogId)
+        : Promise.resolve([]),
+    input.topicId !== undefined
+      ? deps.attempts.findLatest(input.nogId, input.topicId)
+      : deps.attempts.listByNog
+        ? deps.attempts.listByNog(input.nogId)
+        : Promise.resolve([]),
+  ]);
 
   const now = deps.clock.now();
   const cards: AnalysisCard[] = rawCards.map((card) => ({
@@ -79,13 +85,6 @@ export async function getNogAnalysis(
           )
         : "fresh",
   }));
-
-  const rawAttempts =
-    input.topicId !== undefined
-      ? await deps.attempts.findLatest(input.nogId, input.topicId)
-      : deps.attempts.listByNog
-        ? await deps.attempts.listByNog(input.nogId)
-        : [];
 
   const masteredCount = trainingMeter(
     rawAttempts.map((attempt) => ({

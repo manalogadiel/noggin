@@ -7,6 +7,7 @@ import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogAvatar } from "@/components/nog/nog-avatar";
 import { usePetting } from "@/components/nog/use-petting";
 import type { SaveProfileSettingsHandler } from "@/components/settings/settings-sheet";
+import { IntentLink } from "@/components/shell/intent-link";
 import type {
   NogRecord,
   NogStageSlug,
@@ -337,30 +338,47 @@ export function NogRoomView({
             </g>
           </svg>
 
-          <Link href={`${roomBaseHref}/play`} aria-label="Play Quiz" className="ng-wedge-hit ng-wedge-hit--quiz" />
-          <Link href="/arena" aria-label="Party Arena" className="ng-wedge-hit ng-wedge-hit--arena" />
+          <IntentLink
+            href={`${roomBaseHref}/play`}
+            aria-label="Play Quiz"
+            className="ng-wedge-hit ng-wedge-hit--quiz"
+          />
+          <IntentLink
+            href="/arena"
+            aria-label="Party Arena"
+            className="ng-wedge-hit ng-wedge-hit--arena"
+          />
 
-          <Link href={`${roomBaseHref}/notebook`} className="home-arc-btn home-arc-btn--1">
+          <IntentLink
+            href={`${roomBaseHref}/notebook`}
+            className="home-arc-btn home-arc-btn--1"
+          >
             <span className="home-arc-btn__ico">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/game/ui/icon-notebook-clay.svg" alt="" />
             </span>
             <span className="home-arc-btn__lbl">Notebook</span>
-          </Link>
-          <Link href={`${roomBaseHref}/analysis`} className="home-arc-btn home-arc-btn--2">
+          </IntentLink>
+          <IntentLink
+            href={`${roomBaseHref}/analysis`}
+            className="home-arc-btn home-arc-btn--2"
+          >
             <span className="home-arc-btn__ico">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/game/ui/icon-brainmap-clay.svg" alt="" />
             </span>
             <span className="home-arc-btn__lbl">Brain Map</span>
-          </Link>
-          <Link href={`${roomBaseHref}/rest`} className="home-arc-btn home-arc-btn--3">
+          </IntentLink>
+          <IntentLink
+            href={`${roomBaseHref}/rest`}
+            className="home-arc-btn home-arc-btn--3"
+          >
             <span className="home-arc-btn__ico">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/game/ui/icon-rest-clay.svg" alt="" />
             </span>
             <span className="home-arc-btn__lbl">Rest</span>
-          </Link>
+          </IntentLink>
           <button type="button" onClick={() => openModal({ type: "rooms" })} className="home-arc-btn home-arc-btn--4">
             <span className="home-arc-btn__ico">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -368,13 +386,16 @@ export function NogRoomView({
             </span>
             <span className="home-arc-btn__lbl">Rooms</span>
           </button>
-          <Link href={`${roomBaseHref}/customize`} className="home-arc-btn home-arc-btn--5">
+          <IntentLink
+            href={`${roomBaseHref}/customize`}
+            className="home-arc-btn home-arc-btn--5"
+          >
             <span className="home-arc-btn__ico">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/game/ui/icon-customize-clay.svg" alt="" />
             </span>
             <span className="home-arc-btn__lbl">Customize</span>
-          </Link>
+          </IntentLink>
         </nav>
 
         <div className={`gamestage-main ${teachMode ? "gamestage-main--teach" : ""}`}>
@@ -504,15 +525,24 @@ export function NogRoomView({
               </div>
             ) : (
               <nav className="teach-mode-bar" aria-label="Teach actions">
-                <Link href={`${roomBaseHref}/feed`} className="toy-btn toy-btn--feed">
+                <IntentLink
+                  href={`${roomBaseHref}/feed`}
+                  className="toy-btn toy-btn--feed"
+                >
                   <span>Feed</span>
-                </Link>
-                <Link href={`${roomBaseHref}/water`} className="toy-btn toy-btn--water">
+                </IntentLink>
+                <IntentLink
+                  href={`${roomBaseHref}/water`}
+                  className="toy-btn toy-btn--water"
+                >
                   <span>Water</span>
-                </Link>
-                <Link href={`${roomBaseHref}/bath`} className="toy-btn toy-btn--bath">
+                </IntentLink>
+                <IntentLink
+                  href={`${roomBaseHref}/bath`}
+                  className="toy-btn toy-btn--bath"
+                >
                   <span>Bath</span>
-                </Link>
+                </IntentLink>
                 <button
                   type="button"
                   onClick={() => setTeachMode(false)}

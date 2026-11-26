@@ -1,8 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import * as React from "react";
 import { z } from "zod";
 import { createLlmAdapters, type NogPersona } from "@/adapters/ai/fallback-llm";
-import { createSupabaseCurrentUser } from "@/adapters/supabase/current-user";
 import {
   askNog,
   listAskHistory,
@@ -422,10 +422,21 @@ function normalizeFeatureFlags(raw: unknown): Record<string, boolean> {
   return normalized;
 }
 
+const FEATURE_FLAGS_TTL_MS = 60_000;
+let cachedFeatureFlags: { value: Record<string, boolean>; expiresAt: number } | null = null;
+
 async function readFeatureFlags(
   repositories: (SupabaseRepositories & OptionalAuxRepositories) | null,
   session: SupabaseClient,
 ): Promise<Record<string, boolean>> {
+  const canUseMemoryCache =
+    process.env.NODE_ENV !== "test" &&
+    typeof repositories?.appConfig?.getFeatures !== "function";
+
+  if (canUseMemoryCache && cachedFeatureFlags && Date.now() < cachedFeatureFlags.expiresAt) {
+    return { ...cachedFeatureFlags.value };
+  }
+
   try {
     if (typeof repositories?.appConfig?.getFeatures === "function") {
       const features = await repositories.appConfig.getFeatures();
@@ -441,21 +452,20 @@ async function readFeatureFlags(
       if (error || !data) {
         return {};
       }
-      return normalizeFeatureFlags(data.value);
+      const normalized = normalizeFeatureFlags(data.value);
+      if (canUseMemoryCache) {
+        cachedFeatureFlags = {
+          value: normalized,
+          expiresAt: Date.now() + FEATURE_FLAGS_TTL_MS,
+        };
+      }
+      return { ...normalized };
     }
   } catch {
     return {};
   }
 
   return {};
-}
-
-async function readSpeechMimicryFlag(
-  repositories: SupabaseRepositories & OptionalAuxRepositories,
-  session: SupabaseClient,
-): Promise<boolean> {
-  const features = await readFeatureFlags(repositories, session);
-  return Boolean(features.speech_mimicry);
 }
 
 async function readGrillMode(
@@ -647,11 +657,28 @@ const unavailableAsker: NogAsker = {
   },
 };
 
-export async function createContainer(): Promise<AppContainer> {
+const reactCache: <T extends (...args: never[]) => unknown>(fn: T) => T =
+  typeof React.cache === "function" ? React.cache : (fn) => fn;
+
+async function buildContainer(): Promise<AppContainer> {
   validateContainerEnv();
 
   const session = await createServerSupabaseClient();
-  const authenticatedUser = await createSupabaseCurrentUser(session).get();
+  let authenticatedUser: { id: string } | null = null;
+  let authenticatedEmail: string | null = null;
+  if (typeof session.auth?.getUser === "function") {
+    const {
+      data: { user },
+      error,
+    } = await session.auth.getUser();
+    if (!error && user?.id) {
+      authenticatedUser = { id: user.id };
+      if (typeof user.email === "string") {
+        const trimmed = user.email.trim();
+        authenticatedEmail = trimmed.length > 0 ? trimmed : null;
+      }
+    }
+  }
 
   if (!authenticatedUser) {
     const anonymousUser: CurrentUser = {
@@ -722,13 +749,85 @@ export async function createContainer(): Promise<AppContainer> {
     userId,
   }) as SupabaseRepositories & OptionalAuxRepositories;
 
-  const speechMimicry = await readSpeechMimicryFlag(repositories, session);
+  const features = await readFeatureFlags(repositories, session);
+  const speechMimicry = Boolean(features.speech_mimicry);
+
+  // Per-request read deduplication so layouts and parallel page loaders never repeat identical queries.
+  const nogOwnedCache = new Map<string, Promise<NogRecord | null>>();
+  let nogListCache: Promise<NogRecord[]> | null = null;
+  const cardsByNogCache = new Map<string, Promise<Awaited<ReturnType<NonNullable<SupabaseRepositories["thoughtCards"]["listByNog"]>>>>>();
+  const cardsByTopicCache = new Map<string, Promise<Awaited<ReturnType<SupabaseRepositories["thoughtCards"]["listByTopic"]>>>>();
+  let displayNameCache: Promise<string | null> | null = null;
+  let profileSettingsCache: Promise<GetProfileSettingsResult> | null = null;
+  let learningProgressCache: Promise<GetLearningProgressResult> | null = null;
+  let listNogsCache: Promise<ListNogsResult> | null = null;
+
+  function clearReadCaches() {
+    nogOwnedCache.clear();
+    nogListCache = null;
+    cardsByNogCache.clear();
+    cardsByTopicCache.clear();
+    displayNameCache = null;
+    profileSettingsCache = null;
+    learningProgressCache = null;
+    listNogsCache = null;
+  }
+
+  const cachedNogs = repositories.nogs
+    ? {
+        ...repositories.nogs,
+        findOwned: (ownerId: string, nogId: string) => {
+          const key = `${ownerId}:${nogId}`;
+          const existing = nogOwnedCache.get(key);
+          if (existing) return existing;
+          const pending = repositories.nogs.findOwned(ownerId, nogId);
+          nogOwnedCache.set(key, pending);
+          return pending;
+        },
+        listByOwner: (ownerId: string) => {
+          if (ownerId === userId && nogListCache) return nogListCache;
+          const pending = repositories.nogs.listByOwner(ownerId);
+          if (ownerId === userId) nogListCache = pending;
+          return pending;
+        },
+      }
+    : repositories.nogs;
+
+  const cachedThoughtCards = repositories.thoughtCards
+    ? {
+        ...repositories.thoughtCards,
+        ...(typeof repositories.thoughtCards.listByNog === "function"
+          ? {
+              listByNog: (nogId: string) => {
+                const existing = cardsByNogCache.get(nogId);
+                if (existing) return existing;
+                const pending = repositories.thoughtCards.listByNog!(nogId);
+                cardsByNogCache.set(nogId, pending);
+                return pending;
+              },
+            }
+          : {}),
+        ...(typeof repositories.thoughtCards.listByTopic === "function"
+          ? {
+              listByTopic: (nogId: string, topicId: string) => {
+                const key = `${nogId}:${topicId}`;
+                const existing = cardsByTopicCache.get(key);
+                if (existing) return existing;
+                const pending = repositories.thoughtCards.listByTopic(nogId, topicId);
+                cardsByTopicCache.set(key, pending);
+                return pending;
+              },
+            }
+          : {}),
+      }
+    : repositories.thoughtCards;
+
   const llm = createLlmAdapters({
     getPersona: (nogId: string) =>
       resolvePersona(
         nogId,
         userId,
-        repositories,
+        { ...repositories, nogs: cachedNogs },
         session,
         speechMimicry,
       ),
@@ -859,76 +958,101 @@ export async function createContainer(): Promise<AppContainer> {
   return {
     currentUser,
     clock,
-    getDisplayName: () => readDisplayName(session, userId),
-    getEmail: () => readEmail(session),
-    getFeatures: () => readFeatureFlags(repositories, session),
-    getProfileSettings: () =>
-      getProfileSettings({
-        currentUser,
-        profiles: profilesRepo,
-      }),
-    updateProfileSettings: (settings) =>
-      updateProfileSettings(
+    getDisplayName: () => {
+      if (!displayNameCache) {
+        displayNameCache = readDisplayName(session, userId);
+      }
+      return displayNameCache;
+    },
+    getEmail: async () => authenticatedEmail ?? readEmail(session),
+    getFeatures: async () => ({ ...features }),
+    getProfileSettings: () => {
+      if (!profileSettingsCache) {
+        profileSettingsCache = getProfileSettings({
+          currentUser,
+          profiles: profilesRepo,
+        });
+      }
+      return profileSettingsCache;
+    },
+    updateProfileSettings: async (settings) => {
+      clearReadCaches();
+      return updateProfileSettings(
         {
           currentUser,
           profiles: profilesRepo,
         },
         settings,
-      ),
-    updateDisplayName: (input) =>
-      updateDisplayName(
+      );
+    },
+    updateDisplayName: async (input) => {
+      clearReadCaches();
+      return updateDisplayName(
         {
           currentUser,
           profiles: profilesRepo,
         },
         input,
-      ),
-    getLearningProgress: () =>
-      getLearningProgress({
-        currentUser,
-        nogs: repositories.nogs,
-        progress: progressRepo,
-      }),
+      );
+    },
+    getLearningProgress: () => {
+      if (!learningProgressCache) {
+        learningProgressCache = getLearningProgress({
+          currentUser,
+          nogs: cachedNogs,
+          progress: progressRepo,
+        });
+      }
+      return learningProgressCache;
+    },
     getRecentActivity: (input) =>
       getRecentActivity(
         {
           currentUser,
           activity: activityRepo,
-          nogs: repositories.nogs,
+          nogs: cachedNogs,
         },
         input,
       ),
-    listNogs: () =>
-      listNogs({
-        currentUser,
-        nogs: repositories.nogs,
-      }),
-    hatchNog: (input) =>
-      hatchNog(
+    listNogs: () => {
+      if (!listNogsCache) {
+        listNogsCache = listNogs({
+          currentUser,
+          nogs: cachedNogs,
+        });
+      }
+      return listNogsCache;
+    },
+    hatchNog: async (input) => {
+      clearReadCaches();
+      return hatchNog(
         {
           currentUser,
           nogs: repositories.nogs,
           subjects: repositories.subjects,
         },
         input,
-      ),
-    addTopic: (input) =>
-      addTopic(
+      );
+    },
+    addTopic: async (input) => {
+      clearReadCaches();
+      return addTopic(
         {
           currentUser,
-          nogs: repositories.nogs,
+          nogs: cachedNogs,
           subjects: repositories.subjects,
           topics: repositories.topics,
           usage: repositories.usage,
           questionWriter,
         },
         input,
-      ),
+      );
+    },
     listTopics: (input) =>
       listTopics(
         {
           currentUser,
-          nogs: repositories.nogs,
+          nogs: cachedNogs,
           topics: repositories.topics,
         },
         input,
@@ -937,10 +1061,10 @@ export async function createContainer(): Promise<AppContainer> {
       getTopicNotebook(
         {
           currentUser,
-          nogs: repositories.nogs,
+          nogs: cachedNogs,
           topics: repositories.topics,
           notebook: repositories.notebook,
-          thoughtCards: repositories.thoughtCards,
+          thoughtCards: cachedThoughtCards,
         },
         input,
       ),
@@ -949,8 +1073,8 @@ export async function createContainer(): Promise<AppContainer> {
         {
           currentUser,
           clock,
-          nogs: repositories.nogs,
-          thoughtCards: repositories.thoughtCards,
+          nogs: cachedNogs,
+          thoughtCards: cachedThoughtCards,
         },
         input,
       ),
@@ -959,59 +1083,68 @@ export async function createContainer(): Promise<AppContainer> {
         {
           currentUser,
           clock,
-          nogs: repositories.nogs,
-          thoughtCards: repositories.thoughtCards,
+          nogs: cachedNogs,
+          thoughtCards: cachedThoughtCards,
           attempts: repositories.attempts,
         },
         input,
       ),
-    petNog: (input) =>
-      petNog(
+    petNog: async (input) => {
+      clearReadCaches();
+      return petNog(
         {
           currentUser,
           clock,
           nogs: repositories.nogs,
         },
         input,
-      ),
-    customizeNog: (input) =>
-      customizeNog(
+      );
+    },
+    customizeNog: async (input) => {
+      clearReadCaches();
+      return customizeNog(
         {
           currentUser,
           nogs: repositories.nogs,
         },
         input,
-      ),
-    startRest: (input) =>
-      startRest(
-        {
-          currentUser,
-          nogs: repositories.nogs,
-          clock,
-        },
-        input,
-      ),
-    wakeNog: (input) =>
-      wakeNog(
+      );
+    },
+    startRest: async (input) => {
+      clearReadCaches();
+      return startRest(
         {
           currentUser,
           nogs: repositories.nogs,
           clock,
         },
         input,
-      ),
+      );
+    },
+    wakeNog: async (input) => {
+      clearReadCaches();
+      return wakeNog(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          clock,
+        },
+        input,
+      );
+    },
     listDueCards: (input) =>
       listDueCards(
         {
           currentUser,
           clock,
-          nogs: repositories.nogs,
-          thoughtCards: repositories.thoughtCards,
+          nogs: cachedNogs,
+          thoughtCards: cachedThoughtCards,
         },
         input,
       ),
-    reviewCard: (input) =>
-      reviewCard(
+    reviewCard: async (input) => {
+      clearReadCaches();
+      return reviewCard(
         {
           currentUser,
           clock,
@@ -1019,9 +1152,11 @@ export async function createContainer(): Promise<AppContainer> {
           thoughtCards: repositories.thoughtCards,
         },
         input,
-      ),
-    teachLesson: (input) =>
-      teachLesson(
+      );
+    },
+    teachLesson: async (input) => {
+      clearReadCaches();
+      return teachLesson(
         {
           currentUser,
           nogs: repositories.nogs,
@@ -1032,9 +1167,11 @@ export async function createContainer(): Promise<AppContainer> {
           listener: llm.listener,
         },
         input,
-      ),
-    answerFollowUp: (input) =>
-      answerFollowUp(
+      );
+    },
+    answerFollowUp: async (input) => {
+      clearReadCaches();
+      return answerFollowUp(
         {
           currentUser,
           nogs: repositories.nogs,
@@ -1045,9 +1182,11 @@ export async function createContainer(): Promise<AppContainer> {
           listener: llm.listener,
         },
         input,
-      ),
-    askNog: (input) =>
-      askNog(
+      );
+    },
+    askNog: async (input) => {
+      clearReadCaches();
+      return askNog(
         {
           currentUser,
           nogs: repositories.nogs,
@@ -1059,18 +1198,20 @@ export async function createContainer(): Promise<AppContainer> {
           askHistory: repositories.askHistory,
         },
         input,
-      ),
+      );
+    },
     listAskHistory: (input) =>
       listAskHistory(
         {
           currentUser,
-          nogs: repositories.nogs,
+          nogs: cachedNogs,
           askHistory: repositories.askHistory,
         },
         input,
       ),
-    reviseLesson: (input) =>
-      reviseLesson(
+    reviseLesson: async (input) => {
+      clearReadCaches();
+      return reviseLesson(
         {
           currentUser,
           nogs: repositories.nogs,
@@ -1080,9 +1221,11 @@ export async function createContainer(): Promise<AppContainer> {
           listener: llm.listener,
         },
         input,
-      ),
-    runQuickCheck: (input) =>
-      runQuickCheck(
+      );
+    },
+    runQuickCheck: async (input) => {
+      clearReadCaches();
+      return runQuickCheck(
         {
           currentUser,
           clock,
@@ -1097,7 +1240,8 @@ export async function createContainer(): Promise<AppContainer> {
           grader: llm.grader,
         },
         input,
-      ),
+      );
+    },
     transcribeLesson: (input) =>
       transcribeLesson(
         {
@@ -1210,3 +1354,5 @@ export async function createContainer(): Promise<AppContainer> {
       cancelNogginPlus({ currentUser, billing: billingRepo }),
   };
 }
+
+export const createContainer = reactCache(buildContainer);

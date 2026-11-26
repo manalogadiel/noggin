@@ -133,7 +133,7 @@ export function TopBar({
           </button>
         ) : isHome ? (
           <>
-            <Link href="/nogs" className="topbar-yellow-3d">
+            <Link href="/nogs" prefetch={true} className="topbar-yellow-3d">
               <LayoutGrid className="h-[15px] w-[15px]" strokeWidth={2.6} aria-hidden="true" />
               <span>Switch Nog</span>
             </Link>
@@ -237,7 +237,7 @@ export function TopBar({
             )}
           </>
         ) : (
-          <Link href="/home" className="topbar-yellow-3d" aria-label="Back to Home">
+          <Link href="/home" prefetch={true} className="topbar-yellow-3d" aria-label="Back to Home">
             <ChevronLeft className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
             <span>Home</span>
           </Link>
@@ -249,6 +249,7 @@ export function TopBar({
       <div className="topbar-right">
         <Link
           href="/profile/shop"
+          prefetch={true}
           className="topbar-shop-btn"
           title="Open Shop"
           aria-label="Open Shop"
@@ -303,6 +304,7 @@ export function TopBar({
 
         <Link
           href="/profile/progress"
+          prefetch={true}
           className="figma-account-btn figma-account-btn--xp"
           aria-label={`${userName} — Level ${state.level}, ${state.xp} / ${state.xpMax} EXP`}
           onClick={() => {

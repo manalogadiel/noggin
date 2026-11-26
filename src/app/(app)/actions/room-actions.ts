@@ -17,6 +17,7 @@ export async function petNogAction(nogId: string): Promise<void> {
     const container = await createContainer();
     const result = await container.petNog({ nogId });
     if (result.status === "ok" && result.deltaApplied > 0) {
+      revalidatePath("/home");
       revalidatePath(`/nogs/${nogId}`);
     }
   } catch {

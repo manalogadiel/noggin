@@ -18,6 +18,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { signOutAction } from "@/app/(auth)/actions";
 import { GameModals } from "@/components/game-ui/game-modals";
 import { RoomsOverlay } from "@/components/game-ui/rooms-overlay";
+import { IntentLink } from "@/components/shell/intent-link";
 import { TopBar } from "@/components/shell/top-bar";
 
 export interface ShellFrameProps {
@@ -46,6 +47,7 @@ export function ShellFrame({
   children,
 }: ShellFrameProps) {
   const pathname = usePathname() ?? "/home";
+  const [navPendingFrom, setNavPendingFrom] = useState<string | null>(null);
   const [drawerState, setDrawerState] = useState<{ open: boolean; path: string }>({
     open: false,
     path: pathname,
@@ -64,6 +66,38 @@ export function ShellFrame({
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const nogId = extractNogId(pathname);
   const studyBase = nogId ? `/nogs/${nogId}` : "/nogs";
+  const isNavigating = navPendingFrom === pathname;
+
+  useEffect(() => {
+    let showTimer: number | null = null;
+    let clearTimer: number | null = null;
+    const onDocClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      const target = event.target as Element | null;
+      const anchor = target?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      const rawHref = anchor.getAttribute("href");
+      if (!rawHref || !rawHref.startsWith("/") || rawHref.startsWith("//")) return;
+      const nextPath = rawHref.split(/[?#]/)[0];
+      if (nextPath === pathname) return;
+      if (showTimer !== null) window.clearTimeout(showTimer);
+      if (clearTimer !== null) window.clearTimeout(clearTimer);
+      showTimer = window.setTimeout(() => {
+        setNavPendingFrom(pathname);
+      }, 90);
+      clearTimer = window.setTimeout(() => {
+        setNavPendingFrom(null);
+      }, 8000);
+    };
+    document.addEventListener("click", onDocClick, true);
+    return () => {
+      document.removeEventListener("click", onDocClick, true);
+      if (showTimer !== null) window.clearTimeout(showTimer);
+      if (clearTimer !== null) window.clearTimeout(clearTimer);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -108,6 +142,7 @@ export function ShellFrame({
 
   return (
     <div className="flex min-h-[100dvh] min-w-0 flex-col">
+      {isNavigating && <div className="route-progress-bar" aria-hidden="true" />}
       <TopBar
         displayName={displayName}
         drawerOpen={drawerOpen}
@@ -147,7 +182,7 @@ export function ShellFrame({
               {primaryLinks.map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <Link
+                  <IntentLink
                     key={item.href}
                     ref={idx === 0 ? firstLinkRef : undefined}
                     href={item.href}
@@ -157,7 +192,7 @@ export function ShellFrame({
                   >
                     <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                     <span>{item.label}</span>
-                  </Link>
+                  </IntentLink>
                 );
               })}
 
@@ -166,7 +201,7 @@ export function ShellFrame({
               {studyLinks.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link
+                  <IntentLink
                     key={item.label}
                     href={item.href}
                     onClick={() => setDrawerOpen(false)}
@@ -175,7 +210,7 @@ export function ShellFrame({
                   >
                     <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                     <span>{item.label}</span>
-                  </Link>
+                  </IntentLink>
                 );
               })}
             </nav>
