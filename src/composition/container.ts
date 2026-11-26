@@ -1237,6 +1237,7 @@ async function buildContainer(): Promise<AppContainer> {
           currentUser,
           nogs: repositories.nogs,
           topics: repositories.topics,
+          profiles: profilesRepo,
           thoughtCards: repositories.thoughtCards,
           notebook: repositories.notebook,
           usage: repositories.usage,
