@@ -8,7 +8,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { askNogAction } from "@/app/(app)/actions/ask-actions";
@@ -27,6 +26,7 @@ import {
 } from "@/components/game-ui/game-ui-context";
 import { NogAvatar } from "@/components/nog/nog-avatar";
 import { usePetting } from "@/components/nog/use-petting";
+import { InRoomLiveVoice } from "@/components/room/inroom-live-voice";
 import {
   type InRoomChatMode,
   InRoomModeToggle,
@@ -106,26 +106,6 @@ const COVER_SWATCHES: ReadonlyArray<{
   { id: "denim", label: "Sky", color: "var(--ng-c-56b5f5)" },
   { id: "forest", label: "Forest", color: "var(--noggin-forest)" },
 ];
-
-type BrowserSpeechRec = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-function getSpeechRecognitionCtor(): (new () => BrowserSpeechRec) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: new () => BrowserSpeechRec;
-    webkitSpeechRecognition?: new () => BrowserSpeechRec;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
 
 let inRoomKeySeq = 0;
 function nextKey(prefix: string): string {
@@ -219,11 +199,8 @@ export function NogRoomView({
   const [questionsPendingNotice, setQuestionsPendingNotice] = useState<string | null>(null);
   const [pendingRetryBody, setPendingRetryBody] = useState<string | null>(null);
 
-  // In-room Live Voice state
-  const [liveMuted, setLiveMuted] = useState(false);
+  // In-room Live Voice caption state
   const [liveCaption, setLiveCaption] = useState<string | null>(null);
-  const [liveTranscript, setLiveTranscript] = useState("");
-  const speechRecRef = useRef<BrowserSpeechRec | null>(null);
 
   // In-room Water state
   const [dueQueue, setDueQueue] = useState<ThoughtCardRecord[]>(() => [
@@ -295,34 +272,24 @@ export function NogRoomView({
   const currentBathCard =
     bathCandidates[bathIndex % Math.max(1, bathCandidates.length)] ?? null;
 
-  const stopLiveVoice = useCallback(() => {
-    try {
-      speechRecRef.current?.stop();
-    } catch {
-      // ignore recognition stop errors
-    }
-    speechRecRef.current = null;
-  }, []);
-
   const handleExitTeach = useCallback(() => {
     setBookPickerOpen(false);
+    setLiveCaption(null);
     setTeachMode((prev) => {
       if (prev === "live") {
-        stopLiveVoice();
         return "feed";
       }
       return null;
     });
-  }, [stopLiveVoice]);
+  }, []);
 
-  const handleOpenTeach = useCallback(
-    (mode: SanctuaryTeachMode) => {
-      setBookPickerOpen(false);
-      if (mode !== "live") stopLiveVoice();
-      setTeachMode(mode);
-    },
-    [stopLiveVoice],
-  );
+  const handleOpenTeach = useCallback((mode: SanctuaryTeachMode) => {
+    setBookPickerOpen(false);
+    if (mode !== "live") {
+      setLiveCaption(null);
+    }
+    setTeachMode(mode);
+  }, []);
 
   const teachTopbarTitle = useMemo(() => {
     if (!teachMode) return undefined;
@@ -360,65 +327,6 @@ export function NogRoomView({
     handleOpenTeach,
     setSanctuary,
   ]);
-
-  // Manage browser speech recognition when entering/exiting Live Voice
-  useEffect(() => {
-    if (teachMode !== "live" || liveMuted) {
-      stopLiveVoice();
-      return;
-    }
-
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) {
-      return;
-    }
-
-    const rec = new Ctor();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = "en-US";
-    rec.onresult = (event) => {
-      let full = "";
-      for (let i = 0; i < event.results.length; i += 1) {
-        full += `${event.results[i][0].transcript} `;
-      }
-      const trimmed = full.trim();
-      setLiveTranscript(trimmed);
-      setLiveCaption(trimmed || `Listening... explain ${bookTitle} to me!`);
-    };
-    rec.onerror = () => {
-      setLiveCaption("Mic paused — tap Unmute or type in Feed chat.");
-    };
-    rec.onend = () => {
-      speechRecRef.current = null;
-    };
-    try {
-      rec.start();
-      speechRecRef.current = rec;
-    } catch {
-      void Promise.resolve().then(() => {
-        setLiveCaption("Couldn't start mic — check browser microphone permission.");
-      });
-    }
-
-    return () => {
-      stopLiveVoice();
-    };
-  }, [teachMode, liveMuted, bookTitle, nog.name, stopLiveVoice]);
-
-  async function speakReply(text: string) {
-    if (typeof window === "undefined" || !text.trim()) return;
-    try {
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.volume = Math.max(0, Math.min(1, (state.audio.voice ?? 90) / 100));
-        window.speechSynthesis.speak(utt);
-      }
-    } catch {
-      // ignore TTS failures
-    }
-  }
 
   async function ensureActiveTopicId(): Promise<string | null> {
     if (activeTopic) return activeTopic.id;
@@ -524,7 +432,6 @@ export function NogRoomView({
         setLastCitedCards(result.knows ? result.citedCards : []);
         setLastAskUntaught(!result.knows);
         setFeedDraft("");
-        setLiveTranscript("");
         return {
           reply: result.answer,
           mood,
@@ -554,7 +461,6 @@ export function NogRoomView({
 
   async function sendLessonText(
     rawText: string,
-    speakOut = false,
     allowPendingHeal = true,
   ): Promise<InRoomReplyOutcome | null> {
     if (chatMode === "ask") {
@@ -589,10 +495,6 @@ export function NogRoomView({
         setQuestionsPendingNotice(null);
         setPendingRetryBody(null);
         setFeedDraft("");
-        setLiveTranscript("");
-        if (speakOut) {
-          void speakReply(casual.reply);
-        }
         return {
           reply: casual.reply,
           mood,
@@ -689,7 +591,6 @@ export function NogRoomView({
         setLastOffTopic(Boolean(result.digest.offTopic));
         setLastReplyMessageId(replyMessageId);
         setFeedDraft("");
-        setLiveTranscript("");
         setFixingCard(null);
         setTeachDoneLocal(true);
 
@@ -713,9 +614,6 @@ export function NogRoomView({
 
         awardRewards(10, 15);
         showToast("Saved to Notebook! +15 EXP · +10 coins");
-        if (speakOut) {
-          void speakReply(replyLine);
-        }
         router.refresh();
         return {
           reply: result.digest.reply,
@@ -732,7 +630,6 @@ export function NogRoomView({
         setLastOffTopic(false);
         setLastReplyMessageId(null);
         setFeedDraft("");
-        setLiveTranscript("");
         return null;
       }
 
@@ -770,7 +667,7 @@ export function NogRoomView({
 
   function handleFeedSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void sendLessonText(feedDraft, false);
+    void sendLessonText(feedDraft);
   }
 
   function handleAutoSplit() {
@@ -887,8 +784,7 @@ export function NogRoomView({
   const equippedIds = state.equippedSlots.filter((x): x is string => Boolean(x));
   const bubbleText = (() => {
     if (teachMode === "live") {
-      if (liveMuted) return "Mic muted — tap Unmute whenever you're ready!";
-      return liveCaption ?? `Listening... explain ${bookTitle} to me!`;
+      return liveCaption ?? `Listening… explain ${bookTitle} to me!`;
     }
     if (teachMode === "feed") {
       if (chatMode === "ask") {
@@ -1390,7 +1286,7 @@ export function NogRoomView({
                   onClarifyConflict={handleClarifyConflict}
                   onRetryPending={() => {
                     if (pendingRetryBody) {
-                      void sendLessonText(pendingRetryBody, false, true);
+                      void sendLessonText(pendingRetryBody, true);
                     }
                   }}
                   onSwitchToTeach={() => {
@@ -1471,7 +1367,7 @@ export function NogRoomView({
                   <button
                     type="button"
                     onClick={() => {
-                      setLiveMuted(false);
+                      setLiveCaption(null);
                       setTeachMode("live");
                     }}
                     className="ai-live-mic-btn"
@@ -1486,44 +1382,24 @@ export function NogRoomView({
 
             {/* IN-ROOM LIVE VOICE HUD */}
             {!bookPickerOpen && teachMode === "live" && (
-              <div className="live-voice-hud">
-                <div className={`live-orb-wrap ${liveMuted ? "is-muted" : ""}`}>
-                  <span className="live-orb-ring" aria-hidden="true" />
-                  <div className="live-wave-bars" aria-hidden="true">
-                    <i /><i /><i /><i /><i />
-                  </div>
-                </div>
-                <div className="live-voice-actions">
-                  <button
-                    type="button"
-                    onClick={() => setLiveMuted((v) => !v)}
-                    className="gbtn gbtn--white gbtn--sm"
-                  >
-                    {liveMuted ? "Unmute" : "Mute"}
-                  </button>
-                  {liveTranscript.trim().length > 0 && (
-                    <button
-                      type="button"
-                      disabled={feedSending}
-                      onClick={() => void sendLessonText(liveTranscript, true)}
-                      className="gbtn gbtn--leaf gbtn--sm"
-                    >
-                      {feedSending ? "Saving…" : "Teach This"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      stopLiveVoice();
-                      setTeachMode("feed");
-                    }}
-                    className="live-end-btn"
-                    aria-label="End Live Voice"
-                  >
-                    End Live
-                  </button>
-                </div>
-              </div>
+              <InRoomLiveVoice
+                nogName={nog.name}
+                topicTitle={bookTitle}
+                chatMode={chatMode}
+                voiceEnabled={initialSettings.voiceEnabled}
+                voiceVolume={(state.audio.voice ?? 90) / 100}
+                sending={feedSending}
+                onChangeMode={handleChatModeChange}
+                onSubmitTranscript={(text) => sendLessonText(text)}
+                onCaptionChange={setLiveCaption}
+                onExitToFeed={(feedbackMessage) => {
+                  setLiveCaption(null);
+                  if (feedbackMessage) {
+                    setNogTeachReply(feedbackMessage);
+                  }
+                  setTeachMode("feed");
+                }}
+              />
             )}
 
             {/* IN-ROOM WATER: Compact Floating Recall Card */}
