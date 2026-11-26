@@ -16,6 +16,10 @@ import {
 } from "@/adapters/supabase/repositories";
 import { createHitpayPaymentGateway } from "@/adapters/billing/hitpay-payment-gateway";
 import { createPaymongoPaymentGateway } from "@/adapters/billing/paymongo-payment-gateway";
+import {
+  createPolarPaymentGateway,
+  resolvePolarProductIdsFromEnv,
+} from "@/adapters/billing/polar-payment-gateway";
 import { createSandboxPaymentGateway } from "@/adapters/billing/sandbox-payment-gateway";
 import { createActivityRepository } from "@/adapters/supabase/repositories/activity-repository";
 import { createBillingRepository } from "@/adapters/supabase/repositories/billing-repository";
@@ -826,21 +830,31 @@ export async function createContainer(): Promise<AppContainer> {
       ? repositories.billing
       : createBillingRepository({ session, service, userId });
 
+  const polarAccessToken = process.env.POLAR_ACCESS_TOKEN?.trim() ?? "";
+  const polarEnv = (process.env.POLAR_ENV ?? "sandbox").trim().toLowerCase();
+  const polarSandbox = polarEnv !== "live" && polarEnv !== "production";
   const hitpayApiKey = process.env.HITPAY_API_KEY?.trim() ?? "";
   const hitpayEnv = (process.env.HITPAY_ENV ?? "sandbox").trim().toLowerCase();
   const hitpaySandbox = hitpayEnv !== "live" && hitpayEnv !== "production";
   const paymongoSecret = process.env.PAYMONGO_SECRET_KEY?.trim() ?? "";
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
-  const paymentGateway: PaymentGateway = hitpayApiKey
-    ? createHitpayPaymentGateway({
-        apiKey: hitpayApiKey,
+  const paymentGateway: PaymentGateway = polarAccessToken
+    ? createPolarPaymentGateway({
+        accessToken: polarAccessToken,
         appUrl,
-        sandbox: hitpaySandbox,
+        productIds: resolvePolarProductIdsFromEnv(process.env),
+        sandbox: polarSandbox,
       })
-    : paymongoSecret
-      ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
-      : createSandboxPaymentGateway();
+    : hitpayApiKey
+      ? createHitpayPaymentGateway({
+          apiKey: hitpayApiKey,
+          appUrl,
+          sandbox: hitpaySandbox,
+        })
+      : paymongoSecret
+        ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
+        : createSandboxPaymentGateway();
 
   return {
     currentUser,
