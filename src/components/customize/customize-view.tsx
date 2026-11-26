@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Plus } from "lucide-react";
+import { Check, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -34,11 +34,12 @@ function isPresetColor(hex: string | null): boolean {
 export function CustomizeView({ nog }: CustomizeViewProps) {
   const router = useRouter();
   const customInputId = useId();
+  const nameInputId = useId();
   const initialColor = nog.colors?.body ?? null;
 
-  const { state, activeRoom, openModal, requestPurchase, updateState, showToast } = useGameUi();
-  const roomBgSrc = activeRoom?.src ?? "/game/bg/sanctuary-day.jpg";
+  const { state, openModal, requestPurchase, updateState, showToast } = useGameUi();
 
+  const [draftName, setDraftName] = useState(nog.name);
   const [selectedColor, setSelectedColor] = useState<string | null>(initialColor);
   const [customColor, setCustomColor] = useState<string | null>(
     initialColor && !isPresetColor(initialColor) ? initialColor : null,
@@ -164,19 +165,37 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
   ] as const;
 
   return (
-    <div className="game-world game-world--hub game-world--customize">
+    <div className="game-world game-world--hub game-world--customize cs-world">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={roomBgSrc}
+        src="/game/bg/select-stage.jpg"
         alt=""
-        className="scene-bg-img scene-bg-img--sanctuary scene-bg-img--customize"
+        className="cs-bg-img -scale-x-100"
       />
-      <div className="scene-bg-scrim scene-bg-scrim--customize" aria-hidden="true" />
+      <div className="cs-spotlight-overlay -scale-x-100" aria-hidden="true" />
 
-      <div className="stage-body stage-body--customize">
-        <div className="mb-3 flex flex-col gap-1">
-          <h1 className="stage-h1">Make your Nog Yours</h1>
-          <p className="stage-sub">Customize your Nog</p>
+      <div className="stage-body stage-body--customize justify-center">
+        <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
+          <h1
+            className="stage-h1"
+            style={{
+              fontSize: 22,
+              color: "var(--noggin-white)",
+              textShadow: "0 2px 10px rgb(34 56 12 / 0.35)",
+            }}
+          >
+            Make your Nog Yours
+          </h1>
+          <p
+            className="stage-sub"
+            style={{
+              fontSize: 13,
+              color: "rgb(255 255 255 / 0.88)",
+              textShadow: "0 1px 6px rgb(34 56 12 / 0.35)",
+            }}
+          >
+            Customize your Nog
+          </p>
         </div>
 
         <div className="cust-layout">
@@ -267,43 +286,65 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
 
           {/* RIGHT: Cardless Controls */}
           <div className="cust-controls">
+            <section className="cust-section cust-section--name">
+              <div className="cust-section__head">
+                <label htmlFor={nameInputId} className="cust-heading">
+                  Nog Name
+                </label>
+              </div>
+              <div className="cust-name-row">
+                <input
+                  id={nameInputId}
+                  type="text"
+                  maxLength={24}
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
+                  placeholder="Name your Nog"
+                  className="cust-name-input"
+                />
+                <span className="cust-name-icon" aria-hidden="true">
+                  <Pencil className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+              </div>
+            </section>
+
             <section className="cust-section">
               <div className="cust-section__head">
                 <h2 className="cust-heading">Body Color</h2>
-                <div
-                  className="cust-pack-row m-0"
-                  role="tablist"
-                  aria-label="Owned skin packages"
+              </div>
+              <div
+                className="cust-pack-row m-0"
+                role="tablist"
+                aria-label="Owned skin packages"
+              >
+                {ownedPacks.map((pack) => {
+                  const isPackActive = activePack.id === pack.id;
+                  return (
+                    <button
+                      key={pack.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isPackActive}
+                      onClick={() =>
+                        updateState((prev) => ({
+                          ...prev,
+                          activeSkinPack: pack.id as SkinPackId,
+                        }))
+                      }
+                      className={cn("cust-pack-btn", isPackActive && "is-on")}
+                    >
+                      {pack.name}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => openModal({ type: "skinShop" })}
+                  aria-label="Open Skin Shop for more packs"
+                  className="cust-pack-btn is-locked"
                 >
-                  {ownedPacks.map((pack) => {
-                    const isPackActive = activePack.id === pack.id;
-                    return (
-                      <button
-                        key={pack.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={isPackActive}
-                        onClick={() =>
-                          updateState((prev) => ({
-                            ...prev,
-                            activeSkinPack: pack.id as SkinPackId,
-                          }))
-                        }
-                        className={cn("cust-pack-btn", isPackActive && "is-on")}
-                      >
-                        {pack.name}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => openModal({ type: "skinShop" })}
-                    aria-label="Open Skin Shop for more packs"
-                    className="cust-pack-btn is-locked"
-                  >
-                    +
-                  </button>
-                </div>
+                  +
+                </button>
               </div>
 
               <div
@@ -387,14 +428,6 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
             <section className="cust-section">
               <header className="cust-section__head">
                 <h2 className="cust-heading">Accessories</h2>
-                <button
-                  type="button"
-                  onClick={() => openModal({ type: "topup" })}
-                  className="cust-coins-badge"
-                >
-                  <span className="cust-coins-dot" aria-hidden="true" />
-                  <span>🪙 {state.coins}</span>
-                </button>
               </header>
 
               <div className="cust-acc-row flex-wrap">

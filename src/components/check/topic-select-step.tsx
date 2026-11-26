@@ -253,60 +253,7 @@ export function TopicSelectStep({
           </header>
 
           <div className="qs-sc-body qs-sc-body--prep">
-            <div className="qs-fmt-row" role="group" aria-label="Question formats">
-              {FORMAT_MODES.map((mode) => {
-                const Icon = mode.icon;
-                const on = formats[mode.id] !== false;
-                return (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() =>
-                      setFormats((prev) => ({ ...prev, [mode.id]: !prev[mode.id] }))
-                    }
-                    className={cn(
-                      "qs-fmt-chip",
-                      fmtChipClass[mode.id],
-                      on && "is-on",
-                    )}
-                  >
-                    <span className="qs-fmt-ico" aria-hidden="true">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span>{mode.label}</span>
-                    <span className="qs-fmt-check" aria-hidden="true">
-                      ✓
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="qs-src-actions">
-              <button
-                type="button"
-                aria-pressed={aiGenOn}
-                onClick={() => setAiGenOn((v) => !v)}
-                className={cn("qs-src-cta qs-src-cta--ai", aiGenOn && "is-on")}
-              >
-                <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Generate with AI</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={fileUploadOn}
-                onClick={() => setFileUploadOn((v) => !v)}
-                className={cn("qs-src-cta qs-src-cta--file", fileUploadOn && "is-on")}
-              >
-                <FileUp className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Add by File</span>
-              </button>
-            </div>
-
-            <h2 className="noggin-display m-0 text-sm font-black tracking-wide text-[var(--noggin-forest)] uppercase">
-              Topics
-            </h2>
+            <h2 className="sr-only">Topics</h2>
 
             {topics.length === 0 ? (
               <div className="flex flex-col items-start gap-4 rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-sm">
@@ -382,6 +329,57 @@ export function TopicSelectStep({
                 </div>
               </fieldset>
             )}
+
+            <div className="qs-fmt-row" role="group" aria-label="Question formats">
+              {FORMAT_MODES.map((mode) => {
+                const Icon = mode.icon;
+                const on = formats[mode.id] !== false;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setFormats((prev) => ({ ...prev, [mode.id]: !prev[mode.id] }))
+                    }
+                    className={cn(
+                      "qs-fmt-chip",
+                      fmtChipClass[mode.id],
+                      on && "is-on",
+                    )}
+                  >
+                    <span className="qs-fmt-ico" aria-hidden="true">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span>{mode.label}</span>
+                    <span className="qs-fmt-check" aria-hidden="true">
+                      ✓
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="qs-src-actions">
+              <button
+                type="button"
+                aria-pressed={aiGenOn}
+                onClick={() => setAiGenOn((v) => !v)}
+                className={cn("qs-src-cta qs-src-cta--ai", aiGenOn && "is-on")}
+              >
+                <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Generate with AI</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={fileUploadOn}
+                onClick={() => setFileUploadOn((v) => !v)}
+                className={cn("qs-src-cta qs-src-cta--file", fileUploadOn && "is-on")}
+              >
+                <FileUp className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Add by File</span>
+              </button>
+            </div>
 
             {feedback && (
               <FeedbackBanner
