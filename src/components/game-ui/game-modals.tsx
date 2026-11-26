@@ -14,13 +14,21 @@ const COIN_PACKS = [
   { id: "c1800", coins: 1800, bonus: "+350 Bonus", price: "₱499", badge: "BEST VALUE" },
 ] as const;
 
-function fireCheckoutRequest(productCode: string) {
+function runCheckout(
+  productCode: string,
+  callbacks: {
+    onImmediateSuccess: () => void;
+    onRedirecting: () => void;
+    onError: () => void;
+  },
+) {
   if (
     typeof window === "undefined" ||
     typeof fetch !== "function" ||
     process.env.NODE_ENV === "test" ||
     !window.location.protocol.startsWith("http")
   ) {
+    callbacks.onImmediateSuccess();
     return;
   }
 
@@ -35,14 +43,25 @@ function fireCheckoutRequest(productCode: string) {
     body: JSON.stringify({ productCode, idempotencyKey: key }),
   })
     .then(async (res) => {
-      if (!res.ok) return;
-      const payload = (await res.json()) as { checkoutUrl?: string | null };
+      if (!res.ok) {
+        callbacks.onError();
+        return;
+      }
+      const payload = (await res.json()) as {
+        checkoutUrl?: string | null;
+        pendingPayment?: boolean;
+      };
       if (payload.checkoutUrl && typeof window !== "undefined") {
+        callbacks.onRedirecting();
         window.location.assign(payload.checkoutUrl);
+        return;
+      }
+      if (!payload.pendingPayment) {
+        callbacks.onImmediateSuccess();
       }
     })
     .catch(() => {
-      // Non-blocking fallback keeps UI responsive
+      callbacks.onError();
     });
 }
 
@@ -342,9 +361,18 @@ export function GameModals() {
                     type="button"
                     aria-label={`${pack.coins} coins ${pack.bonus ? `${pack.bonus} ` : ""}${pack.price}`}
                     onClick={() => {
-                      fireCheckoutRequest(pack.id);
-                      awardRewards(pack.coins, 0);
-                      showToast(`Topped up +${pack.coins} coins (${pack.price})!`);
+                      runCheckout(pack.id, {
+                        onImmediateSuccess: () => {
+                          awardRewards(pack.coins, 0);
+                          showToast(`Topped up +${pack.coins} coins (${pack.price})!`);
+                        },
+                        onRedirecting: () => {
+                          showToast("Opening secure checkout…");
+                        },
+                        onError: () => {
+                          showToast("Couldn't start checkout. Please try again.");
+                        },
+                      });
                     }}
                     className={`topup-card ${pack.badge ? "is-featured" : ""}`}
                   >
@@ -429,13 +457,22 @@ export function GameModals() {
                   <button
                     type="button"
                     onClick={() => {
-                      fireCheckoutRequest("plus_monthly");
-                      updateState((prev) => ({
-                        ...prev,
-                        isPlus: true,
-                        ownedSkinPacks: { pastel: true, neon: true, dark: true, sunset: true },
-                      }));
-                      showToast("Welcome to Noggin Plus (Monthly · ₱249/mo)!");
+                      runCheckout("plus_monthly", {
+                        onImmediateSuccess: () => {
+                          updateState((prev) => ({
+                            ...prev,
+                            isPlus: true,
+                            ownedSkinPacks: { pastel: true, neon: true, dark: true, sunset: true },
+                          }));
+                          showToast("Welcome to Noggin Plus (Monthly · ₱249/mo)!");
+                        },
+                        onRedirecting: () => {
+                          showToast("Opening secure checkout…");
+                        },
+                        onError: () => {
+                          showToast("Couldn't start checkout. Please try again.");
+                        },
+                      });
                     }}
                     className="streak-btn streak-btn--leaf"
                   >
@@ -444,13 +481,22 @@ export function GameModals() {
                   <button
                     type="button"
                     onClick={() => {
-                      fireCheckoutRequest("plus_yearly");
-                      updateState((prev) => ({
-                        ...prev,
-                        isPlus: true,
-                        ownedSkinPacks: { pastel: true, neon: true, dark: true, sunset: true },
-                      }));
-                      showToast("Welcome to Noggin Plus (Yearly · ₱1,990/yr)!");
+                      runCheckout("plus_yearly", {
+                        onImmediateSuccess: () => {
+                          updateState((prev) => ({
+                            ...prev,
+                            isPlus: true,
+                            ownedSkinPacks: { pastel: true, neon: true, dark: true, sunset: true },
+                          }));
+                          showToast("Welcome to Noggin Plus (Yearly · ₱1,990/yr)!");
+                        },
+                        onRedirecting: () => {
+                          showToast("Opening secure checkout…");
+                        },
+                        onError: () => {
+                          showToast("Couldn't start checkout. Please try again.");
+                        },
+                      });
                     }}
                     className="streak-btn streak-btn--gold"
                   >
