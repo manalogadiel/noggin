@@ -84,6 +84,7 @@ export function AdoptFlow() {
 
   return (
     <div className="game-world game-world--hatch">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/game/bg/sanctuary-day.jpg"
         alt=""

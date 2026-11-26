@@ -533,8 +533,9 @@ export function NogRoomView({
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <span className="gamestage-lvl-badge tnum">{level}</span>
                       <div style={{ minWidth: 0 }}>
-                        <strong
+                        <h1
                           style={{
+                            margin: 0,
                             display: "block",
                             fontFamily: "var(--font-display)",
                             fontWeight: 800,
@@ -543,7 +544,7 @@ export function NogRoomView({
                           }}
                         >
                           {nog.name}
-                        </strong>
+                        </h1>
                         <span style={{ fontSize: 12, color: "var(--noggin-ink)" }}>
                           Lvl. {level} · {stageName}
                         </span>

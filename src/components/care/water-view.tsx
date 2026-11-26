@@ -223,15 +223,15 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
             </div>
 
             {dueCards.length === 0 ? (
-              <div className="mt-2 flex flex-col items-center gap-5 py-6 text-center">
-                <div className="w-full max-w-[280px] lg:max-w-[360px]">
+              <div className="mt-1 flex flex-col items-center gap-3 py-2 text-center">
+                <div className="w-full max-w-[200px] lg:max-w-[230px]">
                   <NogStage
                     scene="room"
                     alt={`${nog.name} with a fresh memory`}
                     poster="/nog/blob-closeup.png"
                     width={1254}
                     height={1254}
-                    sizes="(min-width: 1024px) 360px, 280px"
+                    sizes="(min-width: 1024px) 230px, 200px"
                     priority
                     className="nog-bob w-full"
                   />

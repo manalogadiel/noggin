@@ -236,15 +236,15 @@ export function BathView({ nog, items, initialSelectedId }: BathViewProps) {
         style={{ justifyContent: "flex-start" }}
       >
         {!selected ? (
-          <div className="flex flex-col items-center gap-5 py-6 text-center">
-            <div className="w-full max-w-[280px] lg:max-w-[360px]">
+          <div className="flex flex-col items-center gap-3 py-2 text-center">
+            <div className="w-full max-w-[200px] lg:max-w-[230px]">
               <NogStage
                 scene="room"
                 alt={`${nog.name} squeaky clean`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
                 height={1254}
-                sizes="(min-width: 1024px) 360px, 280px"
+                sizes="(min-width: 1024px) 230px, 200px"
                 priority
                 className="nog-bob w-full"
               />

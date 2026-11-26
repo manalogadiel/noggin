@@ -23,7 +23,7 @@ export default function LandingPage() {
           <div className="nog-bob w-full flex justify-center">
             <NogStage
               scene="trio"
-              alt="Three waving Nogs"
+              alt="Three Nogs waving: a round baby Nog and two sprouting Nogs"
               poster="/nog/landing-trio.png"
               width={1024}
               height={646}

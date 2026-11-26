@@ -221,13 +221,13 @@ export function AskView({ nog, topics, history, micMode }: AskViewProps) {
         className="stage-body stage-body--with-rail"
         style={{ justifyContent: "flex-start" }}
       >
-        <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
-          <section aria-label={`${nog.name} answer`} className="flex flex-col items-center gap-4">
+        <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-3">
+          <section aria-label={`${nog.name} answer`} className="flex flex-col items-center gap-2">
             <div
               role={fog ? "alert" : "status"}
               aria-live={fog ? "assertive" : "polite"}
               className={cn(
-                "relative z-10 w-full rounded-[24px] px-5 py-4 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
+                "relative z-10 w-full rounded-[24px] px-5 py-3 text-[0.9375rem] leading-relaxed font-semibold shadow-[0_8px_20px_var(--noggin-shadow)]",
                 fog
                   ? "bg-[var(--noggin-cream)] text-[var(--noggin-forest)]"
                   : "bg-[var(--noggin-sage)] text-[var(--noggin-forest)]",
@@ -242,14 +242,14 @@ export function AskView({ nog, topics, history, micMode }: AskViewProps) {
                 )}
               />
             </div>
-            <div className="-mt-[14%] w-full max-w-[240px] shrink-0 lg:max-w-[300px]">
+            <div className="-mt-[10%] w-full max-w-[180px] shrink-0 lg:max-w-[210px]">
               <NogStage
                 scene="room"
                 alt={`${nog.name} ready for your question`}
                 poster="/nog/blob-closeup.png"
                 width={1254}
                 height={1254}
-                sizes="(min-width: 1024px) 300px, 240px"
+                sizes="(min-width: 1024px) 210px, 180px"
                 className="nog-bob w-full"
               />
             </div>
@@ -257,7 +257,7 @@ export function AskView({ nog, topics, history, micMode }: AskViewProps) {
 
           <form
             onSubmit={handleSubmit}
-            className="surface-sage flex flex-col gap-3 rounded-[28px] p-5"
+            className="surface-sage flex flex-col gap-2.5 rounded-[28px] p-4"
           >
             <div className="flex flex-col gap-1.5">
               <label
