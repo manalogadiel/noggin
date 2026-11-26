@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PublicFooter } from "@/components/shell/public-footer";
 import { PublicHeader } from "@/components/shell/public-header";
 
 export const metadata: Metadata = {
@@ -176,6 +177,8 @@ export default function PrivacyPage() {
           </div>
         </article>
       </main>
+
+      <PublicFooter />
     </div>
   );
 }
