@@ -143,14 +143,14 @@ function useLocalSignUp() {
   return db;
 }
 
-it.each([15, 16, 17])("shows a clear age message for age %i and leaves no session or account", async (age) => {
+it("shows a clear age message for age 5 and leaves no session or account", async () => {
   const { signUpAction } = await loadAuthActions();
   const db = useLocalSignUp();
   const account = credentials();
 
-  const result = await signUpAction(authForm({ ...account, birth_date: birthDate(age), display_name: "Pip" }));
+  const result = await signUpAction(authForm({ ...account, birth_date: birthDate(5), display_name: "Pip" }));
 
-  expect(result?.error).toMatch(/\b18\b/);
+  expect(result?.error).toMatch(/\b6\b/);
   expect(result?.error).toMatch(/age|years|older|under|minimum|at least/i);
   expect(auth.signUp).not.toHaveBeenCalled();
   expect(jar.has(sessionCookie)).toBe(false);
@@ -158,10 +158,42 @@ it.each([15, 16, 17])("shows a clear age message for age %i and leaves no sessio
   await db.createUser(account);
 }, 25_000);
 
-it("accepts age 18 and saves the display name without guardian consent", async () => {
+it("requires a parent or guardian email for ages 6-12 and saves pending consent when provided", async () => {
   const { signUpAction } = await loadAuthActions();
   const db = useLocalSignUp();
-  const date = birthDate(18);
+  const date = birthDate(10);
+
+  const missingGuardian = await signUpAction(authForm({ ...credentials(), birth_date: date, display_name: "Pip" }));
+  expect(missingGuardian?.error).toMatch(/parent|guardian/i);
+  expect(auth.signUp).not.toHaveBeenCalled();
+
+  await expect(
+    signUpAction(authForm({ ...credentials(), birth_date: date, display_name: "Pip", guardian_email: "Parent@Example.com" })),
+  ).rejects.toMatchObject({ destination: "/adopt" });
+
+  expect(auth.signUp).toHaveBeenCalledOnce();
+  const { data: { user } } = await auth.signUp.mock.results[0].value;
+  expect(Boolean(user?.id)).toBe(true);
+  const profile = exactlyOne(await db.admin.rows<{
+    birth_date: string;
+    display_name: string;
+    guardian_consent_status: string;
+    guardian_email: string | null;
+    guardian_consent_at: string | null;
+  }>("profiles", { id: eq(user.id) }), "Read child profile");
+  expect(profile).toMatchObject({
+    birth_date: date,
+    display_name: "Pip",
+    guardian_consent_status: "pending",
+    guardian_email: "parent@example.com",
+    guardian_consent_at: null,
+  });
+}, 25_000);
+
+it("accepts age 13+ without a parent email and sets standard status", async () => {
+  const { signUpAction } = await loadAuthActions();
+  const db = useLocalSignUp();
+  const date = birthDate(13);
 
   await expect(signUpAction(authForm({ ...credentials(), birth_date: date, display_name: "Pip" })))
     .rejects.toMatchObject({ destination: "/adopt" });
@@ -173,9 +205,14 @@ it("accepts age 18 and saves the display name without guardian consent", async (
     birth_date: string;
     display_name: string;
     guardian_consent_status: string;
+    guardian_email: string | null;
     guardian_consent_at: string | null;
-  }>("profiles", { id: eq(user.id) }), "Read age-gated profile");
+  }>("profiles", { id: eq(user.id) }), "Read teen profile");
   expect(profile).toMatchObject({
-    birth_date: date, display_name: "Pip", guardian_consent_status: "not_required", guardian_consent_at: null,
+    birth_date: date,
+    display_name: "Pip",
+    guardian_consent_status: "not_required",
+    guardian_email: null,
+    guardian_consent_at: null,
   });
 }, 25_000);

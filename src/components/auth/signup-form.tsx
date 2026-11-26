@@ -34,10 +34,14 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
   const [displayName, setDisplayName] = useState(state.displayName ?? "");
   const [email, setEmail] = useState(state.email ?? "");
   const [birthDate, setBirthDate] = useState(state.birthDate ?? "");
+  const [guardianEmail, setGuardianEmail] = useState(state.guardianEmail ?? "");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
   const computedAge = computeAgeFromIso(birthDate);
-  const isUnderagePreview = computedAge !== null && computedAge < 18;
+  const isTooYoung = computedAge !== null && computedAge < 6;
+  const isUnder13 =
+    (computedAge !== null && computedAge >= 6 && computedAge < 13) ||
+    state.errorField === "guardian_email";
 
   const nameId = useId();
   const emailId = useId();
@@ -45,12 +49,18 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
   const passwordHelpId = useId();
   const birthdayId = useId();
   const birthdayHelpId = useId();
+  const guardianEmailId = useId();
+  const guardianHelpId = useId();
   const privacyId = useId();
   const errorId = useId();
 
   const hasError = Boolean(state.error);
   const isBirthdayError = hasError && state.errorField === "birthday";
-  const isFormError = hasError && state.errorField !== "birthday";
+  const isGuardianError = hasError && state.errorField === "guardian_email";
+  const isFormError =
+    hasError &&
+    state.errorField !== "birthday" &&
+    state.errorField !== "guardian_email";
 
   useEffect(() => {
     if (state.error) {
@@ -155,14 +165,46 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           className="figma-auth-input"
         />
         <p id={birthdayHelpId} className="mt-1 text-[12px] text-[var(--noggin-ink)]">
-          Noggin is for university students and adult learners ages 18 and up.
+          Ages 13 and up can create a standard account. Learners ages 6–12 need a parent or guardian email and receive a private, ad-free account with restricted social features.
         </p>
-        {isUnderagePreview && (
+        {isTooYoung && (
           <p className="mt-1 rounded-xl bg-[var(--noggin-danger-soft)] px-3 py-2 text-[12px] font-medium text-[var(--noggin-danger)]">
-            Noggin accounts are restricted to adults ages 18 and up.
+            Noggin is for learners ages 6 and up.
+          </p>
+        )}
+        {isUnder13 && !isTooYoung && (
+          <p className="mt-1 rounded-xl bg-[var(--noggin-meter-mid-soft)] px-3 py-2 text-[12px] font-medium text-[var(--noggin-meter-mid-ink)]">
+            Under-13 child privacy mode: your profile stays private with no public Arena leaderboards, no adding friends, and no data collected for ads.
           </p>
         )}
       </div>
+
+      {isUnder13 && !isTooYoung && (
+        <div>
+          <label htmlFor={guardianEmailId} className="figma-auth-label">
+            Parent or guardian email{" "}
+            <span aria-hidden="true" style={{ color: "var(--game-coral)" }}>
+              *
+            </span>
+          </label>
+          <input
+            id={guardianEmailId}
+            name="guardian_email"
+            type="email"
+            autoComplete="email"
+            required
+            value={guardianEmail}
+            onChange={(event) => setGuardianEmail(event.target.value)}
+            aria-invalid={isGuardianError || undefined}
+            aria-describedby={isGuardianError ? `${guardianHelpId} ${errorId}` : guardianHelpId}
+            placeholder="parent@example.com"
+            className="figma-auth-input"
+          />
+          <p id={guardianHelpId} className="mt-1 text-[12px] text-[var(--noggin-ink)]">
+            Required for learners under 13 (used for parent oversight and account recovery).
+          </p>
+        </div>
+      )}
 
       <label className="auth-age13-check">
         <input
@@ -172,7 +214,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           defaultChecked
         />
         <span>
-          I confirm I am at least <strong>18 years old</strong> and eligible to create a Noggin account.
+          I confirm my birthday is accurate (<strong>ages 13+</strong> standard account, or <strong>ages 6–12</strong> with a parent/guardian email).
         </span>
       </label>
 

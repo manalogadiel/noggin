@@ -137,7 +137,12 @@ export function credentials(): Credentials {
 }
 
 export type Row = { id: string };
-type Profile = Row & { birth_date: string; guardian_consent_status: string; plan_code: string };
+type Profile = Row & {
+  birth_date: string;
+  guardian_consent_status: string;
+  guardian_email?: string | null;
+  plan_code: string;
+};
 type Topic = Row & { title: string; visibility: string; trust_level: string };
 type Subject = Row & { name: string };
 export type Question = Row & {
@@ -177,10 +182,12 @@ export function localDb() {
       expect(Boolean(user.id), "Created user has an ID").toBe(true);
       return { ...account, id: user.id, date };
     },
-    async signUp(account: Credentials, date?: string) {
+    async signUp(account: Credentials, date?: string, extraData?: Record<string, string>) {
+      const data: Record<string, string> = { ...(extraData ?? {}) };
+      if (date) data.birth_date = date;
       const reply = await anon.request<AuthResponse>("/auth/v1/signup", "POST", {
         ...account,
-        data: date ? { birth_date: date } : {},
+        data,
       });
       if (!reply.ok) return reply;
       const user = trackUser(reply.data);
