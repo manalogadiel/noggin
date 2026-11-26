@@ -219,10 +219,20 @@ export async function transcribeAudio(
   }
 }
 
+export type SpeakAudioPayload =
+  | { attemptId: string; voice?: string }
+  | { messageId: string; voice?: string };
+
 export async function requestSpeechAudio(
-  payload: { attemptId: string } | { messageId: string },
+  payload: SpeakAudioPayload,
   signal?: AbortSignal,
 ): Promise<SpeakAudioResult> {
+  const bodyPayload =
+    payload.voice && payload.voice !== "Puck"
+      ? payload
+      : "attemptId" in payload
+        ? { attemptId: payload.attemptId }
+        : { messageId: payload.messageId };
   let response: Response;
   try {
     response = await fetch("/api/voice/speak", {
@@ -230,7 +240,7 @@ export async function requestSpeechAudio(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(bodyPayload),
       signal,
     });
   } catch (error) {

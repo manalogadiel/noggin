@@ -7,8 +7,19 @@ import type {
   SaveAccountActionResult,
 } from "@/app/(app)/actions/profile-actions";
 import { useGameUi } from "@/components/game-ui/game-ui-context";
-import type { ProfileSettings } from "@/core/application/ports";
+import type { CompanionVoice, ProfileSettings } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
+
+const VOICE_PERSONAS: ReadonlyArray<{
+  id: CompanionVoice;
+  label: string;
+  vibe: string;
+  activeCls: string;
+}> = [
+  { id: "Puck", label: "Puck", vibe: "Playful", activeCls: "prof-vbtn--leaf" },
+  { id: "Leda", label: "Leda", vibe: "Warm", activeCls: "prof-vbtn--coral" },
+  { id: "Aoede", label: "Aoede", vibe: "Bright", activeCls: "prof-vbtn--blue" },
+];
 
 export interface AccountFormProps {
   initialDisplayName: string;
@@ -352,6 +363,85 @@ export function AccountForm({
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="space-y-2">
+            <span className="noggin-display block text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+              Companion voice
+            </span>
+            <div
+              role="group"
+              aria-label="Companion voice"
+              className="grid grid-cols-1 gap-2.5 sm:grid-cols-3"
+            >
+              {VOICE_PERSONAS.map((persona) => {
+                const isSelected = (gameState.audio.ttsVoice ?? "Puck") === persona.id;
+                return (
+                  <button
+                    key={persona.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      updateState((prev) => ({
+                        ...prev,
+                        audio: { ...prev.audio, ttsVoice: persona.id },
+                      }));
+                    }}
+                    className={cn(
+                      "prof-vbtn cursor-pointer transition-transform",
+                      isSelected ? persona.activeCls : "prof-vbtn--muted",
+                    )}
+                  >
+                    <span className="prof-vbtn__txt">
+                      <small>{persona.vibe}</small>
+                      <strong>{persona.label}</strong>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-[16px] bg-[var(--noggin-white)] px-4 py-3 shadow-[0_2px_8px_var(--noggin-shadow)]">
+            <div>
+              <span className="noggin-display block text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+                Auto-read replies
+              </span>
+              <span className="block text-[0.8125rem] text-[var(--noggin-ink)]">
+                Speak new room replies aloud automatically when Nog voice is on.
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="Auto-read replies"
+              aria-checked={Boolean(gameState.audio.autoSpeakReplies)}
+              onClick={() => {
+                updateState((prev) => ({
+                  ...prev,
+                  audio: {
+                    ...prev.audio,
+                    autoSpeakReplies: !prev.audio.autoSpeakReplies,
+                  },
+                }));
+              }}
+              className={cn(
+                "inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-1 transition-colors",
+                gameState.audio.autoSpeakReplies
+                  ? "bg-[var(--noggin-leaf-strong)]"
+                  : "bg-[var(--noggin-sand)]",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "h-5 w-5 rounded-full bg-[var(--noggin-white)] transition-transform",
+                  gameState.audio.autoSpeakReplies ? "translate-x-5" : "translate-x-0",
+                )}
+              />
+            </button>
+          </div>
         </div>
       </section>
 

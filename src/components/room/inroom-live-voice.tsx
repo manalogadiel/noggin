@@ -16,6 +16,7 @@ import {
   writeMicConsent,
 } from "@/components/voice/voice-client";
 import { Waveform } from "@/components/voice/waveform";
+import type { CompanionVoice } from "@/core/application/ports";
 
 export interface LiveVoiceReplyOutcome {
   reply: string;
@@ -30,11 +31,13 @@ export interface InRoomLiveVoiceProps {
   topicTitle: string;
   chatMode: InRoomChatMode;
   voiceEnabled: boolean;
+  voiceName?: CompanionVoice;
   voiceVolume: number;
   sending: boolean;
   onChangeMode: (mode: InRoomChatMode) => void;
   onSubmitTranscript: (text: string) => Promise<LiveVoiceReplyOutcome | null>;
   onCaptionChange: (caption: string | null) => void;
+  onSpeakingChange?: (speaking: boolean) => void;
   onExitToFeed: (feedbackMessage?: string) => void;
 }
 
@@ -43,11 +46,13 @@ export function InRoomLiveVoice({
   topicTitle,
   chatMode,
   voiceEnabled,
+  voiceName = "Puck",
   voiceVolume,
   sending,
   onChangeMode,
   onSubmitTranscript,
   onCaptionChange,
+  onSpeakingChange,
   onExitToFeed,
 }: InRoomLiveVoiceProps) {
   const [consentOpen, setConsentOpen] = useState(
@@ -67,8 +72,22 @@ export function InRoomLiveVoice({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const speechGenRef = useRef(0);
+  const resumeTimerRef = useRef<number | null>(null);
+  const onSpeakingChangeRef = useRef(onSpeakingChange);
+
+  useEffect(() => {
+    onSpeakingChangeRef.current = onSpeakingChange;
+  }, [onSpeakingChange]);
+
+  const clearResumeTimer = useCallback(() => {
+    if (resumeTimerRef.current !== null) {
+      window.clearTimeout(resumeTimerRef.current);
+      resumeTimerRef.current = null;
+    }
+  }, []);
 
   const stopSpeechPlayback = useCallback(() => {
+    clearResumeTimer();
     speechGenRef.current += 1;
     speakAbortRef.current?.abort();
     speakAbortRef.current = null;
@@ -92,7 +111,8 @@ export function InRoomLiveVoice({
     if (mountedRef.current) {
       setSpeaking(false);
     }
-  }, []);
+    onSpeakingChangeRef.current?.(false);
+  }, [clearResumeTimer]);
 
   const speakWithBrowserFallback = useCallback(
     (text: string, gen: number): Promise<void> => {
@@ -140,7 +160,11 @@ export function InRoomLiveVoice({
       if (messageId) {
         const controller = new AbortController();
         speakAbortRef.current = controller;
-        const result = await requestSpeechAudio({ messageId }, controller.signal);
+        const payload =
+          voiceName && voiceName !== "Puck"
+            ? { messageId, voice: voiceName }
+            : { messageId };
+        const result = await requestSpeechAudio(payload, controller.signal);
         if (speakAbortRef.current === controller) {
           speakAbortRef.current = null;
         }
@@ -192,7 +216,7 @@ export function InRoomLiveVoice({
 
       await speakWithBrowserFallback(fallbackText, gen);
     },
-    [speakWithBrowserFallback, voiceVolume],
+    [speakWithBrowserFallback, voiceName, voiceVolume],
   );
 
   const handleTranscript = useCallback(
@@ -225,6 +249,7 @@ export function InRoomLiveVoice({
       stopSpeechPlayback();
       const gen = speechGenRef.current;
       setSpeaking(true);
+      onSpeakingChangeRef.current?.(true);
       try {
         await speakSavedOrFallback(outcome.replyMessageId, outcome.reply, gen);
         if (
@@ -242,11 +267,26 @@ export function InRoomLiveVoice({
       } finally {
         if (mountedRef.current && speechGenRef.current === gen) {
           setSpeaking(false);
+          onSpeakingChangeRef.current?.(false);
+          if (!mutedRef.current && isVoiceRecordingSupported()) {
+            clearResumeTimer();
+            resumeTimerRef.current = window.setTimeout(() => {
+              resumeTimerRef.current = null;
+              if (
+                mountedRef.current &&
+                !mutedRef.current &&
+                speechGenRef.current === gen
+              ) {
+                void startRecordingRef.current();
+              }
+            }, 450);
+          }
         }
       }
     },
     [
       chatMode,
+      clearResumeTimer,
       onCaptionChange,
       onSubmitTranscript,
       speakSavedOrFallback,
@@ -261,6 +301,7 @@ export function InRoomLiveVoice({
     },
     reducedMotion,
     hint: topicTitle,
+    autoStopOnSilenceMs: 1600,
   });
 
   const startRecordingRef = useRef(recorder.startRecording);

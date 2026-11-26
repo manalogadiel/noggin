@@ -623,8 +623,12 @@ export interface SpeechToText {
   transcribe(input: TranscribeInput): Promise<{ text: string }>;
 }
 
+export const COMPANION_VOICES = ["Puck", "Leda", "Aoede"] as const;
+export type CompanionVoice = (typeof COMPANION_VOICES)[number];
+
 export interface SpeakInput {
   text: string;
+  voice?: CompanionVoice;
 }
 
 export interface SynthesizedAudio {
