@@ -12,20 +12,54 @@ const STYLES: Record<
   forest: { c1: "var(--ng-c-4e7a25)", c2: "var(--ng-c-355b14)", c3: "var(--ng-c-203a09)", sp: "var(--ng-c-193006)", bk: "var(--ng-c-112204)", rib: "var(--ng-c-f7cb52)", ink: "var(--ng-c-ffe694)", dark: true },
 };
 
+function splitBookTitleLines(raw: string): [string] | [string, string] {
+  if (raw.length <= 12) {
+    return [raw];
+  }
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    let line1 = "";
+    let splitIdx = 0;
+    for (let i = 0; i < words.length; i += 1) {
+      const candidate = line1 ? `${line1} ${words[i]}` : words[i];
+      if (candidate.length <= 12 || i === 0) {
+        line1 = candidate;
+        splitIdx = i + 1;
+      } else {
+        break;
+      }
+    }
+    const rest = words.slice(splitIdx).join(" ");
+    if (rest.length > 0) {
+      const clipped1 = line1.length > 12 ? `${line1.slice(0, 11)}…` : line1;
+      const clipped2 = rest.length > 12 ? `${rest.slice(0, 11)}…` : rest;
+      return [clipped1, clipped2];
+    }
+  }
+  const first = raw.slice(0, 11).trimEnd();
+  const secondRaw = raw.slice(11).trimStart();
+  const second = secondRaw.length > 12 ? `${secondRaw.slice(0, 11)}…` : secondRaw;
+  return second ? [first, second] : [`${raw.slice(0, 11)}…`];
+}
+
 export function Book3dSvg({
   style = "sage",
   title,
   uid,
+  multiline = false,
   className = "h-full w-full",
 }: {
   style?: BookCoverStyle;
   title: string;
   uid: string;
+  multiline?: boolean;
   className?: string;
 }) {
   const st = STYLES[style] ?? STYLES.sage;
   const raw = (title || "Notes").trim();
-  const shortTitle = raw.length > 11 ? `${raw.slice(0, 10)}…` : raw;
+  const lines: readonly string[] = multiline
+    ? splitBookTitleLines(raw)
+    : [raw.length > 11 ? `${raw.slice(0, 10)}…` : raw];
 
   return (
     <svg viewBox="0 0 180 226" fill="none" aria-hidden="true" className={className}>
@@ -76,16 +110,38 @@ export function Book3dSvg({
       {st.dark ? (
         <>
           <rect x="60" y="26" width="92" height="142" rx="14" stroke="var(--ng-c-f7cb52)" strokeWidth="2.2" opacity=".76" />
-          <text x="106" y="100" textAnchor="middle" fill="var(--ng-c-ffe694)" fontSize="12.5" fontWeight="800" fontFamily="Poppins,sans-serif">
-            {shortTitle}
-          </text>
+          {lines.length === 2 ? (
+            <>
+              <text x="106" y="92" textAnchor="middle" fill="var(--ng-c-ffe694)" fontSize="11.5" fontWeight="800" fontFamily="Poppins,sans-serif">
+                {lines[0]}
+              </text>
+              <text x="106" y="109" textAnchor="middle" fill="var(--ng-c-ffe694)" fontSize="11.5" fontWeight="800" fontFamily="Poppins,sans-serif">
+                {lines[1]}
+              </text>
+            </>
+          ) : (
+            <text x="106" y="100" textAnchor="middle" fill="var(--ng-c-ffe694)" fontSize="12.5" fontWeight="800" fontFamily="Poppins,sans-serif">
+              {lines[0]}
+            </text>
+          )}
         </>
       ) : (
         <>
-          <rect x="64" y="52" width="84" height="52" rx="14" fill="var(--ng-c-fffdf6)" />
-          <text x="106" y="83" textAnchor="middle" fill={st.ink} fontSize="12" fontWeight="800" fontFamily="Poppins,sans-serif">
-            {shortTitle}
-          </text>
+          <rect x="64" y="48" width="84" height="58" rx="14" fill="var(--ng-c-fffdf6)" />
+          {lines.length === 2 ? (
+            <>
+              <text x="106" y="73" textAnchor="middle" fill={st.ink} fontSize="11" fontWeight="800" fontFamily="Poppins,sans-serif">
+                {lines[0]}
+              </text>
+              <text x="106" y="89" textAnchor="middle" fill={st.ink} fontSize="11" fontWeight="800" fontFamily="Poppins,sans-serif">
+                {lines[1]}
+              </text>
+            </>
+          ) : (
+            <text x="106" y="82" textAnchor="middle" fill={st.ink} fontSize="12" fontWeight="800" fontFamily="Poppins,sans-serif">
+              {lines[0]}
+            </text>
+          )}
         </>
       )}
     </svg>

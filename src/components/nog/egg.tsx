@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 export interface EggHatchProps {
   onHatched: () => void;
+  onTapChange?: (taps: number) => void;
 }
 
 function prefersReducedMotion(): boolean {
@@ -20,7 +22,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
 
-export function EggHatch({ onHatched }: EggHatchProps) {
+export function EggHatch({ onHatched, onTapChange }: EggHatchProps) {
   const [taps, setTaps] = useState(0);
   const [popping, setPopping] = useState(false);
   const popTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,6 +42,7 @@ export function EggHatch({ onHatched }: EggHatchProps) {
 
     const next = taps + 1;
     setTaps(next);
+    onTapChange?.(next);
 
     if (next >= TOTAL_TAPS) {
       if (prefersReducedMotion()) {
@@ -61,6 +64,8 @@ export function EggHatch({ onHatched }: EggHatchProps) {
         ? styles.shake
         : "";
 
+  const isCracking = taps >= 2;
+
   const hintText =
     taps === 0
       ? "Tap the egg three times to crack it open."
@@ -79,18 +84,35 @@ export function EggHatch({ onHatched }: EggHatchProps) {
         disabled={popping}
         className="group relative flex w-full max-w-[340px] cursor-pointer items-center justify-center rounded-[36px] bg-transparent p-2 transition-opacity focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--noggin-leaf-strong)] disabled:cursor-default"
       >
-        <div className={cn("w-full max-w-[320px] sm:max-w-[330px] nog-bob", stageMotionClass)}>
-          <NogStage
-            scene="egg"
-            alt=""
-            poster="/nog/egg-speckled.png"
-            width={605}
-            height={589}
-            sizes="(min-width: 640px) 330px, 320px"
-            priority
-            decorative
-            className="w-full"
-          />
+        <div
+          className={cn(
+            "relative w-full max-w-[300px] sm:max-w-[320px] nog-bob",
+            stageMotionClass,
+          )}
+        >
+          {isCracking ? (
+            <Image
+              src="/nog/egg-cracking.png"
+              alt=""
+              width={605}
+              height={589}
+              sizes="(min-width: 640px) 320px, 300px"
+              priority
+              className="h-auto w-full object-contain"
+            />
+          ) : (
+            <NogStage
+              scene="egg"
+              alt=""
+              poster="/nog/egg-speckled.png"
+              width={605}
+              height={589}
+              sizes="(min-width: 640px) 320px, 300px"
+              priority
+              decorative
+              className="w-full"
+            />
+          )}
         </div>
       </button>
 
@@ -108,10 +130,7 @@ export function EggHatch({ onHatched }: EggHatchProps) {
         ))}
       </div>
 
-      <p
-        aria-live="polite"
-        className="stage-sub mt-3 text-center"
-      >
+      <p aria-live="polite" className="stage-sub mt-3 text-center">
         {hintText}
       </p>
     </div>

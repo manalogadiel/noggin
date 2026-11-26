@@ -359,6 +359,25 @@ describe("CustomizeView (/nogs/[id]/customize)", () => {
     });
   });
 
+  it("persists an updated Nog name when edited and Done is clicked", async () => {
+    const user = userEvent.setup();
+    await renderCustomize();
+
+    const nameInput = screen.getByRole("textbox", { name: /^nog name$/i });
+    await user.clear(nameInput);
+    await user.type(nameInput, "Pingu");
+    await user.click(screen.getByRole("button", { name: /^done$/i }));
+
+    expect(customizeNog).toHaveBeenCalledExactlyOnceWith({
+      nogId: baseNog.id,
+      body: null,
+      name: "Pingu",
+    });
+    await waitFor(() => {
+      expect(routerPush).toHaveBeenCalledWith(roomHref);
+    });
+  });
+
   it("shows the invalid-color and generic save error messages without leaving the page", async () => {
     const user = userEvent.setup();
     customizeNog
