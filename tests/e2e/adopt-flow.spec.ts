@@ -67,15 +67,17 @@ async function openNaming(main: Locator) {
 }
 
 async function submitName(main: Locator, name: string) {
-  await main.getByRole("textbox", { name: "Nog name", exact: true }).fill(name);
-  await main.getByRole("button", { name: `Meet ${name}`, exact: true }).click();
+  await main.getByRole("textbox", { name: "Nog Name", exact: true }).fill(name);
+  await main.getByRole("button", { name: "Start Customizing →", exact: true }).click();
 }
 
-async function expectNogRoom(page: Page, name: string, subject: string) {
-  await expect(page).toHaveURL(/\/nogs\/[^/?#]+$/);
+async function expectNogRoom(page: Page, name: string) {
+  await expect(page).toHaveURL(/\/nogs\/[^/?#]+\/customize$/);
   const main = page.getByRole("main");
+  await expect(heading(main, "Make your Nog Yours")).toBeVisible();
+  await main.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page).toHaveURL(/\/nogs\/[^/?#]+$/);
   await expect(heading(main, name)).toBeVisible();
-  await expect(main.getByText(subject, { exact: true })).toBeVisible();
   return new URL(page.url()).pathname;
 }
 
@@ -89,7 +91,10 @@ async function hatchBySubject(page: Page, subject: string, name: string) {
 }
 
 function nogCard(main: Locator, name: string, subject: string) {
-  return main.getByRole("link", { name: `${name}, ${subject}, ${hatchling}`, exact: true });
+  return main.getByRole("link", {
+    name: `${name}, ${subject}, ${hatchling}, Lvl. 1`,
+    exact: true,
+  });
 }
 
 async function expectMobileLayoutAndAxe(page: Page, state: string) {
@@ -111,7 +116,7 @@ async function expectMobileLayoutAndAxe(page: Page, state: string) {
 test("a typed custom subject hatches after three egg clicks and opens the named Nog room", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await hatchBySubject(page, customSubject, "Coral");
-  await expectNogRoom(page, "Coral", customSubject);
+  await expectNogRoom(page, "Coral");
 });
 
 test("the Networking quick pick fills the subject and the egg hatches with Enter and Space", async ({ page }) => {
@@ -133,12 +138,12 @@ test("the Networking quick pick fills the subject and the egg hatches with Enter
   });
   await openNaming(main);
   await submitName(main, "Packet");
-  await expectNogRoom(page, "Packet", quickPick);
+  await expectNogRoom(page, "Packet");
 });
 
 test("the server refuses a second Nog for the same subject and keeps the first", async ({ page }) => {
   await hatchBySubject(page, quickPick, "Packet");
-  const room = await expectNogRoom(page, "Packet", quickPick);
+  const room = await expectNogRoom(page, "Packet");
 
   const main = await openAdoption(page);
   await main.getByRole("textbox", { name: "Subject", exact: true }).fill(quickPick);
@@ -160,22 +165,23 @@ test("the server refuses a second Nog for the same subject and keeps the first",
 
   const collection = await openCollection(page);
   await expect(nogCard(collection, "Packet", quickPick)).toHaveAttribute("href", room);
-  await expect(collection.locator('a[href^="/nogs/"]')).toHaveCount(1);
+  await expect(collection.getByRole("region", { name: "Nog roster" }).locator('a[href^="/nogs/"]')).toHaveCount(1);
   await expect(collection.getByText("Duplicate", { exact: true })).toHaveCount(0);
 });
 
 test("My Nogs shows hatchling cards with their subjects, stages and a Hatch New link", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await hatchBySubject(page, customSubject, "Coral");
-  const coralRoom = await expectNogRoom(page, "Coral", customSubject);
+  const coralRoom = await expectNogRoom(page, "Coral");
   await hatchBySubject(page, quickPick, "Packet");
-  const packetRoom = await expectNogRoom(page, "Packet", quickPick);
+  const packetRoom = await expectNogRoom(page, "Packet");
 
   const main = await openCollection(page);
-  await expect(main.getByText("Your collection of Nogs.", { exact: true })).toBeVisible();
+  await expect(main.getByText(/OWNED:\s*2\s*\/\s*9/)).toBeVisible();
   const coral = nogCard(main, "Coral", customSubject);
   const packet = nogCard(main, "Packet", quickPick);
   const hatchNew = main.getByRole("link", { name: "Hatch New", exact: true });
+  const showcase = main.getByRole("region", { name: "Selected Nog showcase" });
 
   for (const { card, name, subject, room } of [
     { card: coral, name: "Coral", subject: customSubject, room: coralRoom },
@@ -183,9 +189,11 @@ test("My Nogs shows hatchling cards with their subjects, stages and a Hatch New 
   ]) {
     await expect(card).toHaveAttribute("href", room);
     await expect(card.getByText(name, { exact: true })).toBeVisible();
-    await expect(card.getByText(subject, { exact: true })).toBeVisible();
-    await expect(card.getByText(hatchling, { exact: true })).toBeVisible();
+    await expect(card.getByText("Lvl. 1", { exact: true })).toBeVisible();
     await expect(card.locator("img")).toBeVisible();
+    await card.hover();
+    await expect(showcase.getByText(subject, { exact: true })).toBeVisible();
+    await expect(showcase.getByText(hatchling, { exact: true })).toBeVisible();
   }
   await expect(hatchNew).toHaveAttribute("href", "/adopt");
   const [coralBox, packetBox, hatchNewBox] = await Promise.all(

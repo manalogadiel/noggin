@@ -552,7 +552,7 @@
 .discover-hero-band {
   position: relative;
   flex: 0 0 auto;
-  min-height: max(780px, calc(100dvh - 110px));
+  min-height: max(680px, calc(100dvh - 86px));
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, var(--noggin-mint-light) 0%, var(--ng-c-d5efb9) 100%);
@@ -680,7 +680,7 @@
   font-size: clamp(32px, 4.4vw, 56px);
   line-height: 1.05;
   letter-spacing: -0.02em;
-  color: var(--ng-c-a4c86d);
+  color: var(--ng-c-537d23);
 }
 
 .discover-brand-big {
@@ -690,7 +690,7 @@
   font-size: clamp(54px, 7.6vw, 96px);
   line-height: 0.96;
   letter-spacing: -0.03em;
-  color: var(--ng-c-84b04c);
+  color: var(--ng-c-3f6f11);
 }
 
 .discover-copy {
@@ -794,7 +794,7 @@
 
 .discover-footer {
   flex: 0 0 auto;
-  background: var(--noggin-leaf);
+  background: var(--ng-c-3f6f11);
   color: var(--noggin-white);
   text-align: center;
   padding: 24px 16px;
@@ -9843,11 +9843,49 @@
   min-height: 0;
   align-items: stretch;
   overflow: hidden;
+  padding: 10px 0 12px 10px;
 }
 
 .game-world--profile .prof-hero-card {
   align-self: flex-start;
   flex-shrink: 0;
+}
+
+.game-world--profile .prof-hero-card__surface {
+  height: auto;
+  min-height: 0;
+}
+
+@media (max-height: 820px) {
+  .game-world--profile .prof-hero-card__surface {
+    padding: 20px 22px;
+    gap: 8px;
+  }
+
+  .game-world--profile .prof-avatar-ring {
+    width: 112px;
+    height: 112px;
+  }
+
+  .game-world--profile .prof-avatar-ring img {
+    width: 92px;
+    height: 92px;
+  }
+
+  .game-world--profile .prof-hero-name {
+    margin-top: 2px;
+    font-size: 26px;
+  }
+
+  .game-world--profile .prof-xp-box {
+    margin-top: 2px;
+    padding: 9px 12px;
+  }
+
+  .game-world--profile .prof-mini-stats {
+    margin-top: 4px;
+    gap: 6px;
+  }
 }
 
 .game-world--profile .prof-content {
@@ -9998,7 +10036,7 @@
 }
 
 .pub-cta-pill {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 18px;
   font-size: 13.5px;
 }
@@ -10049,12 +10087,8 @@
 }
 
 .discover-hero-band {
-  min-height: 750px;
+  min-height: calc(100dvh - 70px);
   height: auto;
-}
-
-.discover-hero-band {
-  height: 750px;
 }
 
 .discover-hero {
@@ -10162,8 +10196,94 @@
 
 .figma-app-topbar {
   height: 52px;
-  padding: 0 14px;
+  padding: 0 8px;
+  gap: 4px;
   border-radius: 0 0 18px 18px;
+}
+
+.topbar-left,
+.topbar-right {
+  gap: 4px;
+  min-width: 0;
+}
+
+.topbar-left {
+  flex: 0 1 auto;
+}
+
+.topbar-right {
+  flex-shrink: 0;
+}
+
+.figma-menu-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.topbar-yellow-3d {
+  height: 30px;
+  padding: 0 7px;
+  gap: 4px;
+  font-size: 11px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tasks-chest-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.tasks-chest-btn__img {
+  width: 26px;
+  height: 26px;
+}
+
+.tasks-chest-badge {
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+  padding: 0 3px;
+  top: -2px;
+  right: -3px;
+}
+
+.topbar-ctx-title {
+  display: none;
+}
+
+.topbar-shop-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.topbar-shop-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.topbar-currency-pill {
+  height: 28px;
+  min-width: 0;
+  padding: 0 7px 0 4px;
+  gap: 4px;
+  font-size: 11.5px;
+}
+
+.topbar-currency-pill .cs-currency-pill__icon,
+.topbar-currency-pill .cs-currency-pill__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.topbar-coin-plus {
+  display: none;
 }
 
 .figma-floating-topbar {
@@ -10176,15 +10296,27 @@
   border-radius: 13px;
 }
 
-.figma-account-btn {
-  font-size: 13px;
-  gap: 6px;
-  padding: 3px 8px 3px 4px;
+.figma-account-btn,
+.figma-account-btn--xp {
+  font-size: 12px;
+  gap: 0 !important;
+  padding: 2px !important;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.topbar-acc-meta {
+  display: none;
 }
 
 .figma-account-btn img {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
+}
+
+.qs-src-actions {
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .figma-account-btn--float .figma-account-name,
@@ -10371,6 +10503,20 @@
 .cs-currency-pill__icon {
   width: 26px;
   height: 26px;
+}
+
+.figma-app-topbar .topbar-currency-pill {
+  height: 28px;
+  min-width: 0;
+  padding: 0 7px 0 4px;
+  gap: 4px;
+  font-size: 11.5px;
+}
+
+.figma-app-topbar .topbar-currency-pill .cs-currency-pill__icon,
+.figma-app-topbar .topbar-currency-pill .cs-currency-pill__icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .charselect-layout {

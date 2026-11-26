@@ -21,6 +21,8 @@ const viewListeners = new Set<() => void>();
 let fallbackView: CollectionView = "grid";
 
 const LOCKED_SLOTS = [
+  { label: "Slot 3", sash: "LV. 3", img: "/game/nog/hatchling-happy.png" },
+  { label: "Slot 4", sash: "LV. 4", img: "/game/nog/thinking.png" },
   { label: "Slot 5", sash: "LV. 5", img: "/game/nog/hatchling-giggling.png" },
   { label: "Slot 6", sash: "LV. 8", img: "/game/nog/flying-book.png" },
   { label: "Slot 7", sash: "PLUS", img: "/game/nog/hatchling-surprised.png" },
@@ -95,9 +97,9 @@ export function NogCollection({ nogs }: NogCollectionProps) {
 
   const selected = nogs.find((n) => n.id === selectedId) ?? nogs[0];
   const equippedAccCount = state.equippedSlots.filter(Boolean).length;
+  const lockedNeeded = Math.max(0, 9 - nogs.length - 1);
   const visibleLockedSlots = LOCKED_SLOTS.slice(
-    0,
-    Math.max(0, 9 - nogs.length - 1),
+    Math.max(0, LOCKED_SLOTS.length - lockedNeeded),
   );
 
   function handleRadioKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {

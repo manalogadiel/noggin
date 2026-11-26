@@ -198,5 +198,6 @@ export const revisionDigest: ListenerDigest = {
 
 export function toRecord(card: AnalysisCard): ThoughtCardRecord {
   const { freshness: _freshness, ...record } = card;
+  void _freshness;
   return { ...record };
 }

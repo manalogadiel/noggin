@@ -600,12 +600,108 @@
   font-weight: 700;
   box-shadow: 0 4px 12px rgb(70 106 26 / 0.22), inset 0 -2px 6px rgb(58 92 20 / 0.22);
 }
+.pub-header a:focus-visible,
+.landing-stage a:focus-visible,
+.discover-hero a:focus-visible,
+.discover-cta-band a:focus-visible {
+  outline: 3px solid var(--noggin-forest);
+  outline-offset: 2px;
+}
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+.link-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+.discover-showcase--unified {
+  position: relative;
+  display: block;
+  min-height: 340px;
+}
+.discover-feature-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 340px 1fr;
+  row-gap: 36px;
+  column-gap: 18px;
+  align-items: center;
+  min-height: 340px;
+}
+.discover-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 26px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--ng-c-bfdb8e) 0%, var(--ng-c-add079) 100%);
+  color: var(--noggin-white);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  box-shadow: 0 8px 18px rgb(104 146 52 / 0.18), inset 0 -3px 7px rgb(80 116 34 / 0.18);
+  white-space: nowrap;
+}
+.discover-pill--l1,
+.discover-pill--l2,
+.discover-pill--l3 {
+  grid-column: 1;
+  justify-self: end;
+}
+.discover-pill--l1 { grid-row: 1; }
+.discover-pill--l2 { grid-row: 2; margin-right: 34px; }
+.discover-pill--l3 { grid-row: 3; }
+.discover-pill--r1,
+.discover-pill--r2,
+.discover-pill--r3 {
+  grid-column: 3;
+  justify-self: start;
+}
+.discover-pill--r1 { grid-row: 1; }
+.discover-pill--r2 { grid-row: 2; margin-left: 34px; }
+.discover-pill--r3 { grid-row: 3; }
+.discover-pedestal-wrap--center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
 @media (max-width: 767px) {
   .pub-nav-pill a {
-    min-width: 120px;
-    height: 36px;
+    min-width: 112px;
+    height: 44px;
     font-size: 13.5px;
     padding: 0 14px;
+  }
+  .discover-showcase--unified {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    min-height: 0;
+  }
+  .discover-feature-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    min-height: 0;
+  }
+  .discover-pill {
+    margin: 0 !important;
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+  .discover-pedestal-wrap--center {
+    position: static;
+    transform: none;
   }
 }
 
