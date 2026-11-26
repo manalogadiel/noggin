@@ -1,6 +1,7 @@
 import "server-only";
 import { createFakeLlmAdapters } from "./fake-llm";
 import {
+  AskerOutputError,
   createOpenAiCompatibleAdapters,
   GraderOutputError,
   LlmConfigError,
@@ -15,6 +16,7 @@ import {
 import type { NogPersona } from "./prompts/listener";
 
 export {
+  AskerOutputError,
   GraderOutputError,
   LlmConfigError,
   NogSleepyError,
@@ -97,10 +99,14 @@ function readProviderConfigFromEnv(): OpenAiCompatibleConfig {
   }
 
   const graderModel = readNonEmptyEnv("LLM_GRADER_MODEL");
+  const askerModel = readNonEmptyEnv("LLM_ASKER_MODEL");
   const questionWriterModel = readNonEmptyEnv("LLM_QUESTION_WRITER_MODEL");
   const roleModels: Partial<Record<LlmRole, string>> = {};
   if (graderModel) {
     roleModels.grader = graderModel;
+  }
+  if (askerModel) {
+    roleModels.asker = askerModel;
   }
   if (questionWriterModel) {
     roleModels["question-writer"] = questionWriterModel;

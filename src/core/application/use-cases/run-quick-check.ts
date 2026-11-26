@@ -1,3 +1,4 @@
+import { textSimilarity, tokenizeNormalized } from "../../domain/card-similarity";
 import { countWords } from "../../domain/lesson";
 import {
   isConceptCovered,
@@ -194,6 +195,8 @@ export function computeNogStageFromAttempts(
   ).toLowerCase() as NogStageSlug;
 }
 
+const CARD_CONCEPT_SIMILARITY_THRESHOLD = 0.6;
+
 function buildCardCheckUpdates(
   activeCards: ReadonlyArray<ThoughtCardRecord>,
   attemptDrafts: ReadonlyArray<CheckAttemptDraft>,
@@ -203,37 +206,66 @@ function buildCardCheckUpdates(
     return [];
   }
 
-  const coveredTerms: string[] = [];
-  const missedTerms: string[] = [];
+  const gradedEntries: Array<{
+    concept: string;
+    tokens: string[];
+    covered: boolean;
+  }> = [];
   for (const draft of attemptDrafts) {
     for (const concept of draft.concepts) {
-      const normalized = concept.concept.trim().toLowerCase();
-      if (!normalized) continue;
-      if (isConceptCovered(concept)) {
-        coveredTerms.push(normalized);
-      } else {
-        missedTerms.push(normalized);
-      }
+      const conceptText = concept.concept.trim();
+      const tokens = tokenizeNormalized(conceptText);
+      if (tokens.length === 0) continue;
+      gradedEntries.push({
+        concept: conceptText,
+        tokens,
+        covered: isConceptCovered(concept),
+      });
     }
+  }
+
+  if (gradedEntries.length === 0) {
+    return [];
   }
 
   const updates: CardCheckUpdate[] = [];
   for (const card of activeCards) {
-    const label = card.label.trim().toLowerCase();
-    const haystack = `${label} ${card.paraphrase}`.toLowerCase();
-    const matchesTerm = (term: string) =>
-      haystack.includes(term) || (label.length >= 2 && term.includes(label));
-    const matchedMissed = missedTerms.some(matchesTerm);
-    const matchedCovered = coveredTerms.some(matchesTerm);
+    const cardText = `${card.label} ${card.paraphrase}`;
+    const cardTokenSet = new Set(tokenizeNormalized(cardText));
 
-    if (!matchedMissed && !matchedCovered) {
+    let bestMatch: { closeness: number; covered: boolean } | null = null;
+    for (const entry of gradedEntries) {
+      const wholeWord = entry.tokens.every((token) => cardTokenSet.has(token));
+      const similar =
+        textSimilarity(entry.concept, card.label) >=
+        CARD_CONCEPT_SIMILARITY_THRESHOLD;
+
+      if (!wholeWord && !similar) {
+        continue;
+      }
+
+      const closeness =
+        textSimilarity(entry.concept, cardText) + (wholeWord ? 1 : 0);
+
+      if (
+        bestMatch === null ||
+        closeness > bestMatch.closeness ||
+        (closeness === bestMatch.closeness &&
+          entry.covered &&
+          !bestMatch.covered)
+      ) {
+        bestMatch = { closeness, covered: entry.covered };
+      }
+    }
+
+    if (!bestMatch) {
       continue;
     }
 
     const currentStrength = card.strength ?? 1;
     const currentInterval = card.intervalDays ?? 1;
 
-    if (matchedMissed) {
+    if (!bestMatch.covered) {
       const nextInterval = nextReviewIntervalDays(currentInterval, false);
       updates.push({
         cardId: card.id,
@@ -406,11 +438,18 @@ export async function runQuickCheck(
       return { status: "tired_for_today" };
     }
 
+    const gradeCards = activeCards.map((card) => ({
+      label: card.label,
+      paraphrase: card.paraphrase,
+      ...(card.quote !== undefined ? { quote: card.quote } : {}),
+    }));
+
     let gradeResult;
     try {
       gradeResult = await deps.grader.grade({
         topicId: input.topicId,
         pages: contextPages,
+        cards: gradeCards,
         questions: selectedQuestions,
         answers: answerResult.answers,
       });

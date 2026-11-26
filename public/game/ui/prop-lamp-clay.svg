@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170" fill="none">
+  <defs>
+    <linearGradient id="shadeOff" x1="22" y1="16" x2="98" y2="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fffdf4"/>
+      <stop offset="60%" stop-color="#f7ebd2"/>
+      <stop offset="100%" stop-color="#e3cfa9"/>
+    </linearGradient>
+    <linearGradient id="woodStem" x1="50" y1="74" x2="72" y2="152" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e5b173"/>
+      <stop offset="60%" stop-color="#c98c4a"/>
+      <stop offset="100%" stop-color="#a2682e"/>
+    </linearGradient>
+    <linearGradient id="baseClay" x1="28" y1="138" x2="92" y2="158" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f0c58c"/>
+      <stop offset="100%" stop-color="#bd803e"/>
+    </linearGradient>
+  </defs>
+  <!-- Floor shadow -->
+  <ellipse cx="60" cy="158" rx="34" ry="8" fill="#4f3312" fill-opacity=".24"/>
+  <!-- Rounded wooden base -->
+  <ellipse cx="60" cy="148" rx="28" ry="11" fill="url(#baseClay)"/>
+  <ellipse cx="60" cy="145" rx="22" ry="7" fill="#f7d7aa" fill-opacity=".55"/>
+  <!-- Stem -->
+  <rect x="53" y="72" width="14" height="76" rx="7" fill="url(#woodStem)"/>
+  <!-- Pull cord & tiny gold bead -->
+  <path d="M74 74v22" stroke="#c98c4a" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="74" cy="99" r="5" fill="#f5c23b"/>
+  <!-- Soft 3D dome lampshade -->
+  <path d="M18 68c0-28 16-48 42-48s42 20 42 48c0 6-6 10-42 10s-42-4-42-10z" fill="url(#shadeOff)"/>
+  <!-- Warm under-rim -->
+  <ellipse cx="60" cy="70" rx="38" ry="8" fill="#ebd4a6"/>
+  <!-- Glossy dome highlight -->
+  <path d="M33 44c5-11 14-17 26-18" stroke="#ffffff" stroke-opacity=".85" stroke-width="5.5" stroke-linecap="round"/>
+  <!-- Top wood finial -->
+  <circle cx="60" cy="17" r="6" fill="#c98c4a"/>
+</svg>

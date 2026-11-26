@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <radialGradient id="r-wing" cx="35%" cy="28%" r="72%">
+      <stop offset="0%" stop-color="#ffb4ac"/>
+      <stop offset="55%" stop-color="#f07872"/>
+      <stop offset="100%" stop-color="#c94d4d"/>
+    </radialGradient>
+    <radialGradient id="r-knot" cx="36%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffc2ba"/>
+      <stop offset="60%" stop-color="#ea6b68"/>
+      <stop offset="100%" stop-color="#ba4143"/>
+    </radialGradient>
+    <filter id="r-shadow" x="-15%" y="-15%" width="130%" height="145%">
+      <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#7c2727" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g filter="url(#r-shadow)">
+    <path d="M54 68L36 96c-2 3 0 6 4 5l16-4 4-24z" fill="#d95858"/>
+    <path d="M66 68l18 28c2 3 0 6-4 5l-16-4-4-24z" fill="#cf5050"/>
+    <path d="M58 58C45 36 18 32 16 56c-2 22 25 24 42 8z" fill="url(#r-wing)"/>
+    <path d="M62 58c13-22 40-26 42-2 2 22-25 24-42 8z" fill="url(#r-wing)"/>
+    <path d="M46 58c-9-3-17-2-21 1" stroke="#b23a3c" stroke-width="3" stroke-linecap="round" opacity="0.35"/>
+    <path d="M74 58c9-3 17-2 21 1" stroke="#b23a3c" stroke-width="3" stroke-linecap="round" opacity="0.35"/>
+    <path d="M26 48c5-4 12-4 18 0" stroke="#ffe5e1" stroke-width="3.8" stroke-linecap="round" opacity="0.72"/>
+    <path d="M76 48c6-4 13-4 18 0" stroke="#ffe5e1" stroke-width="3.8" stroke-linecap="round" opacity="0.72"/>
+    <rect x="49" y="47" width="22" height="26" rx="10" fill="url(#r-knot)"/>
+    <path d="M55 53h10" stroke="#ffe8e5" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+  </g>
+</svg>

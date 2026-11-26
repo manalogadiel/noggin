@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, LogOut } from "lucide-react";
-import { type FormEvent, useId, useState } from "react";
+import { Check, LogOut, Mic, Music, Volume2 } from "lucide-react";
+import { type FormEvent, useState } from "react";
 import type {
   SaveAccountActionInput,
   SaveAccountActionResult,
 } from "@/app/(app)/actions/profile-actions";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import type { ProfileSettings } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +15,7 @@ export interface AccountFormProps {
   email: string;
   initialSettings: ProfileSettings;
   onSave: (input: SaveAccountActionInput) => Promise<SaveAccountActionResult>;
-  onSignOut: () => Promise<unknown> | void;
+  onSignOut: () => Promise<unknown>;
 }
 
 export function AccountForm({
@@ -24,41 +25,29 @@ export function AccountForm({
   onSave,
   onSignOut,
 }: AccountFormProps) {
+  const { state: gameState, updateState } = useGameUi();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [settings, setSettings] = useState<ProfileSettings>(initialSettings);
   const [saving, setSaving] = useState(false);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-
-  const displayNameId = useId();
-  const displayNameErrorId = useId();
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving) {
-      return;
-    }
-
     setSaving(true);
-    setNameError(null);
-    setFormError(null);
     setSaved(false);
+    setFormError(null);
 
     try {
       const result = await onSave({
         displayName,
-        settings: { ...settings },
+        settings,
       });
 
       if (result.status === "ok") {
         setSaved(true);
-      } else if (result.status === "invalid_name") {
-        setNameError(result.error || "Use 1–40 characters");
       } else {
-        setFormError(
-          result.error || "Couldn't save account changes. Try again.",
-        );
+        setFormError(result.error);
       }
     } catch {
       setFormError("Couldn't save account changes. Try again.");
@@ -72,151 +61,143 @@ export function AccountForm({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 pb-4">
       <form
-        onSubmit={handleSubmit}
-        noValidate
-        className="flex flex-col gap-6 rounded-[36px] bg-[var(--noggin-panel)] p-6 text-[var(--noggin-forest)] shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8"
+        onSubmit={(event) => void handleSubmit(event)}
+        className="prof-panel gap-5"
       >
-        <div className="space-y-2">
-          <label
-            htmlFor={displayNameId}
-            className="noggin-display block text-[1rem] font-bold text-[var(--noggin-forest)]"
-          >
-            Display name
-          </label>
-          <input
-            id={displayNameId}
-            name="displayName"
-            type="text"
-            required
-            maxLength={40}
-            value={displayName}
-            aria-invalid={nameError ? "true" : undefined}
-            aria-describedby={nameError ? displayNameErrorId : undefined}
-            onChange={(event) => {
-              setDisplayName(event.target.value);
-              if (nameError) setNameError(null);
-              if (saved) setSaved(false);
-            }}
-            className="min-h-12 w-full rounded-[12px] bg-[var(--noggin-white)] px-4 py-2.5 text-[1rem] font-medium text-[var(--noggin-forest)] shadow-[0_2px_8px_var(--noggin-shadow)] outline-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf-strong)]"
-          />
-          {nameError && (
-            <p
-              id={displayNameErrorId}
-              role="alert"
-              className="rounded-[12px] bg-[var(--noggin-danger-soft)] px-3.5 py-2 text-[0.875rem] font-semibold text-[var(--noggin-danger)]"
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="account-display-name"
+              className="figma-auth-label block"
             >
-              {nameError}
+              Display name
+            </label>
+            <input
+              id="account-display-name"
+              name="displayName"
+              type="text"
+              maxLength={40}
+              value={displayName}
+              onChange={(event) => {
+                setDisplayName(event.target.value);
+                setSaved(false);
+                setFormError(null);
+              }}
+              className="g-input h-12 rounded-[14px]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <span className="figma-auth-label block">
+              Email address
+            </span>
+            <p className="m-0 flex h-12 items-center truncate rounded-[14px] bg-[var(--ng-c-f4efe0)] px-4 text-[0.9375rem] font-semibold text-[var(--noggin-ink)]">
+              {email}
             </p>
-          )}
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <span className="noggin-display block text-[1rem] font-bold text-[var(--noggin-forest)]">
-            Email
-          </span>
-          <p className="min-h-12 rounded-[12px] bg-[var(--noggin-cream)] px-4 py-3 text-[0.9375rem] font-medium text-[var(--noggin-forest)]">
-            {email}
-          </p>
-        </div>
-
-        <fieldset className="space-y-5">
-          <legend className="noggin-display text-[1.125rem] font-extrabold text-[var(--noggin-forest)]">
-            Nog settings
+        <fieldset className="space-y-2.5">
+          <legend className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+            Grill mode
           </legend>
-
-          <div className="space-y-2">
-            <span className="noggin-display block text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
-              Grill mode
-            </span>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {(
-                [
-                  { value: "roast", label: "Playful roast" },
-                  { value: "gentle", label: "Gentle" },
-                ] as const
-              ).map((option) => {
-                const checked = settings.grillMode === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={cn(
-                      "flex min-h-12 cursor-pointer items-center gap-3 rounded-[16px] px-4 py-3 transition-colors",
-                      checked
-                        ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow-[0_6px_16px_var(--noggin-shadow)]"
-                        : "bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_2px_8px_var(--noggin-shadow)] hover:bg-[var(--noggin-mint)]",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="grillMode"
-                      value={option.value}
-                      checked={checked}
-                      onChange={() => {
-                        setSettings((prev) => ({
-                          ...prev,
-                          grillMode: option.value,
-                        }));
-                        setSaved(false);
-                      }}
-                      className="h-4 w-4 accent-[var(--noggin-leaf-strong)]"
-                    />
-                    <span className="noggin-display text-[0.9375rem] font-bold">
-                      {option.label}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {(
+              [
+                { value: "roast", label: "Playful roast", desc: "Witty banter & tough follow-ups" },
+                { value: "gentle", label: "Gentle", desc: "Warm encouragement & patient hints" },
+              ] as const
+            ).map((option) => (
+              <label
+                key={option.value}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-[16px] px-4 py-3 shadow-[0_2px_8px_var(--noggin-shadow)] transition-colors",
+                  settings.grillMode === option.value
+                    ? "bg-[var(--noggin-mint-light)] ring-2 ring-[var(--noggin-leaf-strong)]"
+                    : "bg-[var(--noggin-white)]",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="grillMode"
+                  value={option.value}
+                  checked={settings.grillMode === option.value}
+                  onChange={() => {
+                    setSettings((prev) => ({
+                      ...prev,
+                      grillMode: option.value,
+                    }));
+                    setSaved(false);
+                  }}
+                  className="h-4 w-4 accent-[var(--noggin-leaf-strong)]"
+                />
+                <span className="flex flex-col">
+                  <strong className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+                    {option.label}
+                  </strong>
+                  <span className="text-[0.75rem] text-[var(--noggin-ink)]">
+                    {option.desc}
+                  </span>
+                </span>
+              </label>
+            ))}
           </div>
+        </fieldset>
 
-          <div className="space-y-2">
-            <span className="noggin-display block text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
-              Mic mode
-            </span>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {(
-                [
-                  { value: "tap", label: "Tap to talk" },
-                  { value: "hold", label: "Hold to talk" },
-                ] as const
-              ).map((option) => {
-                const checked = settings.micMode === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={cn(
-                      "flex min-h-12 cursor-pointer items-center gap-3 rounded-[16px] px-4 py-3 transition-colors",
-                      checked
-                        ? "bg-[var(--noggin-leaf-strong)] text-[var(--noggin-white)] shadow-[0_6px_16px_var(--noggin-shadow)]"
-                        : "bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_2px_8px_var(--noggin-shadow)] hover:bg-[var(--noggin-mint)]",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="micMode"
-                      value={option.value}
-                      checked={checked}
-                      onChange={() => {
-                        setSettings((prev) => ({
-                          ...prev,
-                          micMode: option.value,
-                        }));
-                        setSaved(false);
-                      }}
-                      className="h-4 w-4 accent-[var(--noggin-leaf-strong)]"
-                    />
-                    <span className="noggin-display text-[0.9375rem] font-bold">
-                      {option.label}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+        <fieldset className="space-y-2.5">
+          <legend className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+            Microphone mode
+          </legend>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {(
+              [
+                { value: "tap", label: "Tap to talk", desc: "Tap once to record, tap to send" },
+                { value: "hold", label: "Hold to talk", desc: "Hold button while speaking" },
+              ] as const
+            ).map((option) => (
+              <label
+                key={option.value}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-[16px] px-4 py-3 shadow-[0_2px_8px_var(--noggin-shadow)] transition-colors",
+                  settings.micMode === option.value
+                    ? "bg-[var(--noggin-mint-light)] ring-2 ring-[var(--noggin-leaf-strong)]"
+                    : "bg-[var(--noggin-white)]",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="micMode"
+                  value={option.value}
+                  checked={settings.micMode === option.value}
+                  onChange={() => {
+                    setSettings((prev) => ({
+                      ...prev,
+                      micMode: option.value,
+                    }));
+                    setSaved(false);
+                  }}
+                  className="h-4 w-4 accent-[var(--noggin-leaf-strong)]"
+                />
+                <span className="flex flex-col">
+                  <strong className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+                    {option.label}
+                  </strong>
+                  <span className="text-[0.75rem] text-[var(--noggin-ink)]">
+                    {option.desc}
+                  </span>
+                </span>
+              </label>
+            ))}
           </div>
+        </fieldset>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <fieldset className="space-y-2.5">
+          <legend className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
+            Audio switches
+          </legend>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div className="flex items-center justify-between gap-3 rounded-[16px] bg-[var(--noggin-white)] px-4 py-3 shadow-[0_2px_8px_var(--noggin-shadow)]">
               <span className="noggin-display text-[0.9375rem] font-bold text-[var(--noggin-forest)]">
                 Nog voice
@@ -307,18 +288,84 @@ export function AccountForm({
           <button
             type="submit"
             disabled={saving}
-            className="noggin-primary-pill noggin-display inline-flex min-h-11 cursor-pointer items-center justify-center px-6 py-2.5 text-[1rem] font-bold disabled:opacity-60"
+            className="gbtn gbtn--leaf disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
       </form>
 
+      <section aria-label="Sound and Audio Mixer" className="prof-panel">
+        <h2 className="prof-panel__title m-0">Sound &amp; Audio</h2>
+
+        <div className="prof-audio-list">
+          {(
+            [
+              {
+                key: "music",
+                label: "Background music volume",
+                title: "Background Music",
+                value: gameState.audio.music,
+                icoClass: "prof-audio-ico--music",
+                icon: Music,
+              },
+              {
+                key: "sfx",
+                label: "Sound effects volume",
+                title: "UI Sound Effects",
+                value: gameState.audio.sfx,
+                icoClass: "prof-audio-ico--sfx",
+                icon: Volume2,
+              },
+              {
+                key: "voice",
+                label: "Speech synthesis volume",
+                title: "Speech Volume",
+                value: gameState.audio.voice,
+                icoClass: "prof-audio-ico--voice",
+                icon: Mic,
+              },
+            ] as const
+          ).map((row) => {
+            const Icon = row.icon;
+            return (
+              <div key={row.key} className="prof-audio-row">
+                <span className={`prof-audio-ico ${row.icoClass}`} aria-hidden="true">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="prof-audio-ctrl">
+                  <div className="prof-audio-head">
+                    <label htmlFor={`audio-slider-${row.key}`}>{row.title}</label>
+                    <span className="tnum">{row.value}%</span>
+                  </div>
+                  <input
+                    id={`audio-slider-${row.key}`}
+                    type="range"
+                    min={0}
+                    max={100}
+                    aria-label={row.label}
+                    value={row.value}
+                    onChange={(event) => {
+                      const nextVal = Number(event.target.value);
+                      updateState((prev) => ({
+                        ...prev,
+                        audio: { ...prev.audio, [row.key]: nextVal },
+                      }));
+                    }}
+                    className="prof-slider"
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <div className="flex justify-end">
         <button
           type="button"
           onClick={() => void handleLogOut()}
-          className="noggin-display inline-flex min-h-11 cursor-pointer items-center gap-2.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-5 py-2.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors hover:bg-[var(--noggin-mint)]"
+          className="gbtn gbtn--white"
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
           <span>Log out</span>

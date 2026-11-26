@@ -4,10 +4,26 @@ import { z } from "zod";
 import { createLlmAdapters, type NogPersona } from "@/adapters/ai/fallback-llm";
 import { createSupabaseCurrentUser } from "@/adapters/supabase/current-user";
 import {
+  askNog,
+  listAskHistory,
+  type AskNogInput,
+  type AskNogResult,
+  type ListAskHistoryResult,
+} from "@/core/application/use-cases/ask-nog";
+import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import { createHitpayPaymentGateway } from "@/adapters/billing/hitpay-payment-gateway";
+import { createPaymongoPaymentGateway } from "@/adapters/billing/paymongo-payment-gateway";
+import {
+  createPolarPaymentGateway,
+  resolvePolarProductIdsFromEnv,
+} from "@/adapters/billing/polar-payment-gateway";
+import { createSandboxPaymentGateway } from "@/adapters/billing/sandbox-payment-gateway";
 import { createActivityRepository } from "@/adapters/supabase/repositories/activity-repository";
+import { createBillingRepository } from "@/adapters/supabase/repositories/billing-repository";
+import { createEconomyRepository } from "@/adapters/supabase/repositories/economy-repository";
 import { createProfileRepository } from "@/adapters/supabase/repositories/profile-repository";
 import { createProgressRepository } from "@/adapters/supabase/repositories/progress-repository";
 import { createServerSupabaseClient } from "@/adapters/supabase/server-client";
@@ -25,10 +41,15 @@ import {
 import type {
   ActivityRepository,
   AttemptRepository,
+  BillingRepository,
   Clock,
   CurrentUser,
+  EconomyPreferencesPatch,
+  EconomyRepository,
+  NogAsker,
   NogRecord,
   NotebookRepository,
+  PaymentGateway,
   ProfileRepository,
   ProfileSettings,
   ProgressRepository,
@@ -49,10 +70,37 @@ import {
   type AnswerFollowUpResult,
 } from "@/core/application/use-cases/answer-follow-up";
 import {
+  cancelNogginPlus,
+  type CancelSubscriptionResult,
+  checkoutCoinPack,
+  type CheckoutProductInput,
+  type CheckoutProductResult,
+  getBillingSummary,
+  type GetBillingSummaryResult,
+  subscribeNogginPlus,
+} from "@/core/application/use-cases/billing";
+import {
   customizeNog,
   type CustomizeNogInput,
   type CustomizeNogResult,
 } from "@/core/application/use-cases/customize-nog";
+import {
+  claimDailyTask,
+  type ClaimDailyTaskInput,
+  type ClaimDailyTaskResult,
+  expandNotebookPages,
+  type ExpandNotebookPagesInput,
+  type ExpandNotebookPagesResult,
+  getPlayerEconomy,
+  type GetPlayerEconomyResult,
+  purchaseShopItem,
+  type PurchaseShopItemInput,
+  type PurchaseShopItemResult,
+  updatePlayerPreferences,
+  type UpdatePlayerPreferencesResult,
+  useStreakRestore,
+  type UseStreakRestoreResult,
+} from "@/core/application/use-cases/economy";
 import {
   getLearningProgress,
   type GetLearningProgressResult,
@@ -159,6 +207,7 @@ const ENV_KEYS = [
   "LLM_API_KEY",
   "LLM_MODEL",
   "LLM_GRADER_MODEL",
+  "LLM_ASKER_MODEL",
   "LLM_QUESTION_WRITER_MODEL",
   "LLM_FALLBACK_BASE_URL",
   "LLM_FALLBACK_API_KEY",
@@ -209,6 +258,7 @@ const containerEnvSchema = z
     LLM_API_KEY: optionalTrimmedString,
     LLM_MODEL: optionalTrimmedString,
     LLM_GRADER_MODEL: optionalTrimmedString,
+    LLM_ASKER_MODEL: optionalTrimmedString,
     LLM_QUESTION_WRITER_MODEL: optionalTrimmedString,
     LLM_FALLBACK_BASE_URL: optionalHttpUrl,
     LLM_FALLBACK_API_KEY: optionalTrimmedString,
@@ -283,6 +333,7 @@ function validateContainerEnv(): ContainerEnv {
     LLM_API_KEY: process.env.LLM_API_KEY,
     LLM_MODEL: process.env.LLM_MODEL,
     LLM_GRADER_MODEL: process.env.LLM_GRADER_MODEL,
+    LLM_ASKER_MODEL: process.env.LLM_ASKER_MODEL,
     LLM_QUESTION_WRITER_MODEL: process.env.LLM_QUESTION_WRITER_MODEL,
     LLM_FALLBACK_BASE_URL: process.env.LLM_FALLBACK_BASE_URL,
     LLM_FALLBACK_API_KEY: process.env.LLM_FALLBACK_API_KEY,
@@ -333,6 +384,8 @@ interface OptionalAuxRepositories {
   appConfig?: {
     getFeatures?: () => Promise<Record<string, unknown> | null>;
   };
+  economy?: EconomyRepository;
+  billing?: BillingRepository;
 }
 
 function parseGrillMode(raw: unknown): "roast" | "gentle" {
@@ -554,11 +607,45 @@ export interface AppContainer {
   reviewCard: (input: ReviewCardInput) => Promise<ReviewCardResult>;
   teachLesson: (input: TeachLessonInput) => Promise<TeachLessonResult>;
   answerFollowUp: (input: AnswerFollowUpInput) => Promise<AnswerFollowUpResult>;
+  askNog: (input: AskNogInput) => Promise<AskNogResult>;
+  listAskHistory: (input: {
+    nogId: string;
+    limit?: number;
+  }) => Promise<ListAskHistoryResult>;
   reviseLesson: (input: ReviseLessonInput) => Promise<ReviseLessonResult>;
   runQuickCheck: (input: RunQuickCheckInput) => Promise<RunQuickCheckResult>;
   transcribeLesson: (input: TranscribeInput) => Promise<TranscribeLessonResult>;
   speakAnswer: (input: SpeakAnswerInput) => Promise<SpeakAnswerResult>;
+  getPlayerEconomy: (input?: {
+    ledgerLimit?: number;
+  }) => Promise<GetPlayerEconomyResult>;
+  purchaseShopItem: (
+    input: PurchaseShopItemInput,
+  ) => Promise<PurchaseShopItemResult>;
+  expandNotebookPages: (
+    input: ExpandNotebookPagesInput,
+  ) => Promise<ExpandNotebookPagesResult>;
+  claimDailyTask: (input: ClaimDailyTaskInput) => Promise<ClaimDailyTaskResult>;
+  useStreakRestore: () => Promise<UseStreakRestoreResult>;
+  updatePlayerPreferences: (
+    patch: EconomyPreferencesPatch,
+  ) => Promise<UpdatePlayerPreferencesResult>;
+  getBillingSummary: () => Promise<GetBillingSummaryResult>;
+  checkoutCoinPack: (
+    input: CheckoutProductInput,
+  ) => Promise<CheckoutProductResult>;
+  subscribeNogginPlus: (
+    input: CheckoutProductInput,
+  ) => Promise<CheckoutProductResult>;
+  cancelNogginPlus: () => Promise<CancelSubscriptionResult>;
 }
+
+/** Used when no answering model is configured; the ask flow reports brain fog. */
+const unavailableAsker: NogAsker = {
+  async ask() {
+    throw new Error("No answering model is configured.");
+  },
+};
 
 export async function createContainer(): Promise<AppContainer> {
   validateContainerEnv();
@@ -597,10 +684,22 @@ export async function createContainer(): Promise<AppContainer> {
       reviewCard: async () => ({ status: "unauthenticated" }),
       teachLesson: async () => ({ status: "unauthenticated" }),
       answerFollowUp: async () => ({ status: "unauthenticated" }),
+      askNog: async () => ({ status: "unauthenticated" }),
+      listAskHistory: async () => ({ status: "unauthenticated" }),
       reviseLesson: async () => ({ status: "unauthenticated" }),
       runQuickCheck: async () => ({ status: "unauthenticated" }),
       transcribeLesson: async () => ({ status: "unauthenticated" }),
       speakAnswer: async () => ({ status: "unauthenticated" }),
+      getPlayerEconomy: async () => ({ status: "unauthenticated" }),
+      purchaseShopItem: async () => ({ status: "unauthenticated" }),
+      expandNotebookPages: async () => ({ status: "unauthenticated" }),
+      claimDailyTask: async () => ({ status: "unauthenticated" }),
+      useStreakRestore: async () => ({ status: "unauthenticated" }),
+      updatePlayerPreferences: async () => ({ status: "unauthenticated" }),
+      getBillingSummary: async () => ({ status: "unauthenticated" }),
+      checkoutCoinPack: async () => ({ status: "unauthenticated" }),
+      subscribeNogginPlus: async () => ({ status: "unauthenticated" }),
+      cancelNogginPlus: async () => ({ status: "unauthenticated" }),
     };
   }
 
@@ -720,6 +819,42 @@ export async function createContainer(): Promise<AppContainer> {
     typeof repositories.activity?.listRecent === "function"
       ? repositories.activity
       : createActivityRepository({ session, service, userId });
+
+  const economyRepo: EconomyRepository =
+    typeof repositories.economy?.getOrInit === "function"
+      ? repositories.economy
+      : createEconomyRepository({ session, userId });
+
+  const billingRepo: BillingRepository =
+    typeof repositories.billing?.listProducts === "function"
+      ? repositories.billing
+      : createBillingRepository({ session, service, userId });
+
+  const polarAccessToken = process.env.POLAR_ACCESS_TOKEN?.trim() ?? "";
+  const polarEnv = (process.env.POLAR_ENV ?? "sandbox").trim().toLowerCase();
+  const polarSandbox = polarEnv !== "live" && polarEnv !== "production";
+  const hitpayApiKey = process.env.HITPAY_API_KEY?.trim() ?? "";
+  const hitpayEnv = (process.env.HITPAY_ENV ?? "sandbox").trim().toLowerCase();
+  const hitpaySandbox = hitpayEnv !== "live" && hitpayEnv !== "production";
+  const paymongoSecret = process.env.PAYMONGO_SECRET_KEY?.trim() ?? "";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
+  const paymentGateway: PaymentGateway = polarAccessToken
+    ? createPolarPaymentGateway({
+        accessToken: polarAccessToken,
+        appUrl,
+        productIds: resolvePolarProductIdsFromEnv(process.env),
+        sandbox: polarSandbox,
+      })
+    : hitpayApiKey
+      ? createHitpayPaymentGateway({
+          apiKey: hitpayApiKey,
+          appUrl,
+          sandbox: hitpaySandbox,
+        })
+      : paymongoSecret
+        ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
+        : createSandboxPaymentGateway();
 
   return {
     currentUser,
@@ -905,8 +1040,32 @@ export async function createContainer(): Promise<AppContainer> {
           nogs: repositories.nogs,
           notebook: repositories.notebook,
           thoughtCards: repositories.thoughtCards,
+          topics: repositories.topics,
           usage: repositories.usage,
           listener: llm.listener,
+        },
+        input,
+      ),
+    askNog: (input) =>
+      askNog(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          topics: repositories.topics,
+          thoughtCards: repositories.thoughtCards,
+          notebook: repositories.notebook,
+          usage: repositories.usage,
+          asker: llm.asker ?? unavailableAsker,
+          askHistory: repositories.askHistory,
+        },
+        input,
+      ),
+    listAskHistory: (input) =>
+      listAskHistory(
+        {
+          currentUser,
+          nogs: repositories.nogs,
+          askHistory: repositories.askHistory,
         },
         input,
       ),
@@ -1023,5 +1182,31 @@ export async function createContainer(): Promise<AppContainer> {
         input,
       );
     },
+    getPlayerEconomy: (input) =>
+      getPlayerEconomy({ currentUser, economy: economyRepo }, input),
+    purchaseShopItem: (input) =>
+      purchaseShopItem({ currentUser, economy: economyRepo }, input),
+    expandNotebookPages: (input) =>
+      expandNotebookPages({ currentUser, economy: economyRepo }, input),
+    claimDailyTask: (input) =>
+      claimDailyTask({ currentUser, economy: economyRepo }, input),
+    useStreakRestore: () =>
+      useStreakRestore({ currentUser, economy: economyRepo }),
+    updatePlayerPreferences: (patch) =>
+      updatePlayerPreferences({ currentUser, economy: economyRepo }, patch),
+    getBillingSummary: () =>
+      getBillingSummary({ currentUser, billing: billingRepo }),
+    checkoutCoinPack: (input) =>
+      checkoutCoinPack(
+        { currentUser, billing: billingRepo, paymentGateway },
+        input,
+      ),
+    subscribeNogginPlus: (input) =>
+      subscribeNogginPlus(
+        { currentUser, billing: billingRepo, paymentGateway },
+        input,
+      ),
+    cancelNogginPlus: () =>
+      cancelNogginPlus({ currentUser, billing: billingRepo }),
   };
 }

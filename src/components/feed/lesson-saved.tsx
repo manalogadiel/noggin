@@ -9,6 +9,7 @@ import {
   PencilLine,
 } from "lucide-react";
 import Link from "next/link";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { RoomRail } from "@/components/room/room-rail";
 import type { LessonPage, NogRecord, TopicSummary } from "@/core/application/ports";
 import { type FollowUpItem, NogChat } from "./nog-chat";
@@ -36,6 +37,7 @@ export function LessonSaved({
   onRetryFollowUp,
   onImprove,
 }: LessonSavedProps) {
+  const { activeRoom } = useGameUi();
   const roomHref = `/nogs/${nog.id}`;
   const waterHref = `${roomHref}/water`;
   const quizHref = `${roomHref}/play?topic=${encodeURIComponent(topic.id)}`;
@@ -44,23 +46,31 @@ export function LessonSaved({
   const notebookHref = `${roomHref}/notebook?topic=${encodeURIComponent(topic.id)}`;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-6">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-mint-light)] text-[var(--noggin-leaf-strong)] shadow-[0_6px_16px_var(--noggin-shadow)]">
-              <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
-            </span>
-            <h1 className="noggin-display text-[clamp(1.875rem,4vw,2.75rem)] font-extrabold leading-tight text-[var(--noggin-leaf-title)]">
-              Lesson Saved Successfully
-            </h1>
-          </div>
-        </header>
+    <div className="game-world game-world--scroll">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={activeRoom.src} alt="" className="scene-bg-img" />
+      <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
+      <RoomRail nogId={nog.id} />
 
+      <header className="stage-top">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-mint-light)] text-[var(--noggin-leaf-strong)] shadow-[0_6px_16px_var(--noggin-shadow)]">
+            <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h1 className="stage-h1">
+            Lesson Saved Successfully
+          </h1>
+        </div>
+      </header>
+
+      <div
+        className="stage-body stage-body--with-rail gap-6"
+        style={{ justifyContent: "flex-start" }}
+      >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
           <section
             aria-label="Lesson summary"
-            className="flex flex-col gap-4 rounded-[28px] bg-[var(--noggin-mint)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-6"
+            className="surface-mint flex flex-col gap-4 rounded-[28px]"
           >
             <h2 className="noggin-display text-[1.25rem] font-extrabold text-[var(--noggin-forest)]">
               Lesson Summary
@@ -100,7 +110,7 @@ export function LessonSaved({
 
         <section
           aria-labelledby="whats-next-heading"
-          className="flex flex-col gap-4 rounded-[28px] bg-[var(--noggin-white)] p-5 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-6"
+          className="surface-white flex flex-col gap-4 rounded-[28px]"
         >
           <h2
             id="whats-next-heading"
@@ -109,98 +119,78 @@ export function LessonSaved({
             What&rsquo;s Next?
           </h2>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col justify-between gap-4 rounded-[24px] bg-[var(--noggin-mint)] p-5 shadow-[0_6px_16px_var(--noggin-shadow)]">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
-                  <Droplets className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
-                    Keep it fresh
-                  </p>
-                  <p className="mt-1 text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
-                    Review this lesson later to keep it fresh.
-                  </p>
-                </div>
-              </div>
-
+          <div className="feed-next-grid">
+            <div className="feed-next-card text-center">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
+                <Droplets className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
+                Keep it fresh
+              </p>
+              <p className="text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
+                Review this lesson later to keep it fresh.
+              </p>
               <Link
                 href={waterHref}
-                className="noggin-primary-pill noggin-display inline-flex min-h-11 w-fit items-center justify-center px-5 text-[0.9375rem] font-bold"
+                className="pub-cta-pill pub-cta-pill--md mt-auto"
               >
                 Review
               </Link>
             </div>
 
-            <div className="flex flex-col justify-between gap-4 rounded-[24px] bg-[var(--noggin-mint)] p-5 shadow-[0_6px_16px_var(--noggin-shadow)]">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
-                  <Gamepad2 className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
-                    Test {nog.name}
-                  </p>
-                  <p className="mt-1 text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
-                    Try a short quiz using what you just taught.
-                  </p>
-                </div>
-              </div>
-
+            <div className="feed-next-card text-center">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
+                <Gamepad2 className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
+                Test {nog.name}
+              </p>
+              <p className="text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
+                Try a short quiz using what you just taught.
+              </p>
               <Link
                 href={quizHref}
-                className="noggin-primary-pill noggin-display inline-flex min-h-11 w-fit items-center justify-center px-5 text-[0.9375rem] font-bold"
+                className="pub-cta-pill pub-cta-pill--md mt-auto"
               >
                 Quiz
               </Link>
             </div>
 
-            <div className="flex flex-col justify-between gap-4 rounded-[24px] bg-[var(--noggin-mint)] p-5 shadow-[0_6px_16px_var(--noggin-shadow)]">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
-                  <PencilLine className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
-                    Polish your note
-                  </p>
-                  <p className="mt-1 text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
-                    Refine this lesson if you want to make it clearer.
-                  </p>
-                </div>
-              </div>
-
+            <div className="feed-next-card text-center">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
+                <PencilLine className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
+                Polish your note
+              </p>
+              <p className="text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
+                Refine this lesson if you want to make it clearer.
+              </p>
               <Link
                 href={improveHref}
                 onClick={(event) => {
                   event.preventDefault();
                   onImprove();
                 }}
-                className="noggin-primary-pill noggin-display inline-flex min-h-11 w-fit items-center justify-center px-5 text-[0.9375rem] font-bold"
+                className="pub-cta-pill pub-cta-pill--md mt-auto"
               >
                 Improve
               </Link>
             </div>
 
-            <div className="flex flex-col justify-between gap-4 rounded-[24px] bg-[var(--noggin-mint)] p-5 shadow-[0_6px_16px_var(--noggin-shadow)]">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
-                  <Moon className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
-                    Take a breather
-                  </p>
-                  <p className="mt-1 text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
-                    Take a break and come back to teach more later.
-                  </p>
-                </div>
-              </div>
-
+            <div className="feed-next-card text-center">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-leaf-strong)]">
+                <Moon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <p className="noggin-display text-[1.0625rem] font-bold text-[var(--noggin-forest)]">
+                Take a breather
+              </p>
+              <p className="text-[0.875rem] leading-relaxed text-[var(--noggin-ink)]">
+                Take a break and come back to teach more later.
+              </p>
               <Link
                 href={restHref}
-                className="noggin-primary-pill noggin-display inline-flex min-h-11 w-fit items-center justify-center px-5 text-[0.9375rem] font-bold"
+                className="pub-cta-pill pub-cta-pill--md mt-auto"
               >
                 Rest
               </Link>
@@ -208,7 +198,7 @@ export function LessonSaved({
           </div>
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] bg-[var(--noggin-mint-light)] px-5 py-4 shadow-[0_8px_20px_var(--noggin-shadow)]">
+        <footer className="surface-mint flex flex-wrap items-center justify-between gap-3 rounded-[24px] px-5 py-4">
           <div className="flex items-center gap-2.5 text-[var(--noggin-forest)]">
             <BookOpen className="h-5 w-5 shrink-0" aria-hidden="true" />
             <span className="noggin-display text-[1rem] font-extrabold">
@@ -218,14 +208,12 @@ export function LessonSaved({
 
           <Link
             href={notebookHref}
-            className="noggin-primary-pill noggin-display inline-flex min-h-11 items-center justify-center gap-2 px-5 text-[0.9375rem] font-bold"
+            className="pub-cta-pill pub-cta-pill--md"
           >
             <span>View Notebook</span>
           </Link>
         </footer>
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

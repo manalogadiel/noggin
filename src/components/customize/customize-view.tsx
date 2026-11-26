@@ -1,9 +1,16 @@
 "use client";
 
-import { Check, Plus } from "lucide-react";
+import { Check, Pencil, Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { customizeNogAction } from "@/app/(app)/actions/customize-actions";
+import {
+  ACCESSORIES,
+  SKIN_PACKS,
+  type SkinPackId,
+  useGameUi,
+} from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import type { NogRecord } from "@/core/application/ports";
 import { NOG_BODY_COLORS, parseBodyColor } from "@/core/domain/nog-colors";
@@ -13,10 +20,11 @@ export interface CustomizeViewProps {
   nog: NogRecord;
 }
 
-const ACCESSORY_SLOTS = [
-  "Accessory slot 1",
-  "Accessory slot 2",
-  "Accessory slot 3",
+const ORBIT_SLOT_POSITIONS = [
+  "top-2 left-2",
+  "top-1/2 -translate-y-1/2 left-0",
+  "bottom-8 left-4",
+  "top-2 right-2",
 ] as const;
 
 function isPresetColor(hex: string | null): boolean {
@@ -26,25 +34,95 @@ function isPresetColor(hex: string | null): boolean {
 export function CustomizeView({ nog }: CustomizeViewProps) {
   const router = useRouter();
   const customInputId = useId();
+  const nameInputId = useId();
   const initialColor = nog.colors?.body ?? null;
 
-  const [selectedColor, setSelectedColor] = useState<string | null>(
-    initialColor,
-  );
+  const { state, openModal, requestPurchase, updateState, showToast } = useGameUi();
+
+  const [draftName, setDraftName] = useState(nog.name);
+  const [selectedColor, setSelectedColor] = useState<string | null>(initialColor);
   const [customColor, setCustomColor] = useState<string | null>(
     initialColor && !isPresetColor(initialColor) ? initialColor : null,
+  );
+  const [equippedSlots, setEquippedSlots] = useState<(string | null)[]>(
+    () => state.equippedSlots,
   );
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const roomHref = `/nogs/${nog.id}`;
   const defaultPickerValue =
-    customColor ?? selectedColor ?? NOG_BODY_COLORS[1]?.hex ?? "";
+    customColor ?? selectedColor ?? NOG_BODY_COLORS[1]?.hex ?? "rgb(217 200 245)";
 
-  async function handleDone() {
-    if (isSaving) {
+  const ownedPacks = SKIN_PACKS.filter(
+    (pack) => state.ownedSkinPacks[pack.id] || state.isPlus || pack.price === 0,
+  );
+  const activePack =
+    SKIN_PACKS.find((pack) => pack.id === state.activeSkinPack) ?? SKIN_PACKS[0];
+
+  function handleToggleAccessory(accId: string) {
+    const acc = ACCESSORIES.find((a) => a.id === accId);
+    if (!acc) return;
+    const isOwned = Boolean(
+      state.ownedAccessories[acc.id] || acc.defaultStatus !== "locked",
+    );
+    if (!isOwned) {
+      requestPurchase({
+        title: "BUY ACCESSORY",
+        itemLabel: acc.name,
+        cost: acc.price,
+        onConfirm: () => {
+          setEquippedSlots((prev) => {
+            const nextSlots = [...prev];
+            nextSlots[acc.slot] = acc.id;
+            return nextSlots;
+          });
+          updateState((prev) => {
+            const nextSlots = [...prev.equippedSlots];
+            nextSlots[acc.slot] = acc.id;
+            return {
+              ...prev,
+              coins: Math.max(0, prev.coins - acc.price),
+              ownedAccessories: { ...prev.ownedAccessories, [acc.id]: true },
+              equippedSlots: nextSlots,
+            };
+          });
+          showToast(`Unlocked & equipped ${acc.name}!`);
+        },
+      });
       return;
     }
+
+    setEquippedSlots((prev) => {
+      const nextSlots = [...prev];
+      nextSlots[acc.slot] = nextSlots[acc.slot] === acc.id ? null : acc.id;
+      return nextSlots;
+    });
+    updateState((prev) => {
+      const nextSlots = [...prev.equippedSlots];
+      const alreadyAtSlot = nextSlots[acc.slot] === acc.id;
+      nextSlots[acc.slot] = alreadyAtSlot ? null : acc.id;
+      return { ...prev, equippedSlots: nextSlots };
+    });
+  }
+
+  function handleSlotRemove(slotIdx: number) {
+    const itemId = equippedSlots[slotIdx];
+    if (!itemId) return;
+    setEquippedSlots((prev) => {
+      const nextSlots = [...prev];
+      nextSlots[slotIdx] = null;
+      return nextSlots;
+    });
+    updateState((prev) => {
+      const nextSlots = [...prev.equippedSlots];
+      nextSlots[slotIdx] = null;
+      return { ...prev, equippedSlots: nextSlots };
+    });
+  }
+
+  async function handleDone() {
+    if (isSaving) return;
 
     if (selectedColor === initialColor) {
       router.push(roomHref);
@@ -77,194 +155,358 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
     }
   }
 
-  return (
-    <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-6 py-4 md:py-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="noggin-display text-[clamp(2.5rem,5vw,4rem)] font-extrabold leading-[1.02] tracking-tight text-[var(--noggin-leaf-title)]">
-          Make your Nog Yours
-        </h1>
-        <p className="text-[1.125rem] font-semibold text-[var(--noggin-forest)]">
-          Customize your Nog
-        </p>
-      </div>
+  const custBubblePositions = [
+    "cust-bubble--l1",
+    "cust-bubble--l2",
+    "cust-bubble--l3",
+    "cust-bubble--r1",
+    "cust-bubble--r2",
+    "cust-bubble--r3",
+  ] as const;
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-center lg:gap-12">
-        <div className="flex flex-col items-center justify-center p-2 lg:p-4">
-          <div className="w-full max-w-[340px] lg:max-w-[600px]">
-            <NogStage
-              scene="room"
-              alt={`${nog.name} preview`}
-              poster="/nog/blob-closeup.png"
-              width={1254}
-              height={1254}
-              sizes="(min-width: 1024px) 600px, 340px"
-              tint={selectedColor}
-              priority
-              className="w-full"
-            />
-          </div>
+  return (
+    <div className="game-world game-world--hub game-world--customize cs-world">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/game/bg/select-stage.jpg"
+        alt=""
+        className="cs-bg-img -scale-x-100"
+      />
+      <div className="cs-spotlight-overlay -scale-x-100" aria-hidden="true" />
+
+      <div className="stage-body stage-body--customize justify-center">
+        <div className="mb-1 flex flex-wrap items-baseline gap-2.5">
+          <h1
+            className="stage-h1"
+            style={{
+              fontSize: 22,
+              color: "var(--noggin-white)",
+              textShadow: "0 2px 10px rgb(34 56 12 / 0.35)",
+            }}
+          >
+            Make your Nog Yours
+          </h1>
+          <p
+            className="stage-sub"
+            style={{
+              fontSize: 13,
+              color: "rgb(255 255 255 / 0.88)",
+              textShadow: "0 1px 6px rgb(34 56 12 / 0.35)",
+            }}
+          >
+            Customize your Nog
+          </p>
         </div>
 
-        <div className="flex flex-col gap-7">
-          <section className="flex flex-col gap-3.5">
-            <h2 className="noggin-display text-[1.5rem] font-bold text-[var(--noggin-forest)]">
-              Body Color
-            </h2>
-
-            <div
-              role="radiogroup"
-              aria-label="Body color"
-              className="flex flex-wrap items-center gap-3.5"
-            >
-              {NOG_BODY_COLORS.map((preset) => {
-                const isSelected = selectedColor === preset.hex;
-                const fill = preset.hex ?? "var(--noggin-cream)";
-
+        <div className="cust-layout">
+          {/* LEFT: Grounded Spotlight Stage + 6 Orbiting Accessory Bubbles + 3D Turntable Stand */}
+          <div className="cust-stage-left">
+            <div className="cust-spotlight-cone" aria-hidden="true" />
+            <div className="cust-orbit-wrap">
+              <div className="cust-nog-aura" aria-hidden="true" />
+              {ORBIT_SLOT_POSITIONS.map((_, slotIdx) => {
+                const posCls = custBubblePositions[slotIdx] ?? "cust-bubble--l1";
+                const id = equippedSlots[slotIdx];
+                const item = id ? ACCESSORIES.find((a) => a.id === id) : null;
                 return (
                   <button
-                    key={preset.id}
+                    key={slotIdx}
                     type="button"
-                    role="radio"
-                    aria-label={preset.label}
-                    aria-checked={isSelected}
-                    onClick={() => {
-                      setErrorMessage(null);
-                      setSelectedColor(preset.hex);
-                    }}
-                    style={{
-                      backgroundColor: fill,
-                      borderColor: isSelected
-                        ? "var(--noggin-forest)"
-                        : "color-mix(in srgb, var(--noggin-forest) 38%, transparent)",
-                    }}
+                    onClick={() => handleSlotRemove(slotIdx)}
+                    aria-label={
+                      item
+                        ? `Slot ${slotIdx + 1}: ${item.name} (click to remove)`
+                        : `Empty accessory slot ${slotIdx + 1}`
+                    }
                     className={cn(
-                      "inline-flex h-16 w-16 min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-[18px] border-2 text-[var(--noggin-forest)] shadow-[0_6px_14px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf-strong)] motion-reduce:transition-none",
-                      isSelected && "ring-2 ring-[var(--noggin-leaf-strong)]",
+                      "cust-bubble",
+                      posCls,
+                      item && "is-filled",
                     )}
                   >
-                    {isSelected && (
-                      <Check
-                        className="h-6 w-6 stroke-[2.75]"
-                        aria-hidden="true"
-                      />
+                    {item ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.img} alt={item.name} />
+                    ) : (
+                      <span className="cust-bubble__plus" aria-hidden="true">
+                        +
+                      </span>
                     )}
                   </button>
                 );
               })}
 
-              {customColor && (
-                <button
-                  type="button"
-                  role="radio"
-                  aria-label="Custom"
-                  aria-checked={selectedColor === customColor}
-                  onClick={() => {
-                    setErrorMessage(null);
-                    setSelectedColor(customColor);
-                  }}
-                  style={{
-                    backgroundColor: customColor,
-                    borderColor:
-                      selectedColor === customColor
-                        ? "var(--noggin-forest)"
-                        : "color-mix(in srgb, var(--noggin-forest) 38%, transparent)",
-                  }}
-                  className={cn(
-                    "inline-flex h-16 w-16 min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-[18px] border-2 text-[var(--noggin-forest)] shadow-[0_6px_14px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf-strong)] motion-reduce:transition-none",
-                    selectedColor === customColor &&
-                      "ring-2 ring-[var(--noggin-leaf-strong)]",
-                  )}
-                >
-                  {selectedColor === customColor && (
-                    <Check
-                      className="h-6 w-6 stroke-[2.75]"
-                      aria-hidden="true"
-                    />
-                  )}
-                </button>
-              )}
-
-              <label
-                htmlFor={customInputId}
-                className="relative inline-flex h-16 w-16 min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-[18px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-cream)] text-[var(--noggin-forest)] shadow-[0_6px_14px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-[var(--noggin-leaf-strong)] motion-reduce:transition-none"
-              >
-                <Plus className="h-6 w-6 stroke-[2.5]" aria-hidden="true" />
-                <input
-                  id={customInputId}
-                  type="color"
-                  aria-label="Custom color"
-                  value={defaultPickerValue}
-                  onChange={(event) => {
-                    const parsed = parseBodyColor(event.target.value);
-                    const nextHex =
-                      parsed.ok && parsed.value
-                        ? parsed.value
-                        : event.target.value.trim().toLowerCase();
-                    setErrorMessage(null);
-                    setCustomColor(nextHex);
-                    setSelectedColor(nextHex);
-                  }}
-                  className="sr-only"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="flex flex-col gap-3.5">
-            <header className="flex items-center gap-3">
-              <h2 className="noggin-display text-[1.5rem] font-bold text-[var(--noggin-forest)]">
-                Accessories
-              </h2>
-              <span className="noggin-display inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3 py-0.5 text-[0.8125rem] font-bold text-[var(--noggin-forest)]">
-                Soon
-              </span>
-            </header>
-
-            <div className="flex flex-wrap items-center gap-3.5">
-              {ACCESSORY_SLOTS.map((slotLabel) => (
-                <button
-                  key={slotLabel}
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  aria-label={`${slotLabel} (coming soon)`}
-                  className="inline-flex h-16 w-16 min-h-11 min-w-11 cursor-not-allowed items-center justify-center rounded-[18px] border-2 border-dashed border-[color-mix(in_srgb,var(--noggin-forest)_30%,transparent)] bg-[var(--noggin-cream)] opacity-60"
-                />
-              ))}
-
               <button
                 type="button"
+                className="cust-bubble cust-bubble--r2 is-locked"
                 disabled
-                aria-disabled="true"
-                aria-label="More accessories (coming soon)"
-                className="inline-flex h-16 w-16 min-h-11 min-w-11 cursor-not-allowed items-center justify-center rounded-[18px] border-2 border-dashed border-[color-mix(in_srgb,var(--noggin-forest)_30%,transparent)] bg-[var(--noggin-cream)] text-[var(--noggin-forest)] opacity-60"
+                aria-label="Slot 5 unlocks at Level 3"
               >
-                <Plus className="h-6 w-6" aria-hidden="true" />
+                <span>Lv.3</span>
+              </button>
+              <button
+                type="button"
+                className="cust-bubble cust-bubble--r3 is-locked"
+                disabled
+                aria-label="Slot 6 unlocks at Level 5"
+              >
+                <span>Lv.5</span>
+              </button>
+
+              <div
+                className={cn(
+                  "cust-nog-bob nog-bob",
+                  nog.stage === "hatchling" && "cust-nog-bob--baby",
+                )}
+              >
+                <NogStage
+                  scene="room"
+                  alt={`${nog.name} preview`}
+                  poster="/nog/blob-closeup.png"
+                  width={1254}
+                  height={1254}
+                  sizes="(min-width: 1024px) 360px, 300px"
+                  tint={selectedColor}
+                  priority
+                  className={cn(
+                    "cust-nog-img",
+                    nog.stage === "hatchling" && "cust-nog-img--baby",
+                  )}
+                />
+              </div>
+
+              <div className="cust-stand" aria-hidden="true">
+                <div className="cust-stand__contact" />
+                <div className="cust-stand__top" />
+                <div className="cust-stand__base" />
+                <div className="cust-stand__pool" />
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Cardless Controls */}
+          <div className="cust-controls">
+            <section className="cust-section cust-section--name">
+              <div className="cust-section__head">
+                <label htmlFor={nameInputId} className="cust-heading">
+                  Nog Name
+                </label>
+              </div>
+              <div className="cust-name-row">
+                <input
+                  id={nameInputId}
+                  type="text"
+                  maxLength={24}
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
+                  placeholder="Name your Nog"
+                  className="cust-name-input"
+                />
+                <span className="cust-name-icon" aria-hidden="true">
+                  <Pencil className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+              </div>
+            </section>
+
+            <section className="cust-section">
+              <div className="cust-section__head">
+                <h2 className="cust-heading">Body Color</h2>
+              </div>
+              <div
+                className="cust-pack-row m-0"
+                role="tablist"
+                aria-label="Owned skin packages"
+              >
+                {ownedPacks.map((pack) => {
+                  const isPackActive = activePack.id === pack.id;
+                  return (
+                    <button
+                      key={pack.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isPackActive}
+                      onClick={() =>
+                        updateState((prev) => ({
+                          ...prev,
+                          activeSkinPack: pack.id as SkinPackId,
+                        }))
+                      }
+                      className={cn("cust-pack-btn", isPackActive && "is-on")}
+                    >
+                      {pack.name}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => openModal({ type: "skinShop" })}
+                  aria-label="Open Skin Shop for more packs"
+                  className="cust-pack-btn is-locked"
+                >
+                  +
+                </button>
+              </div>
+
+              <div
+                role="radiogroup"
+                aria-label="Body color"
+                className="cust-swatch-row"
+              >
+                {NOG_BODY_COLORS.map((preset) => {
+                  const isSelected = selectedColor === preset.hex;
+                  const fill = preset.hex ?? "var(--noggin-cream)";
+
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      role="radio"
+                      aria-label={preset.label}
+                      aria-checked={isSelected}
+                      onClick={() => {
+                        setErrorMessage(null);
+                        setSelectedColor(preset.hex);
+                      }}
+                      style={{ backgroundColor: fill }}
+                      className={cn("cust-swatch", isSelected && "is-selected")}
+                    >
+                      {isSelected && (
+                        <Check className="h-6 w-6 stroke-[2.75]" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {customColor && (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-label="Custom"
+                    aria-checked={selectedColor === customColor}
+                    onClick={() => {
+                      setErrorMessage(null);
+                      setSelectedColor(customColor);
+                    }}
+                    style={{ backgroundColor: customColor }}
+                    className={cn(
+                      "cust-swatch",
+                      selectedColor === customColor && "is-selected",
+                    )}
+                  >
+                    {selectedColor === customColor && (
+                      <Check className="h-6 w-6 stroke-[2.75]" aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+
+                <label
+                  htmlFor={customInputId}
+                  className="cust-swatch cust-swatch--plus"
+                >
+                  <Plus className="h-6 w-6 stroke-[2.5]" aria-hidden="true" />
+                  <input
+                    id={customInputId}
+                    type="color"
+                    aria-label="Custom color"
+                    value={defaultPickerValue}
+                    onChange={(event) => {
+                      const parsed = parseBodyColor(event.target.value);
+                      const nextHex =
+                        parsed.ok && parsed.value
+                          ? parsed.value
+                          : event.target.value.trim().toLowerCase();
+                      setErrorMessage(null);
+                      setCustomColor(nextHex);
+                      setSelectedColor(nextHex);
+                    }}
+                    className="sr-only"
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="cust-section">
+              <header className="cust-section__head">
+                <h2 className="cust-heading">Accessories</h2>
+              </header>
+
+              <div className="cust-acc-row flex-wrap">
+                {ACCESSORIES.map((acc) => {
+                  const isEquipped = equippedSlots.includes(acc.id);
+                  const isOwned = Boolean(
+                    state.ownedAccessories[acc.id] || acc.defaultStatus !== "locked",
+                  );
+                  return (
+                    <button
+                      key={acc.id}
+                      type="button"
+                      aria-pressed={isEquipped}
+                      aria-label={`${acc.name} (${isOwned ? (isEquipped ? "equipped" : acc.defaultStatus) : `${acc.price} coins`})`}
+                      onClick={() => handleToggleAccessory(acc.id)}
+                      className={cn(
+                        "cust-acc-tile",
+                        isEquipped ? "is-equipped" : !isOwned && "is-locked",
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={acc.img} alt="" className="cust-acc-tile__img" />
+                      {isEquipped && (
+                        <span className="cust-acc-check" aria-hidden="true">
+                          <Check />
+                        </span>
+                      )}
+                      <span
+                        className={cn(
+                          "cust-acc-tag",
+                          !isOwned
+                            ? "cust-acc-tag--locked"
+                            : acc.defaultStatus === "free" && !isEquipped
+                              ? "cust-acc-tag--free"
+                              : "cust-acc-tag--owned",
+                        )}
+                      >
+                        {!isOwned
+                          ? `🪙 ${acc.price}`
+                          : isEquipped
+                            ? "Equipped"
+                            : acc.defaultStatus === "free"
+                              ? "FREE"
+                              : "OWNED"}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                <Link
+                  href="/profile/shop"
+                  aria-label="Open shop for more accessories"
+                  className="cust-acc-tile cust-acc-tile--plus"
+                >
+                  <Plus className="h-6 w-6" aria-hidden="true" />
+                </Link>
+              </div>
+            </section>
+
+            {errorMessage && (
+              <p
+                role="alert"
+                className="rounded-[20px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.9375rem] font-semibold text-[var(--noggin-danger)]"
+              >
+                {errorMessage}
+              </p>
+            )}
+
+            <div className="cust-done-wrap">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleDone}
+                className="cust-done-btn disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSaving ? "Saving…" : "Done"}
               </button>
             </div>
-
-            <p className="text-[0.9375rem] font-medium text-[var(--noggin-ink)]">
-              Hats and bows are coming soon.
-            </p>
-          </section>
-
-          {errorMessage && (
-            <p
-              role="alert"
-              className="rounded-[20px] bg-[var(--noggin-danger-soft)] px-4 py-3 text-[0.9375rem] font-semibold text-[var(--noggin-danger)]"
-            >
-              {errorMessage}
-            </p>
-          )}
-
-          <button
-            type="button"
-            disabled={isSaving}
-            onClick={handleDone}
-            className="noggin-primary-pill noggin-display mt-1 inline-flex min-h-14 w-full cursor-pointer items-center justify-center px-8 text-[1.25rem] font-bold disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isSaving ? "Saving…" : "Done"}
-          </button>
+          </div>
         </div>
       </div>
     </div>

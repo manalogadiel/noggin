@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <radialGradient id="b-dome" cx="38%" cy="28%" r="72%">
+      <stop offset="0%" stop-color="#c3e68d"/>
+      <stop offset="55%" stop-color="#8ab952"/>
+      <stop offset="100%" stop-color="#618d2e"/>
+    </radialGradient>
+    <linearGradient id="b-cuff" x1="20" y1="68" x2="100" y2="96" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9dc963"/>
+      <stop offset="55%" stop-color="#7aa942"/>
+      <stop offset="100%" stop-color="#568125"/>
+    </linearGradient>
+    <linearGradient id="b-leaf" x1="48" y1="16" x2="76" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#b9e46c"/>
+      <stop offset="100%" stop-color="#5f9424"/>
+    </linearGradient>
+    <filter id="b-shadow" x="-15%" y="-15%" width="130%" height="145%">
+      <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#2e4d0e" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g filter="url(#b-shadow)">
+    <path d="M60 40V27" stroke="#538022" stroke-width="5" stroke-linecap="round"/>
+    <path d="M60 31c-1-10-12-16-20-13 1 10 10 15 20 13z" fill="url(#b-leaf)"/>
+    <path d="M60 31c1-10 12-16 20-13-1 10-10 15-20 13z" fill="url(#b-leaf)"/>
+    <path d="M46 22c3-1 7 1 10 4" stroke="#e4f9b5" stroke-width="2.2" stroke-linecap="round" opacity="0.8"/>
+    <path d="M74 22c-3-1-7 1-10 4" stroke="#e4f9b5" stroke-width="2.2" stroke-linecap="round" opacity="0.8"/>
+    <path d="M24 76c0-23 15-39 36-39s36 16 36 39H24z" fill="url(#b-dome)"/>
+    <path d="M36 58c4-9 12-15 22-16" stroke="#effad4" stroke-width="4.5" stroke-linecap="round" opacity="0.55"/>
+    <rect x="18" y="70" width="84" height="24" rx="12" fill="url(#b-cuff)"/>
+    <path d="M36 74v16M52 74v16M68 74v16M84 74v16" stroke="#4f7820" stroke-width="2.5" stroke-linecap="round" opacity="0.3"/>
+    <path d="M26 75h68" stroke="#d9f3a8" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  </g>
+</svg>

@@ -3,6 +3,7 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useId } from "react";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { RoomRail } from "@/components/room/room-rail";
 import type { NogRecord, TopicSummary } from "@/core/application/ports";
@@ -31,33 +32,44 @@ export function TopicPicker({
 }: TopicPickerProps) {
   const inputId = useId();
   const fieldErrorId = useId();
+  const { activeRoom } = useGameUi();
   const roomHref = `/nogs/${nog.id}`;
   const feedBaseHref = `/nogs/${nog.id}/feed`;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-5">
+    <div className="game-world game-world--scroll">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={activeRoom.src} alt="" className="scene-bg-img" />
+      <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
+      <RoomRail nogId={nog.id} />
+
+      <header className="stage-top">
         <div className="flex items-center gap-3">
           <Link
             href={roomHref}
             aria-label={`Back to ${nog.name}'s room`}
-            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="stage-close-btn"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
 
-          <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] px-3.5 py-1 text-[0.875rem] font-semibold text-[var(--noggin-forest)]">
+          <span className="pill pill--dark">
             {nog.name}
           </span>
         </div>
+      </header>
 
-        <section className="grid grid-cols-1 items-center gap-6 rounded-[var(--noggin-radius-card)] bg-[var(--noggin-mint)] p-6 shadow-[0_16px_38px_var(--noggin-shadow)] sm:p-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,340px)] lg:gap-8 lg:p-10">
+      <div
+        className="stage-body stage-body--with-rail"
+        style={{ justifyContent: "flex-start" }}
+      >
+        <section className="surface-sage grid grid-cols-1 items-center gap-6 rounded-[var(--noggin-radius-card)] p-6 sm:p-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,340px)] lg:gap-8 lg:p-10">
           <div className="flex min-w-0 flex-col gap-5">
             <div>
-              <h1 className="noggin-display text-[clamp(2rem,4.5vw,3.25rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
+              <h1 className="stage-h1">
                 What will you teach me?
               </h1>
-              <p className="mt-2 max-w-[44ch] text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
+              <p className="stage-sub mt-2 max-w-[44ch]">
                 Enter a new topic for {nog.name} or pick one you&rsquo;ve already started.
               </p>
             </div>
@@ -65,7 +77,7 @@ export function TopicPicker({
             <form
               noValidate
               onSubmit={onSubmitTopic}
-              className="flex flex-col gap-3 rounded-[28px] bg-[var(--noggin-white)] p-5 shadow-[0_10px_26px_var(--noggin-shadow)]"
+              className="surface-white flex flex-col gap-3 rounded-[28px] p-5"
             >
               <label
                 htmlFor={inputId}
@@ -87,7 +99,7 @@ export function TopicPicker({
                   aria-describedby={fieldError ? fieldErrorId : undefined}
                   disabled={isSubmitting}
                   className={cn(
-                    "min-h-12 w-full flex-1 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-4 py-2.5 text-[1rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)]",
+                    "g-input min-h-12 w-full flex-1 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] px-4 py-2.5 text-[1rem] text-[var(--noggin-forest)] placeholder:text-[var(--noggin-ink)] focus-visible:outline-3 focus-visible:outline-[var(--noggin-leaf)]",
                     fieldError && "ring-2 ring-[var(--noggin-danger)]",
                   )}
                 />
@@ -95,7 +107,7 @@ export function TopicPicker({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="noggin-primary-pill noggin-display inline-flex min-h-12 shrink-0 cursor-pointer items-center justify-center gap-2 px-6 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                  className="pub-cta-pill inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span>{isSubmitting ? "Starting…" : "Start Teaching"}</span>
                   <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -133,7 +145,7 @@ export function TopicPicker({
                     <li key={topic.id}>
                       <Link
                         href={`${feedBaseHref}?topic=${encodeURIComponent(topic.id)}`}
-                        className="noggin-feature-pill noggin-display inline-flex min-h-11 items-center gap-2 px-4 py-2 text-[0.9375rem] font-bold transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                        className="gbtn gbtn--white inline-flex min-h-11 items-center gap-2 px-4 py-2 text-[0.9375rem]"
                       >
                         <span className="[overflow-wrap:anywhere]">{topic.title}</span>
                         {topic.status === "pending" && (
@@ -163,8 +175,6 @@ export function TopicPicker({
           </div>
         </section>
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

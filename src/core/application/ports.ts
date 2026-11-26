@@ -10,7 +10,8 @@ export type UsageKind =
   | "stt_seconds"
   | "tts_chars"
   | "pet"
-  | "generate";
+  | "generate"
+  | "ask";
 
 export interface AuthenticatedUser {
   id: string;
@@ -261,6 +262,12 @@ export type DigestOperation =
       cardId: string;
       paraphrase?: string;
       quote?: string;
+    }
+  | {
+      type: "reinforce";
+      cardId: string;
+      quote: string;
+      status?: ThoughtCardStatus;
     };
 
 export interface DigestMessageInput {
@@ -295,7 +302,7 @@ export interface OwnedMessage {
   nogId: string;
   lessonId?: string | null;
   role: "nog" | "student";
-  kind: "reply" | "question" | "answer" | "reaction";
+  kind: "reply" | "question" | "answer" | "reaction" | "ask" | "ask_answer";
   body: string;
 }
 
@@ -321,6 +328,7 @@ export interface NotebookRepository {
     userId: string,
     messageId: string,
   ): Promise<OwnedMessage | null>;
+  findPagesByIds?(nogId: string, lessonIds: string[]): Promise<LessonPage[]>;
 }
 
 export interface ThoughtCardRecord {
@@ -335,6 +343,8 @@ export interface ThoughtCardRecord {
   nextReviewAt?: Date | string;
   sourceLessonId?: string;
   quote?: string;
+  evidenceCount?: number;
+  score?: number;
 }
 
 export type CardReviewOutcome = "remembered" | "forgot";
@@ -351,6 +361,66 @@ export interface ThoughtCardRepository {
   listByTopic(nogId: string, topicId: string): Promise<ThoughtCardRecord[]>;
   listByNog?(nogId: string): Promise<ThoughtCardRecord[]>;
   reviewCard?(input: ReviewThoughtCardInput): Promise<ThoughtCardRecord | null>;
+  search?(
+    nogId: string,
+    topicId: string | null,
+    query: string,
+    limit: number,
+  ): Promise<ThoughtCardRecord[]>;
+  listEvidenceLessonIds?(cardIds: string[]): Promise<CardEvidenceLink[]>;
+}
+
+export interface CardEvidenceLink {
+  cardId: string;
+  lessonId: string;
+}
+
+export interface AskInput {
+  nogId: string;
+  question: string;
+  cards: ThoughtCardRecord[];
+  pages: LessonPage[];
+}
+
+export interface AskOutput {
+  answer: string;
+  mood: string;
+  knows: boolean;
+  citedCardIds: string[];
+}
+
+export interface NogAsker {
+  ask(input: AskInput): Promise<AskOutput>;
+}
+
+export interface SaveAskExchangeInput {
+  ownerId: string;
+  nogId: string;
+  question: string;
+  answer: string;
+  mood: string;
+}
+
+export interface SavedAskExchange {
+  questionMessageId: string;
+  answerMessageId: string;
+}
+
+export interface AskExchangeRecord extends SavedAskExchange {
+  nogId: string;
+  question: string;
+  answer: string;
+  mood: string | null;
+  createdAt: string;
+}
+
+export interface AskHistoryRepository {
+  save(input: SaveAskExchangeInput): Promise<SavedAskExchange>;
+  listRecent(
+    ownerId: string,
+    nogId: string,
+    limit: number,
+  ): Promise<AskExchangeRecord[]>;
 }
 
 export interface AnswerQuestionPrompt {
@@ -449,11 +519,18 @@ export interface UsageRepository {
   ): Promise<QuotaResult>;
 }
 
+export interface ListenContext {
+  nogQuestion?: string;
+  rootLesson?: string;
+}
+
 export interface ListenInput {
   nogId: string;
   topicId: string;
+  topicTitle?: string;
   page: LessonPage;
   existingCards: ThoughtCardRecord[];
+  context?: ListenContext;
 }
 
 export interface ListenerDigest {
@@ -461,6 +538,7 @@ export interface ListenerDigest {
   mood: string;
   followUpQuestions: string[];
   operations: DigestOperation[];
+  offTopic?: boolean;
 }
 
 export interface NogListener {
@@ -489,9 +567,16 @@ export interface NogBrain {
   answer(input: AnswerInput): Promise<BrainAnswerResult>;
 }
 
+export interface GradeCardEvidence {
+  label: string;
+  paraphrase: string;
+  quote?: string;
+}
+
 export interface GradeInput {
   topicId: string;
   pages: LessonPage[];
+  cards?: GradeCardEvidence[];
   questions: QuestionRecord[];
   answers: BrainAnswerItem[];
 }
@@ -545,4 +630,127 @@ export interface TextToSpeech {
 export interface VoiceCacheRepository {
   get(key: string): Promise<SynthesizedAudio | null>;
   put(key: string, audio: SynthesizedAudio): Promise<void>;
+}
+
+export type {
+  AudioPrefs,
+  BookCoverStyle,
+  CoinLedgerEntry,
+  NotebookBookPrefs,
+  PlayerEconomyState,
+  RoomBgId,
+  ShopItemKind,
+  SkinPackId,
+} from "../domain/economy";
+
+import type {
+  AudioPrefs,
+  CoinLedgerEntry,
+  NotebookBookPrefs,
+  PlayerEconomyState,
+  RoomBgId,
+  SkinPackId,
+} from "../domain/economy";
+
+export type EconomyPreferencesPatch = Partial<{
+  activeRoomBg: RoomBgId;
+  activeSkinPack: SkinPackId;
+  equippedSlots: (string | null)[];
+  notebookPrefs: Record<string, NotebookBookPrefs>;
+  audioPrefs: AudioPrefs;
+  streakRestores: number;
+  streakMissedDays: number;
+  streakDays: number;
+  lastStudyDate: string | null;
+}>;
+
+export type EconomyStatePatch = EconomyPreferencesPatch &
+  Partial<{
+    level: number;
+    xp: number;
+    xpMax: number;
+    ownedRooms: Record<RoomBgId, boolean>;
+    ownedSkinPacks: Record<SkinPackId, boolean>;
+    ownedAccessories: Record<string, boolean>;
+    claimedTasks: Record<string, boolean>;
+  }>;
+
+export interface EconomyTransactionInput {
+  delta: number;
+  reason: string;
+  itemRef?: string | null;
+  patch?: EconomyStatePatch;
+}
+
+export interface EconomyRepository {
+  getOrInit(userId: string): Promise<PlayerEconomyState>;
+  applyTransaction(
+    userId: string,
+    input: EconomyTransactionInput,
+  ): Promise<PlayerEconomyState>;
+  savePreferences(
+    userId: string,
+    patch: EconomyPreferencesPatch,
+  ): Promise<PlayerEconomyState>;
+  listLedger(userId: string, limit?: number): Promise<CoinLedgerEntry[]>;
+}
+
+export type {
+  BillingInterval,
+  BillingOrder,
+  BillingOrderStatus,
+  BillingSummary,
+  SalesProduct,
+  SalesProductCode,
+  SalesProductKind,
+  SubscriptionRecord,
+  SubscriptionStatus,
+} from "../domain/billing";
+
+import type {
+  BillingOrder,
+  SalesProduct,
+  SalesProductCode,
+  SubscriptionRecord,
+} from "../domain/billing";
+
+export interface PaymentIntentResult {
+  provider: string;
+  providerRef: string;
+  checkoutUrl?: string | null;
+  requiresRedirect?: boolean;
+}
+
+export interface PaymentGateway {
+  readonly providerName: string;
+  authorizePurchase(input: {
+    userId: string;
+    product: SalesProduct;
+    idempotencyKey: string;
+    orderId?: string;
+  }): Promise<PaymentIntentResult>;
+}
+
+export interface BillingRepository {
+  listProducts(): Promise<SalesProduct[]>;
+  getActiveSubscription(userId: string): Promise<SubscriptionRecord | null>;
+  listOrders(userId: string, limit?: number): Promise<BillingOrder[]>;
+  createOrder(input: {
+    userId: string;
+    productCode: SalesProductCode;
+    idempotencyKey: string;
+    provider: string;
+  }): Promise<BillingOrder>;
+  attachProviderRef(input: {
+    userId: string;
+    orderId: string;
+    providerRef: string;
+  }): Promise<BillingOrder>;
+  fulfillOrder(input: {
+    userId: string;
+    orderId: string;
+    providerRef: string;
+  }): Promise<BillingOrder>;
+  fulfillOrderByProviderRef(providerRef: string): Promise<BillingOrder | null>;
+  cancelSubscription(userId: string): Promise<SubscriptionRecord | null>;
 }

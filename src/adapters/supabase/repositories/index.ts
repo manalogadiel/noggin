@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   ActivityRepository,
+  AskHistoryRepository,
+  BillingRepository,
+  EconomyRepository,
   NogRepository,
   ProfileRepository,
   ProgressRepository,
@@ -10,10 +13,13 @@ import type {
   UsageRepository,
 } from "@/core/application/ports";
 import { createActivityRepository } from "./activity-repository";
+import { createAskHistoryRepository } from "./ask-history-repository";
 import {
   createAttemptRepository,
   type SupabaseAttemptRepository,
 } from "./attempt-repository";
+import { createBillingRepository } from "./billing-repository";
+import { createEconomyRepository } from "./economy-repository";
 import { createNogRepository } from "./nog-repository";
 import {
   createNotebookRepository,
@@ -55,6 +61,9 @@ export interface SupabaseRepositories {
   questions: QuestionBank;
   attempts: SupabaseAttemptRepository;
   usage: UsageRepository;
+  askHistory: AskHistoryRepository;
+  economy: EconomyRepository;
+  billing: BillingRepository;
 }
 
 export function createSupabaseRepositories(
@@ -74,5 +83,8 @@ export function createSupabaseRepositories(
     questions: createQuestionBank({ service }),
     attempts: createAttemptRepository({ session, service, userId }),
     usage: createUsageRepository({ service, userId }),
+    askHistory: createAskHistoryRepository({ session, service, userId }),
+    economy: createEconomyRepository({ session, userId }),
+    billing: createBillingRepository({ session, service, userId }),
   };
 }

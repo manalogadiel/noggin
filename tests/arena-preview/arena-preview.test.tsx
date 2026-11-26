@@ -3,6 +3,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ComponentType, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppLayout from "@/app/(app)/layout";
@@ -179,17 +180,20 @@ describe("Sidebar and BottomBar with showArena", () => {
   });
 
   it("wires container.getFeatures().arena through AppLayout to AppShell navigation", async () => {
+    const user = userEvent.setup();
     getFeatures.mockResolvedValueOnce({ arena: false });
     const { unmount } = render(
       await AppLayout({ children: <div>Child content</div> }),
     );
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
     expect(screen.queryByRole("link", { name: "Arena" })).not.toBeInTheDocument();
     unmount();
 
     getFeatures.mockResolvedValueOnce({ arena: true });
     render(await AppLayout({ children: <div>Child content</div> }));
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
     const arenaLinks = screen.getAllByRole("link", { name: "Arena" });
-    expect(arenaLinks.length).toBeGreaterThanOrEqual(2);
+    expect(arenaLinks.length).toBeGreaterThanOrEqual(1);
     for (const link of arenaLinks) {
       expect(link).toHaveAttribute("href", "/arena");
     }

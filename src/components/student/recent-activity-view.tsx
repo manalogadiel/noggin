@@ -63,14 +63,11 @@ export function RecentActivityView({
 }: RecentActivityViewProps) {
   if (events.length === 0) {
     return (
-      <section className="flex flex-col items-center rounded-[28px] bg-[var(--noggin-cream)] p-8 text-center shadow-[0_12px_28px_var(--noggin-shadow)] sm:p-10">
+      <section className="prof-panel items-center p-8 text-center">
         <p className="noggin-display text-[1.25rem] font-extrabold text-[var(--noggin-forest)]">
           Nothing yet — teach your Nog something!
         </p>
-        <Link
-          href="/nogs"
-          className="noggin-primary-pill noggin-display mt-5 inline-flex min-h-11 items-center justify-center px-6 py-2.5 text-[1rem] font-bold"
-        >
+        <Link href="/nogs" className="gbtn gbtn--leaf mt-3 no-underline">
           Go to My Nogs
         </Link>
       </section>
@@ -102,40 +99,31 @@ export function RecentActivityView({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 pb-4">
       {groups.map((group) => (
-        <section
-          key={group.key}
-          className="rounded-[28px] bg-[var(--noggin-cream)] p-5 shadow-[0_12px_28px_var(--noggin-shadow)] sm:p-6"
-        >
-          <h2 className="noggin-display text-[1.25rem] font-extrabold text-[var(--noggin-forest)]">
-            {group.heading}
-          </h2>
+        <section key={group.key} className="prof-panel">
+          <h2 className="prof-panel__title m-0">{group.heading}</h2>
 
-          <ol className="mt-3.5 flex flex-col gap-2.5">
+          <ol className="prof-act-list m-0 list-none p-0">
             {group.items.map((event) => (
               <li key={`${event.kind}-${event.id}-${event.at}`}>
                 <Link
                   href={`/nogs/${event.nogId}`}
-                  className="flex items-center justify-between gap-4 rounded-[20px] bg-[var(--noggin-white)] px-4 py-3.5 text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] transition-colors hover:bg-[var(--noggin-mint)]"
+                  className="prof-act-row no-underline transition-opacity hover:opacity-90"
                 >
-                  <div className="flex items-center gap-3.5">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-mint)] text-[var(--noggin-leaf-strong)]">
-                      {event.kind === "check" ? (
-                        <CircleCheck className="h-5 w-5" aria-hidden="true" />
-                      ) : (
-                        <NotebookPen className="h-5 w-5" aria-hidden="true" />
-                      )}
-                    </span>
+                  <span className="prof-act-ico shrink-0">
+                    {event.kind === "check" ? (
+                      <CircleCheck className="h-4 w-4 text-[var(--noggin-leaf-strong)]" aria-hidden="true" />
+                    ) : (
+                      <NotebookPen className="h-4 w-4 text-[var(--noggin-leaf-strong)]" aria-hidden="true" />
+                    )}
+                  </span>
 
-                    <div>
-                      <p className="noggin-display text-[1rem] font-bold text-[var(--noggin-forest)]">
-                        {event.nogName} · {event.topicName}
-                      </p>
-                      <p className="text-[0.875rem] font-medium text-[var(--noggin-ink)]">
-                        {formatEventResult(event)}
-                      </p>
-                    </div>
+                  <div className="prof-act-info">
+                    <strong>
+                      {event.nogName} · {event.topicName}
+                    </strong>
+                    <span>{formatEventResult(event)}</span>
                   </div>
 
                   <time

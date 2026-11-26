@@ -41,54 +41,51 @@ export default async function MyNogsPage() {
     redirect("/login?next=%2Fnogs");
   }
 
-  return (
-    <div className="space-y-8">
-      <section aria-labelledby="my-nogs-heading">
-        <h1
-          id="my-nogs-heading"
-          className="noggin-display text-[clamp(2rem,4.4vw,3.25rem)] font-extrabold leading-[1.08] tracking-tight text-[var(--noggin-leaf-title)]"
-        >
-          My Nogs
-        </h1>
-        <p className="mt-2 text-[1.125rem] leading-relaxed text-[var(--noggin-ink)]">
-          Your collection of Nogs.
-        </p>
-      </section>
+  if (nogs && nogs.length > 0) {
+    return <NogCollection nogs={nogs} />;
+  }
 
-      {error ? (
-        <section className="flex flex-col items-center rounded-[var(--noggin-radius-card)] bg-[var(--noggin-white)] p-6 text-center shadow-[0_14px_34px_var(--noggin-shadow)] md:p-10">
-          <Image
-            src="/nog/blob-closeup.png"
-            alt=""
-            width={96}
-            height={96}
-            className="h-24 w-24 object-contain grayscale-[30%]"
-          />
-          <h2 className="noggin-display mt-4 text-[clamp(1.5rem,3vw,2rem)] font-bold text-[var(--noggin-forest)]">
-            Brain fog
-          </h2>
-          <p
-            role="alert"
-            className="mt-2 text-[1.0625rem] leading-relaxed text-[var(--noggin-ink)]"
-          >
-            We couldn&apos;t load your Nogs right now.
-          </p>
-          <Link
-            href="/nogs"
-            className="noggin-primary-pill noggin-display mt-6 inline-flex h-12 min-h-11 items-center justify-center px-7 text-[1.0625rem] font-bold"
-          >
-            Try again
-          </Link>
-        </section>
-      ) : nogs && nogs.length > 0 ? (
-        <section aria-label="Nog collection">
-          <NogCollection nogs={nogs} />
-        </section>
-      ) : (
-        <section aria-label="Start your Nog collection">
-          <EmptyNogsCard />
-        </section>
-      )}
+  return (
+    <div className="game-world game-world--hatch">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/game/bg/sanctuary-day.jpg"
+        alt=""
+        className="scene-bg-img scene-bg-img--sanctuary"
+      />
+      <div className="scene-bg-scrim scene-bg-scrim--hatch" aria-hidden="true" />
+
+      <div className="stage-body items-center text-center">
+        <div className="mb-6">
+          <h1 id="my-nogs-heading" className="stage-h1">
+            My Nogs
+          </h1>
+          <p className="stage-sub">Your collection of Nogs.</p>
+        </div>
+
+        {error ? (
+          <section className="hatch-panel flex max-w-[520px] flex-col items-center text-center">
+            <Image
+              src="/nog/blob-closeup.png"
+              alt=""
+              width={96}
+              height={96}
+              className="h-24 w-24 object-contain grayscale-[30%]"
+            />
+            <h2 className="stage-h1 mt-4 text-[1.75rem]">Brain fog</h2>
+            <p role="alert" className="stage-sub mt-2">
+              We couldn&apos;t load your Nogs right now.
+            </p>
+            <Link href="/nogs" className="pub-cta-pill pub-cta-pill--md mt-6">
+              Try again
+            </Link>
+          </section>
+        ) : (
+          <section aria-label="Start your Nog collection" className="w-full max-w-[640px]">
+            <EmptyNogsCard />
+          </section>
+        )}
+      </div>
     </div>
   );
 }

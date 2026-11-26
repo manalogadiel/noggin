@@ -1,7 +1,20 @@
 "use client";
 
-import { ArrowLeft, BookOpen, Check, Clock, Play, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Check,
+  FileUp,
+  ListChecks,
+  MessageSquareText,
+  Play,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { Book3dSvg } from "@/components/game-ui/book-3d-svg";
+import { type BookCoverStyle } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import type { NogRecord, TopicSummary } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
@@ -30,6 +43,20 @@ export interface TopicSelectStepProps {
   onRetry: () => void;
 }
 
+const FORMAT_MODES = [
+  { id: "mc", label: "Choices", icon: Check },
+  { id: "enum", label: "List", icon: ListChecks },
+  { id: "phrase", label: "Short", icon: MessageSquareText },
+] as const;
+
+const BOOK_COVER_ROTATION: ReadonlyArray<BookCoverStyle> = [
+  "sage",
+  "honey",
+  "gingham",
+  "berry",
+  "denim",
+];
+
 export function TopicSelectStep({
   nog,
   topics,
@@ -40,6 +67,15 @@ export function TopicSelectStep({
   onStart,
   onRetry,
 }: TopicSelectStepProps) {
+  const [questionCount, setQuestionCount] = useState(10);
+  const [aiGenOn, setAiGenOn] = useState(true);
+  const [fileUploadOn, setFileUploadOn] = useState(false);
+  const [formats, setFormats] = useState<Record<string, boolean>>({
+    mc: true,
+    enum: true,
+    phrase: true,
+  });
+
   const roomHref = `/nogs/${nog.id}`;
   const feedBaseHref = `${roomHref}/feed`;
   const hasReadyTopic = topics.some((topic) => topic.status === "ready");
@@ -49,112 +85,338 @@ export function TopicSelectStep({
 
   if (isThinking) {
     return (
-      <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
-        <header className="flex flex-wrap items-center gap-3">
-          <Link
-            href={roomHref}
-            aria-label={`Back to ${nog.name}'s room`}
-            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
-
-          <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
-            Play
-          </h1>
-
-          {selectedTopic && (
-            <span className="inline-flex items-center rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-sage)] px-4 py-1.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_4px_12px_var(--noggin-shadow)] [overflow-wrap:anywhere]">
-              {selectedTopic.title}
-            </span>
-          )}
-        </header>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] lg:items-start lg:gap-8">
-          <div className="flex min-w-0 flex-col gap-5">
-            <div
-              aria-hidden="true"
-              className="flex min-h-[260px] flex-col justify-center gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8"
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="qs-top-bar">
+          <div className="flex items-center gap-3">
+            <Link
+              href={roomHref}
+              aria-label={`Back to ${nog.name}'s room`}
+              className="stage-close-btn"
             >
-              <div className="h-3.5 w-28 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)]/80 motion-safe:animate-pulse" />
-              <div className="h-6 w-5/6 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)]/90 motion-safe:animate-pulse" />
-              <div className="h-6 w-2/3 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)]/80 motion-safe:animate-pulse" />
-            </div>
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </Link>
 
-            <div
-              aria-hidden="true"
-              className="flex flex-col gap-3 rounded-[18px] border-2 border-[var(--noggin-leaf)] bg-[var(--noggin-white)] p-5 shadow-[0_10px_26px_var(--noggin-shadow)] sm:p-6"
-            >
-              <div className="h-3.5 w-32 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint-light)] motion-safe:animate-pulse" />
-              <div className="h-4 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] motion-safe:animate-pulse" />
-              <div className="h-4 w-3/4 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-mint)] motion-safe:animate-pulse" />
-            </div>
+            <h1 className="stage-h1">Play</h1>
+
+            {selectedTopic && (
+              <span className="qs-round-pill [overflow-wrap:anywhere]">
+                {selectedTopic.title}
+              </span>
+            )}
           </div>
+        </div>
 
-          <aside className="flex flex-col items-center gap-5">
+        <div className="qs-live-stage">
+          <div className="qs-bubbles-row">
+            <div
+              aria-hidden="true"
+              className="qs-bubble qs-bubble--host bg-[var(--noggin-sage)] min-h-[140px] justify-center"
+            >
+              <div className="qs-bubble__who">
+                <span>Professor Owl</span>
+              </div>
+              <div className="h-4 w-5/6 rounded-full bg-[var(--noggin-white)]/80 motion-safe:animate-pulse" />
+              <div className="h-4 w-2/3 rounded-full bg-[var(--noggin-white)]/80 motion-safe:animate-pulse" />
+              <svg
+                className="qs-tail qs-tail--left"
+                viewBox="0 0 28 20"
+                aria-hidden="true"
+              >
+                <path
+                  d="M0 0C4 9 10 16 14 20C14 11 19 4 28 0Z"
+                  fill="var(--ng-c-fbf5e6)"
+                />
+              </svg>
+            </div>
+
             <div
               role="status"
               aria-live="polite"
-              className="relative w-full rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] px-6 py-4 text-center text-[1rem] font-semibold text-[var(--noggin-forest)] shadow-[0_10px_24px_var(--noggin-shadow)]"
+              className="qs-bubble qs-bubble--nog bg-[var(--noggin-sage)] min-h-[140px] justify-center"
             >
-              <p className="noggin-display font-bold">Hmm, let me think…</p>
+              <div className="qs-bubble__who">
+                <span>{nog.name}</span>
+              </div>
+              <p className="qs-bubble__text">Hmm, let me think…</p>
               <div
                 aria-hidden="true"
-                className="mx-auto mt-3 flex max-w-[220px] flex-col gap-2"
+                className="mt-1 flex max-w-[220px] flex-col gap-2"
               >
-                <div className="h-2.5 w-full rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
-                <div className="mx-auto h-2.5 w-3/4 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] motion-safe:animate-pulse" />
+                <div className="h-2.5 w-full rounded-full bg-[var(--noggin-white)] motion-safe:animate-pulse" />
+                <div className="h-2.5 w-3/4 rounded-full bg-[var(--noggin-white)] motion-safe:animate-pulse" />
               </div>
-              <span
+              <svg
+                className="qs-tail qs-tail--right"
+                viewBox="0 0 28 20"
                 aria-hidden="true"
-                className="absolute -bottom-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rotate-45 border-r border-b border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)]"
+              >
+                <path
+                  d="M0 0C9 4 14 11 14 20C18 16 24 9 28 0Z"
+                  fill="var(--ng-c-fbf5e6)"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <div className="qs-actors-layer">
+            <div className="qs-actor qs-actor--owl-floor">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/game/ui/host-owl-clay.svg"
+                alt=""
+                aria-hidden="true"
               />
+              <div className="qs-floor-shadow" />
             </div>
 
-            <div className="w-full max-w-[300px] lg:max-w-[360px]">
-              <NogStage
-                scene="room"
-                alt={`${nog.name} thinking through the quiz questions`}
-                poster="/nog/blob-closeup.png"
-                width={1254}
-                height={1254}
-                sizes="(min-width: 1024px) 360px, 300px"
-                priority
-                className="nog-bob w-full"
-              />
+            <div className="qs-actor qs-actor--nog-floor">
+              <div className="w-[clamp(140px,14.5vw,210px)]">
+                <NogStage
+                  scene="room"
+                  alt={`${nog.name} thinking through the quiz questions`}
+                  poster="/nog/blob-closeup.png"
+                  width={1254}
+                  height={1254}
+                  sizes="210px"
+                  priority
+                  className="nog-bob w-full"
+                />
+              </div>
+              <div className="qs-floor-shadow" />
             </div>
-          </aside>
+          </div>
         </div>
       </div>
     );
   }
 
+  const fmtChipClass: Record<string, string> = {
+    mc: "qs-fmt-chip--blue",
+    enum: "qs-fmt-chip--purple",
+    phrase: "qs-fmt-chip--coral",
+  };
+
   return (
-    <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
-      <header className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-1 flex-col">
+      <div className="qs-top-bar">
         <div className="flex items-center gap-3">
           <Link
             href={roomHref}
             aria-label={`Back to ${nog.name}'s room`}
-            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="stage-close-btn"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
 
-          <h1 className="noggin-display text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
+          <h1
+            className="stage-h1"
+            style={{ fontSize: "26px", color: "var(--noggin-white)" }}
+          >
             Practice Quiz
           </h1>
         </div>
 
-        <p className="max-w-[58ch] text-[0.9375rem] leading-relaxed text-[var(--noggin-ink)]">
-          Test what your Nog has learned. {nog.name} answers each question from
-          its own notebook while you watch.
+        <p className="qs-brain-pill m-0 hidden sm:inline-flex">
+          {nog.name} answers each question from its own notebook while you watch.
         </p>
-      </header>
+      </div>
 
-      <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(360px,0.95fr)_2px_minmax(0,1.05fr)] lg:items-start lg:gap-10">
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-full max-w-[300px] lg:max-w-[380px]">
+      <div className="qs-prep-stage flex-col gap-3">
+        {/* Royal-Blue Dot-Matrix START QUIZ Marquee Shell */}
+        <div className="qs-sc-shell qs-sc-shell--prep relative z-10">
+          <header className="qs-sc-header">
+            <div className="qs-count-stepper" aria-label="Question count">
+              <button
+                type="button"
+                aria-label="Fewer questions"
+                onClick={() => setQuestionCount((c) => Math.max(3, c - 1))}
+                className="qs-count-btn"
+              >
+                −
+              </button>
+              <span className="qs-count-val tabular-nums">{questionCount} Qs</span>
+              <button
+                type="button"
+                aria-label="More questions"
+                onClick={() => setQuestionCount((c) => Math.min(50, c + 1))}
+                className="qs-count-btn"
+              >
+                +
+              </button>
+            </div>
+
+            <h2 className="qs-sc-title">START QUIZ</h2>
+
+            <span className="qs-sc-badge justify-self-end truncate max-w-[140px]">
+              {selectedTopic?.title ?? "Topics"}
+            </span>
+          </header>
+
+          <div className="qs-sc-body qs-sc-body--prep">
+            <h2 className="sr-only">Topics</h2>
+
+            {topics.length === 0 ? (
+              <div className="flex flex-col items-start gap-4 rounded-[24px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-sm">
+                <p className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]">
+                  No topics to quiz yet
+                </p>
+                <p className="text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)]">
+                  Teach {nog.name} a lesson first, then come back to test what stuck.
+                </p>
+                <Link href={feedBaseHref} className="gbtn gbtn--leaf gbtn--sm no-underline">
+                  <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Teach a topic</span>
+                </Link>
+              </div>
+            ) : (
+              <fieldset className="m-0 border-0 p-0">
+                <legend className="sr-only">Topics</legend>
+
+                <div className="qs-book-row">
+                  {topics.map((topic, idx) => {
+                    const isPending = topic.status !== "ready";
+                    const isSelected = !isPending && selectedTopicId === topic.id;
+                    const cover = BOOK_COVER_ROTATION[idx % BOOK_COVER_ROTATION.length];
+                    const questionLabel =
+                      topic.questionCount === 1
+                        ? "1 question"
+                        : `${topic.questionCount} questions`;
+
+                    return (
+                      <label
+                        key={topic.id}
+                        className={cn(
+                          "qs-book-pick",
+                          isSelected && "is-on",
+                          isPending && "cursor-not-allowed opacity-65",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="quick-check-topic"
+                          value={topic.id}
+                          checked={isSelected}
+                          disabled={isPending}
+                          aria-disabled={isPending ? "true" : undefined}
+                          onChange={() => onSelectTopic(topic.id)}
+                          className="sr-only"
+                        />
+
+                        {isSelected && (
+                          <span className="qs-book-pick__tick" aria-hidden="true">
+                            ✓
+                          </span>
+                        )}
+
+                        <span className="qs-book-pick__svg" aria-hidden="true">
+                          <Book3dSvg
+                            style={cover}
+                            title={topic.title}
+                            uid={`quiz-book-${topic.id}`}
+                          />
+                        </span>
+
+                        <span className="qs-book-pick__name [overflow-wrap:anywhere]">
+                          {topic.title}
+                        </span>
+
+                        <span className="text-[10.5px] font-bold text-[var(--noggin-ink)]">
+                          {isPending ? "Questions being written" : questionLabel}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+
+            <div className="qs-fmt-row" role="group" aria-label="Question formats">
+              {FORMAT_MODES.map((mode) => {
+                const Icon = mode.icon;
+                const on = formats[mode.id] !== false;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setFormats((prev) => ({ ...prev, [mode.id]: !prev[mode.id] }))
+                    }
+                    className={cn(
+                      "qs-fmt-chip",
+                      fmtChipClass[mode.id],
+                      on && "is-on",
+                    )}
+                  >
+                    <span className="qs-fmt-ico" aria-hidden="true">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span>{mode.label}</span>
+                    <span className="qs-fmt-check" aria-hidden="true">
+                      ✓
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="qs-src-actions">
+              <button
+                type="button"
+                aria-pressed={aiGenOn}
+                onClick={() => setAiGenOn((v) => !v)}
+                className={cn("qs-src-cta qs-src-cta--ai", aiGenOn && "is-on")}
+              >
+                <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Generate with AI</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={fileUploadOn}
+                onClick={() => setFileUploadOn((v) => !v)}
+                className={cn("qs-src-cta qs-src-cta--file", fileUploadOn && "is-on")}
+              >
+                <FileUp className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Add by File</span>
+              </button>
+            </div>
+
+            {feedback && (
+              <FeedbackBanner
+                nogName={nog.name}
+                feedback={feedback}
+                feedBaseHref={feedBaseHref}
+                onRetry={onRetry}
+              />
+            )}
+
+            {topics.length > 0 && (
+              <button
+                type="button"
+                disabled={!canStart}
+                onClick={onStart}
+                className="qs-start-cta disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                <Play className="h-5 w-5 shrink-0 fill-current" aria-hidden="true" />
+                <span>Start Quiz</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="qs-actors-layer">
+          <div className="qs-actor qs-actor--owl-floor">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/game/ui/host-owl-clay.svg"
+              alt=""
+              aria-hidden="true"
+            />
+            <div className="qs-floor-shadow" />
+          </div>
+
+          <div className="qs-actor qs-actor--nog-floor">
+            <div className="w-[clamp(140px,14.5vw,210px)]">
               <NogStage
                 scene={feedback?.kind === "sleepy" ? "dizzy" : "room"}
                 alt={`${nog.name} ready for a practice quiz`}
@@ -165,136 +427,15 @@ export function TopicSelectStep({
                 }
                 width={feedback?.kind === "sleepy" ? 1024 : 1254}
                 height={feedback?.kind === "sleepy" ? 1024 : 1254}
-                sizes="(min-width: 1024px) 380px, 300px"
+                sizes="210px"
                 priority
                 className="nog-bob w-full"
               />
             </div>
-
-            {topics.length > 0 && (
-              <button
-                type="button"
-                disabled={!canStart}
-                onClick={onStart}
-                className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center gap-2.5 px-10 text-[1.125rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                <Play className="h-4 w-4 shrink-0 fill-current" aria-hidden="true" />
-                <span>Start Quiz</span>
-              </button>
-            )}
-          </div>
-
-          <div
-            aria-hidden="true"
-            className="hidden h-full min-h-[340px] w-[2px] rounded-full bg-[var(--noggin-leaf)] lg:block"
-          />
-
-          <div className="flex min-w-0 flex-col gap-5">
-            <h2 className="noggin-display text-[1.5rem] font-extrabold text-[var(--noggin-forest)]">
-              Topics
-            </h2>
-
-            {topics.length === 0 ? (
-              <div className="flex flex-col items-start gap-4 rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_10px_26px_var(--noggin-shadow)]">
-                <p className="noggin-display text-[1.125rem] font-bold text-[var(--noggin-forest)]">
-                  No topics to quiz yet
-                </p>
-                <p className="text-[0.9375rem] leading-relaxed text-[var(--noggin-forest)]">
-                  Teach {nog.name} a lesson first, then come back to test what stuck.
-                </p>
-                <Link
-                  href={feedBaseHref}
-                  className="noggin-primary-pill noggin-display inline-flex min-h-11 items-center justify-center gap-2 px-6 text-[0.9375rem] font-bold"
-                >
-                  <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>Teach a topic</span>
-                </Link>
-              </div>
-            ) : (
-              <fieldset className="flex flex-col gap-3 border-0 p-0">
-                <legend className="sr-only">Topics</legend>
-
-                <div className="flex flex-col gap-3">
-                  {topics.map((topic) => {
-                    const isPending = topic.status !== "ready";
-                    const isSelected = !isPending && selectedTopicId === topic.id;
-                    const questionLabel =
-                      topic.questionCount === 1
-                        ? "1 question"
-                        : `${topic.questionCount} questions`;
-
-                    return (
-                      <label
-                        key={topic.id}
-                        className={cn(
-                          "flex min-h-14 items-center justify-between gap-3 rounded-[var(--noggin-radius-pill)] border px-5 py-3 shadow-[0_6px_16px_var(--noggin-shadow)] transition-all duration-150 motion-reduce:transition-none",
-                          isPending
-                            ? "cursor-not-allowed border-[var(--noggin-sand)] bg-[var(--noggin-white)] opacity-70"
-                            : "cursor-pointer hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
-                          isSelected
-                            ? "border-[var(--noggin-leaf-strong)] bg-[var(--noggin-sage)] ring-2 ring-[var(--noggin-leaf-strong)]"
-                            : !isPending &&
-                                "border-[var(--noggin-sage-strong)] bg-[var(--noggin-white)]",
-                        )}
-                      >
-                        <span className="flex min-w-0 items-center gap-3.5">
-                          <span className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center">
-                            <input
-                              type="radio"
-                              name="quick-check-topic"
-                              value={topic.id}
-                              checked={isSelected}
-                              disabled={isPending}
-                              onChange={() => onSelectTopic(topic.id)}
-                              className="peer h-6 w-6 cursor-pointer appearance-none rounded-[8px] border-2 border-[var(--noggin-leaf-strong)] bg-[var(--noggin-white)] transition-colors checked:bg-[var(--noggin-leaf-strong)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--noggin-leaf)] disabled:cursor-not-allowed"
-                            />
-                            <Check
-                              aria-hidden="true"
-                              className="pointer-events-none absolute h-3.5 w-3.5 text-[var(--noggin-white)] opacity-0 transition-opacity peer-checked:opacity-100"
-                              strokeWidth={3}
-                            />
-                          </span>
-                          <span className="noggin-display text-[1rem] font-bold text-[var(--noggin-forest)] [overflow-wrap:anywhere]">
-                            {topic.title}
-                          </span>
-                        </span>
-
-                        {isPending ? (
-                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-meter-mid-soft)] px-3 py-1 text-[0.75rem] font-semibold text-[var(--noggin-meter-mid-ink)]">
-                            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            <span>Questions being written</span>
-                          </span>
-                        ) : (
-                          topic.questionCount > 0 && (
-                            <span
-                              className={cn(
-                                "inline-flex shrink-0 items-center rounded-[var(--noggin-radius-pill)] px-3 py-1 text-[0.75rem] font-semibold",
-                                isSelected
-                                  ? "bg-[var(--noggin-white)] text-[var(--noggin-forest)]"
-                                  : "bg-[var(--noggin-mint)] text-[var(--noggin-ink)]",
-                              )}
-                            >
-                              {questionLabel}
-                            </span>
-                          )
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-            )}
-
-            {feedback && (
-              <FeedbackBanner
-                nogName={nog.name}
-                feedback={feedback}
-                feedBaseHref={feedBaseHref}
-                onRetry={onRetry}
-              />
-            )}
+            <div className="qs-floor-shadow" />
           </div>
         </div>
+      </div>
     </div>
   );
 }

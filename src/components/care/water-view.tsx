@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { reviewCardAction } from "@/app/(app)/nogs/[id]/water/actions";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { RoomRail } from "@/components/room/room-rail";
 import type {
@@ -38,6 +39,7 @@ function formatNextInterval(days: number): string {
 
 export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
   const router = useRouter();
+  const { activeRoom } = useGameUi();
   const roomHref = `/nogs/${nog.id}`;
 
   const [step, setStep] = useState<WaterStep>("select");
@@ -166,26 +168,40 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
   ).length;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="flex min-w-0 flex-col gap-6 lg:pr-14">
+    <div className="game-world game-world--scroll">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={activeRoom.src} alt="" className="scene-bg-img" />
+      <div className="scene-bg-scrim scene-bg-scrim--soft" aria-hidden="true" />
+      <RoomRail nogId={nog.id} />
+
+      <header className="stage-top">
         <div className="flex items-center gap-3">
           <Link
             href={roomHref}
             aria-label={`Back to ${nog.name}'s room`}
-            className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--noggin-white)] text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-transform duration-150 ease-out hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="stage-close-btn"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
-        </div>
 
+          <span className="pill pill--dark">
+            Water
+          </span>
+        </div>
+      </header>
+
+      <div
+        className="stage-body stage-body--with-rail"
+        style={{ justifyContent: "flex-start" }}
+      >
         {step === "select" && (
           <div className="flex min-w-0 flex-col gap-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <header className="flex min-w-0 flex-col gap-2">
-                <h1 className="noggin-display text-[clamp(2rem,4.5vw,3.25rem)] font-extrabold leading-[1.06] text-[var(--noggin-leaf-title)]">
+                <h1 className="stage-h1">
                   Let&apos;s test what you know!
                 </h1>
-                <p className="max-w-[52ch] text-[1rem] leading-relaxed text-[var(--noggin-ink)]">
+                <p className="stage-sub max-w-[52ch]">
                   Revisit what you&apos;ve learned to help your Nog grow
                   stronger!
                 </p>
@@ -207,15 +223,15 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
             </div>
 
             {dueCards.length === 0 ? (
-              <div className="mt-2 flex flex-col items-center gap-5 py-6 text-center">
-                <div className="w-full max-w-[280px] lg:max-w-[360px]">
+              <div className="mt-1 flex flex-col items-center gap-3 py-2 text-center">
+                <div className="w-full max-w-[200px] lg:max-w-[230px]">
                   <NogStage
                     scene="room"
                     alt={`${nog.name} with a fresh memory`}
                     poster="/nog/blob-closeup.png"
                     width={1254}
                     height={1254}
-                    sizes="(min-width: 1024px) 360px, 280px"
+                    sizes="(min-width: 1024px) 230px, 200px"
                     priority
                     className="nog-bob w-full"
                   />
@@ -225,7 +241,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                 </p>
                 <Link
                   href={roomHref}
-                  className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-8 text-[1rem] font-bold"
+                  className="pub-cta-pill pub-cta-pill--md"
                 >
                   Back to room
                 </Link>
@@ -246,7 +262,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                       <li key={card.id}>
                         <label
                           className={cn(
-                            "flex min-h-15 cursor-pointer items-center justify-between gap-4 rounded-[var(--noggin-radius-pill)] border bg-[var(--noggin-white)] px-6 py-3.5 shadow-[0_8px_20px_var(--noggin-shadow)] transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                            "surface-white flex min-h-15 cursor-pointer items-center justify-between gap-4 rounded-[var(--noggin-radius-pill)] border px-6 py-3.5 transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
                             checked
                               ? "border-[var(--noggin-leaf-strong)] ring-2 ring-[var(--noggin-leaf-strong)]"
                               : "border-[var(--noggin-sage-strong)]",
@@ -297,7 +313,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                     type="button"
                     disabled={selectedCount === 0}
                     onClick={handleStartReview}
-                    className="noggin-primary-pill noggin-display inline-flex min-h-14 cursor-pointer items-center justify-center px-10 text-[1.125rem] font-bold disabled:cursor-not-allowed disabled:opacity-55"
+                    className="pub-cta-pill pub-cta-pill--md inline-flex cursor-pointer items-center justify-center disabled:cursor-not-allowed disabled:opacity-55"
                   >
                     Start Reviewing →
                   </button>
@@ -331,7 +347,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
               </span>
             </div>
 
-            <section className="rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8">
+            <section className="surface-sage rounded-[28px] border border-[var(--noggin-sage-strong)] bg-[var(--noggin-sage)] p-6 shadow-[0_14px_34px_var(--noggin-shadow)] sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="noggin-display text-[0.9375rem] font-extrabold uppercase tracking-wide text-[var(--noggin-forest)]">
                   Recall:
@@ -352,7 +368,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                   <button
                     type="button"
                     onClick={() => setQuoteVisible(true)}
-                    className="noggin-display inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-5 py-2.5 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] motion-reduce:transition-none"
+                    className="gbtn gbtn--white gap-2"
                   >
                     <Eye className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>Show my words</span>
@@ -390,7 +406,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => void handleRemembered()}
-                  className="noggin-primary-pill noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-7 text-[1rem] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                  className="pub-cta-pill pub-cta-pill--md inline-flex cursor-pointer items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>I still know this</span>
@@ -400,7 +416,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => void handleTeachAgain()}
-                  className="noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                  className="gbtn gbtn--white gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>Teach it again</span>
@@ -429,7 +445,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
               />
             </div>
 
-            <h1 className="noggin-display text-[clamp(1.75rem,4vw,2.5rem)] font-extrabold text-[var(--noggin-forest)]">
+            <h1 className="stage-h1" style={{ fontSize: "38px" }}>
               Watered! {refreshedCount}{" "}
               {refreshedCount === 1 ? "thought" : "thoughts"} refreshed
             </h1>
@@ -442,7 +458,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
             <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
               <Link
                 href={roomHref}
-                className="noggin-primary-pill noggin-display inline-flex min-h-12 items-center justify-center px-7 text-[1rem] font-bold"
+                className="pub-cta-pill pub-cta-pill--md"
               >
                 Back to room
               </Link>
@@ -453,7 +469,7 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
                   setCurrentIndex(0);
                   setQuoteVisible(false);
                 }}
-                className="noggin-display inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[var(--noggin-radius-pill)] bg-[var(--noggin-white)] px-6 text-[0.9375rem] font-bold text-[var(--noggin-forest)] shadow-[0_6px_16px_var(--noggin-shadow)] transition-colors duration-150 hover:bg-[var(--noggin-cream)] motion-reduce:transition-none"
+                className="gbtn gbtn--white gap-2"
               >
                 <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>Review list</span>
@@ -462,8 +478,6 @@ export function WaterView({ nog, topics, dueCards }: WaterViewProps) {
           </div>
         )}
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

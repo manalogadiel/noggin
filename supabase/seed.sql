@@ -3,12 +3,12 @@ values
   (
     'free',
     'Free',
-    '{"listener": 10, "answer": 5, "grade": 5, "stt_seconds": 300, "tts_chars": 1000, "pet": 50, "generate": 5}'::jsonb
+    '{"listener": 10, "answer": 5, "grade": 5, "stt_seconds": 300, "tts_chars": 1000, "pet": 50, "generate": 5, "ask": 15}'::jsonb
   ),
   (
     'plus',
     'Noggin Plus',
-    '{"listener": 60, "answer": 40, "grade": 40, "stt_seconds": 1800, "tts_chars": 15000, "pet": 200, "generate": 20}'::jsonb
+    '{"listener": 60, "answer": 40, "grade": 40, "stt_seconds": 1800, "tts_chars": 15000, "pet": 200, "generate": 20, "ask": 100}'::jsonb
   )
 on conflict (code) do update
 set

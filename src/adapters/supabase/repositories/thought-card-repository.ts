@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  CardEvidenceLink,
   ReviewThoughtCardInput,
   ThoughtCardRecord,
   ThoughtCardRepository,
@@ -40,8 +41,26 @@ function mapThoughtCardRow(row: ThoughtCardRow): ThoughtCardRecord {
   };
 }
 
+interface SearchCardRow extends ThoughtCardRow {
+  evidence_count: number | null;
+  score: number | null;
+}
+
+interface EvidenceRow {
+  card_id: string;
+  lesson_id: string;
+}
+
+/** Evidence kinds whose lesson pages support a card; conflicting lessons are left out. */
+const SUPPORTING_EVIDENCE_KINDS = ["taught", "reinforced", "merged"];
+
 export type SupabaseThoughtCardRepository = ThoughtCardRepository &
-  Required<Pick<ThoughtCardRepository, "listByNog" | "reviewCard">>;
+  Required<
+    Pick<
+      ThoughtCardRepository,
+      "listByNog" | "reviewCard" | "search" | "listEvidenceLessonIds"
+    >
+  >;
 
 export function createThoughtCardRepository(options: {
   session: SupabaseClient;
@@ -68,6 +87,57 @@ export function createThoughtCardRepository(options: {
         throw mapPostgrestError(error, "thoughtCards.listByTopic");
       }
       return (data ?? []).map(mapThoughtCardRow);
+    },
+
+    async search(
+      nogId: string,
+      topicId: string | null,
+      query: string,
+      limit: number,
+    ): Promise<ThoughtCardRecord[]> {
+      const { data, error } = await session.rpc("search_thought_cards", {
+        p_nog_id: nogId,
+        p_topic_id: topicId,
+        p_query: query,
+        p_limit: limit,
+      });
+
+      if (error) {
+        throw mapPostgrestError(error, "thoughtCards.search");
+      }
+      return ((data as SearchCardRow[] | null) ?? []).map((row) => ({
+        ...mapThoughtCardRow(row),
+        ...(row.evidence_count === null || row.evidence_count === undefined
+          ? {}
+          : { evidenceCount: row.evidence_count }),
+        ...(row.score === null || row.score === undefined
+          ? {}
+          : { score: row.score }),
+      }));
+    },
+
+    async listEvidenceLessonIds(
+      cardIds: string[],
+    ): Promise<CardEvidenceLink[]> {
+      const ids = [...new Set(cardIds)];
+      if (ids.length === 0) {
+        return [];
+      }
+      const { data, error } = await session
+        .from("card_evidence")
+        .select("card_id, lesson_id")
+        .in("card_id", ids)
+        .in("kind", SUPPORTING_EVIDENCE_KINDS)
+        .order("created_at", { ascending: true })
+        .returns<EvidenceRow[]>();
+
+      if (error) {
+        throw mapPostgrestError(error, "thoughtCards.listEvidenceLessonIds");
+      }
+      return (data ?? []).map((row) => ({
+        cardId: row.card_id,
+        lessonId: row.lesson_id,
+      }));
     },
 
     async listByNog(nogId: string): Promise<ThoughtCardRecord[]> {

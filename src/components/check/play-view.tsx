@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { runQuickCheckAction } from "@/app/(app)/actions/check-actions";
-import { RoomRail } from "@/components/room/room-rail";
 import type {
   NogRecord,
   NogStageSlug,
@@ -152,8 +151,17 @@ export function PlayView({ nog, topics, initialTopicId }: PlayViewProps) {
     step === "quiz" && checkData ? checkData.attempts[currentIndex] : null;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-7">
-      <div className="min-w-0">
+    <div className="game-world game-world--hub qs-world">
+      {/* Quiz Show Stage Backdrop */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/game/bg/quiz-field-stage.jpg"
+        alt=""
+        className="scene-bg-img"
+      />
+      <div className="scene-bg-scrim qs-scrim" aria-hidden="true" />
+
+      <div className="relative z-10 flex w-full flex-1 flex-col min-w-0">
         {(step === "setup" || step === "thinking") && (
           <TopicSelectStep
             nog={nog}
@@ -196,8 +204,6 @@ export function PlayView({ nog, topics, initialTopicId }: PlayViewProps) {
           />
         )}
       </div>
-
-      <RoomRail nogId={nog.id} />
     </div>
   );
 }

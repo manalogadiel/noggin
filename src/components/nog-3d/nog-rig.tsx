@@ -493,7 +493,13 @@ export default function NogRigCanvas({ scene, active, tint, onReady, onFail, cla
   return (
     <Canvas
       className={className}
-      style={{ cursor: "pointer" }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        cursor: "pointer",
+      }}
       dpr={[1, 2]}
       frameloop={active ? "always" : "never"}
       gl={{ alpha: true, antialias: true, premultipliedAlpha: true, powerPreference: "low-power" }}

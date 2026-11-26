@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <defs>
+    <linearGradient id="nb-cov" x1="16" y1="12" x2="66" y2="68" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a8d56d"/>
+      <stop offset="55%" stop-color="#84b549"/>
+      <stop offset="100%" stop-color="#5d8b29"/>
+    </linearGradient>
+    <linearGradient id="nb-spine" x1="14" y1="14" x2="26" y2="68" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6f9d38"/>
+      <stop offset="100%" stop-color="#48711c"/>
+    </linearGradient>
+    <linearGradient id="nb-ribbon" x1="48" y1="54" x2="58" y2="74" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ff998f"/>
+      <stop offset="100%" stop-color="#dc5a58"/>
+    </linearGradient>
+  </defs>
+  <!-- Cream page edge -->
+  <rect x="20" y="15" width="46" height="54" rx="10" fill="#fff7e2"/>
+  <path d="M26 65h36" stroke="#e4d2ad" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Coral bookmark ribbon peeking bottom -->
+  <path d="M47 58h10v15l-5-3.8L47 73V58z" fill="url(#nb-ribbon)"/>
+  <!-- Sculpted sage hardcover -->
+  <rect x="14" y="10" width="48" height="54" rx="11" fill="url(#nb-cov)"/>
+  <!-- Spine band -->
+  <path d="M14 21a11 11 0 0 1 11-11h3v54h-3a11 11 0 0 1-11-11V21z" fill="url(#nb-spine)"/>
+  <!-- Gloss highlight -->
+  <path d="M32 16h22" stroke="#dcf4b4" stroke-width="3" stroke-linecap="round" opacity="0.72"/>
+  <!-- Warm cream label badge + gold sprout -->
+  <rect x="31" y="23" width="24" height="19" rx="6" fill="#fffdf6"/>
+  <path d="M43 38v-7" stroke="#6f9d38" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M43 32c-1-4-5-6-8-4.5.4 3.6 4 5.5 8 4.5z" fill="#88b552"/>
+  <path d="M43 32c1-4 5-6 8-4.5-.4 3.6-4 5.5-8 4.5z" fill="#6d9c37"/>
+  <!-- Spiral binder rings -->
+  <rect x="10" y="19" width="10" height="5" rx="2.5" fill="#f7cb52"/>
+  <rect x="10" y="34" width="10" height="5" rx="2.5" fill="#f7cb52"/>
+  <rect x="10" y="49" width="10" height="5" rx="2.5" fill="#f7cb52"/>
+</svg>
