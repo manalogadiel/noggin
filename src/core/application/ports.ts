@@ -295,11 +295,15 @@ export interface ApplyDigestResult {
   applied: boolean;
   cardIds: string[];
   savedDigest?: ListenerDigest;
+  replyMessageId?: string;
+  followUpMessageIds?: string[];
 }
 
 export interface SavedDigestRecord {
   digest: ListenerDigest;
   cardIds: string[];
+  replyMessageId?: string;
+  followUpMessageIds?: string[];
 }
 
 export interface OwnedMessage {
