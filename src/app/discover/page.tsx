@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NogStage } from "@/components/nog-3d/nog-stage";
+import { PublicFooter } from "@/components/shell/public-footer";
 import { PublicHeader } from "@/components/shell/public-header";
 
 export const metadata: Metadata = {
@@ -129,7 +130,7 @@ export default function DiscoverPage() {
         </section>
       </main>
 
-      <footer className="discover-footer">@Noggin</footer>
+      <PublicFooter />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NogStage } from "@/components/nog-3d/nog-stage";
+import { PublicFooter } from "@/components/shell/public-footer";
 import { PublicHeader } from "@/components/shell/public-header";
 
 export default function LandingPage() {
@@ -49,6 +50,8 @@ export default function LandingPage() {
           </Link>
         </div>
       </main>
+
+      <PublicFooter compact />
     </div>
   );
 }
