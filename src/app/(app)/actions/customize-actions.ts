@@ -15,6 +15,7 @@ export async function customizeNogAction(
 
   if (result.status === "ok") {
     revalidatePath("/home");
+    revalidatePath("/nogs");
     revalidatePath(`/nogs/${input.nogId}`);
     revalidatePath(`/nogs/${input.nogId}/customize`);
   }

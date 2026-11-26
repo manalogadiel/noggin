@@ -51,7 +51,7 @@ export function NotebookView({
   const newTopicInputRef = useRef<HTMLInputElement | null>(null);
 
   const { state, activeRoom, openModal, requestPurchase, updateState, showToast } = useGameUi();
-  const roomBgSrc = activeRoom?.src ?? "/game/rooms/room-warm.jpg";
+  const roomBgSrc = activeRoom?.src ?? "/game/bg/sanctuary-day.jpg";
 
   const [viewMode, setViewMode] = useState<"spread" | "shelf">("spread");
   const [editMode, setEditMode] = useState(false);

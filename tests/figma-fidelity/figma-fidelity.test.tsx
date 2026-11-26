@@ -274,7 +274,7 @@ describe("ShellFrame focus-mode routing and ☰ menu", () => {
 });
 
 describe("AdoptFlow and hatchNogAction Figma fidelity", () => {
-  it("renders all 4 adopt steps without a white card, 'Step x of 4' chip, or Back button, and shows 'Start Customizing →' on the Name step", async () => {
+  it("renders all 4 onboarding steps (Egg -> Meet -> Shared Customize -> First Notebook) without a white card, 'Step x of 4' chip, or Back button", async () => {
     const user = userEvent.setup();
     render(<AdoptFlow />);
 
@@ -285,22 +285,12 @@ describe("AdoptFlow and hatchNogAction Figma fidelity", () => {
 
     const step1Heading = screen.getByRole("heading", {
       level: 1,
-      name: "What should your Nog learn?",
+      name: "Tap to hatch",
     });
+    expect(step1Heading).toBeVisible();
     expect(
       step1Heading.closest('[class*="bg-[var(--noggin-white)]"]'),
     ).toBeNull();
-
-    await user.click(screen.getByRole("button", { name: "Networking" }));
-    await user.click(screen.getByRole("button", { name: "Next" }));
-
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Tap to hatch" }),
-    ).toBeVisible();
-    expect(screen.queryByText(/step \d+ of 4/i)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /^back$/i }),
-    ).not.toBeInTheDocument();
 
     const eggButton = screen.getByRole("button", { name: "Tap the egg" });
     await user.click(eggButton);
@@ -315,10 +305,12 @@ describe("AdoptFlow and hatchNogAction Figma fidelity", () => {
       screen.queryByRole("button", { name: /^back$/i }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Name your Nog" }));
+    await user.click(
+      screen.getByRole("button", { name: "Customize Your Nog →" }),
+    );
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "What will you call me?" }),
+      screen.getByRole("heading", { level: 1, name: "Make your Nog Yours" }),
     ).toBeVisible();
     expect(screen.queryByText(/step \d+ of 4/i)).not.toBeInTheDocument();
     expect(
@@ -327,14 +319,26 @@ describe("AdoptFlow and hatchNogAction Figma fidelity", () => {
 
     const nameInput = screen.getByRole("textbox", { name: /^nog name$/i });
     await user.type(nameInput, "Packet");
+    await user.click(
+      screen.getByRole("button", { name: "Next: Name Your Notebook →" }),
+    );
 
-    const submitBtn = screen.getByRole("button", {
-      name: "Start Customizing →",
+    const step4Heading = screen.getByRole("heading", {
+      level: 1,
+      name: "Name your first notebook",
     });
-    expect(submitBtn).toBeEnabled();
+    expect(step4Heading).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: /^meet packet$/i }),
-    ).not.toBeInTheDocument();
+      step4Heading.closest('[class*="bg-[var(--noggin-white)]"]'),
+    ).toBeNull();
+
+    await user.type(
+      screen.getByRole("textbox", { name: /^lesson title$/i }),
+      "TCP Handshake",
+    );
+    expect(
+      screen.getByRole("button", { name: "Create Notebook & Enter Room →" }),
+    ).toBeEnabled();
   });
 
   it("redirects from hatchNogAction to /nogs/<id>/customize after hatching", async () => {

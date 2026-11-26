@@ -216,6 +216,36 @@ export function createNogRepository(options: {
       return data ? mapNogRow(data) : null;
     },
 
+    async updateCustomization(
+      ownerId: string,
+      nogId: string,
+      patch: { colors: NogColors; name?: string },
+    ): Promise<NogRecord | null> {
+      if (ownerId !== userId) {
+        return null;
+      }
+
+      const updatePayload: { colors: { body: string | null }; name?: string } = {
+        colors: { body: patch.colors.body ?? null },
+      };
+      if (patch.name !== undefined) {
+        updatePayload.name = patch.name;
+      }
+
+      const { data, error } = await session
+        .from("nogs")
+        .update(updatePayload)
+        .eq("id", nogId)
+        .eq("owner_id", ownerId)
+        .select(NOG_COLUMNS)
+        .maybeSingle<NogRow>();
+
+      if (error) {
+        throw mapPostgrestError(error, "nogs.updateCustomization");
+      }
+      return data ? mapNogRow(data) : null;
+    },
+
     async setRest(
       ownerId: string,
       nogId: string,

@@ -210,6 +210,11 @@ export interface NogRepository {
     nogId: string,
     colors: NogColors,
   ): Promise<NogRecord | null>;
+  updateCustomization?(
+    ownerId: string,
+    nogId: string,
+    patch: { colors: NogColors; name?: string },
+  ): Promise<NogRecord | null>;
   setRest(
     ownerId: string,
     nogId: string,

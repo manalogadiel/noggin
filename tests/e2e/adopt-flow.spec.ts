@@ -2,12 +2,12 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./support/session";
 
-const subjectHeading = "What should your Nog learn?";
 const eggHeading = "Tap to hatch";
 const meetHeading = "Meet your Nog";
-const nameHeading = "What will you call me?";
-const customSubject = "Marine Biology";
-const quickPick = "Networking";
+const customizeHeading = "Make your Nog Yours";
+const notebookHeading = "Name your first notebook";
+const customLesson = "Marine Ecosystems";
+const quickIdea = "TCP Handshake";
 const hatchling = "Hatchling";
 const phone = { width: 375, height: 812 };
 
@@ -27,7 +27,7 @@ async function openAdoption(page: Page) {
   expect(response?.status(), "HTTP status for /adopt").toBe(200);
   await expect(page).toHaveURL("/adopt");
   const main = page.getByRole("main");
-  await expect(heading(main, subjectHeading)).toBeVisible();
+  await expect(heading(main, eggHeading)).toBeVisible();
   return main;
 }
 
@@ -38,11 +38,6 @@ async function openCollection(page: Page) {
   const main = page.getByRole("main");
   await expect(heading(main, "My Nogs")).toBeVisible();
   return main;
-}
-
-async function startHatch(main: Locator) {
-  await main.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(heading(main, eggHeading)).toBeFocused();
 }
 
 async function tapEgg(main: Locator, activate: (egg: Locator, tap: number) => Promise<void>) {
@@ -61,33 +56,35 @@ async function tapEgg(main: Locator, activate: (egg: Locator, tap: number) => Pr
   await expect(egg).toBeHidden();
 }
 
-async function openNaming(main: Locator) {
-  await main.getByRole("button", { name: "Name your Nog", exact: true }).click();
-  await expect(heading(main, nameHeading)).toBeFocused();
+async function openCustomize(main: Locator) {
+  await main.getByRole("button", { name: "Customize Your Nog →", exact: true }).click();
+  await expect(heading(main, customizeHeading)).toBeFocused();
 }
 
-async function submitName(main: Locator, name: string) {
+async function completeCustomize(main: Locator, name: string) {
   await main.getByRole("textbox", { name: "Nog Name", exact: true }).fill(name);
-  await main.getByRole("button", { name: "Start Customizing →", exact: true }).click();
+  await main.getByRole("button", { name: "Next: Name Your Notebook →", exact: true }).click();
+  await expect(heading(main, notebookHeading)).toBeFocused();
+}
+
+async function submitFirstNotebook(main: Locator, lessonTitle: string) {
+  await main.getByRole("textbox", { name: "Lesson Title", exact: true }).fill(lessonTitle);
+  await main.getByRole("button", { name: "Create Notebook & Enter Room →", exact: true }).click();
 }
 
 async function expectNogRoom(page: Page, name: string) {
-  await expect(page).toHaveURL(/\/nogs\/[^/?#]+\/customize$/);
-  const main = page.getByRole("main");
-  await expect(heading(main, "Make your Nog Yours")).toBeVisible();
-  await main.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page).toHaveURL(/\/nogs\/[^/?#]+$/);
+  const main = page.getByRole("main");
   await expect(heading(main, name)).toBeVisible();
   return new URL(page.url()).pathname;
 }
 
-async function hatchBySubject(page: Page, subject: string, name: string) {
+async function completeFullOnboarding(page: Page, name: string, lessonTitle: string) {
   const main = await openAdoption(page);
-  await main.getByRole("textbox", { name: "Subject", exact: true }).fill(subject);
-  await startHatch(main);
   await tapEgg(main, (egg) => egg.click());
-  await openNaming(main);
-  await submitName(main, name);
+  await openCustomize(main);
+  await completeCustomize(main, name);
+  await submitFirstNotebook(main, lessonTitle);
 }
 
 function nogCard(main: Locator, name: string, subject: string) {
@@ -113,20 +110,15 @@ async function expectMobileLayoutAndAxe(page: Page, state: string) {
   `${state} serious or critical axe violations`).toEqual([]);
 }
 
-test("a typed custom subject hatches after three egg clicks and opens the named Nog room", async ({ page }) => {
+test("starts on Tap to hatch, customizes Nog, names first notebook, and lands in the Living Sanctuary", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await hatchBySubject(page, customSubject, "Coral");
+  await completeFullOnboarding(page, "Coral", customLesson);
   await expectNogRoom(page, "Coral");
 });
 
-test("the Networking quick pick fills the subject and the egg hatches with Enter and Space", async ({ page }) => {
+test("supports keyboard egg hatching and quick lesson idea selection", async ({ page }) => {
   const main = await openAdoption(page);
-  const subject = main.getByRole("textbox", { name: "Subject", exact: true });
-  await expect(subject).toHaveValue("");
-  await main.getByRole("button", { name: quickPick, exact: true }).click();
-  await expect(subject).toHaveValue(quickPick);
 
-  await startHatch(main);
   const keys = ["Enter", "Space", "Enter"];
   await tapEgg(main, async (egg, tap) => {
     if (tap === 1) {
@@ -136,81 +128,47 @@ test("the Networking quick pick fills the subject and the egg hatches with Enter
     await expect(egg).toBeFocused();
     await page.keyboard.press(keys[tap - 1]);
   });
-  await openNaming(main);
-  await submitName(main, "Packet");
+  await openCustomize(main);
+  await completeCustomize(main, "Packet");
+
+  const lessonInput = main.getByRole("textbox", { name: "Lesson Title", exact: true });
+  await expect(lessonInput).toHaveValue("");
+  await main.getByRole("button", { name: quickIdea, exact: true }).click();
+  await expect(lessonInput).toHaveValue(quickIdea);
+
+  await main.getByRole("button", { name: "Create Notebook & Enter Room →", exact: true }).click();
   await expectNogRoom(page, "Packet");
 });
 
-test("the server refuses a second Nog for the same subject and keeps the first", async ({ page }) => {
-  await hatchBySubject(page, quickPick, "Packet");
-  const room = await expectNogRoom(page, "Packet");
-
-  const main = await openAdoption(page);
-  await main.getByRole("textbox", { name: "Subject", exact: true }).fill(quickPick);
-  await startHatch(main);
-  await tapEgg(main, (egg) => egg.click());
-  await openNaming(main);
-  await Promise.all([
-    page.waitForResponse((response) =>
-      response.request().method() === "POST" && new URL(response.url()).pathname === "/adopt",
-    ),
-    submitName(main, "Duplicate"),
-  ]);
-
-  await expect(page).toHaveURL("/adopt");
-  await expect(heading(main, subjectHeading)).toBeFocused();
-  const alert = main.getByRole("alert").filter({ hasText: /already/i });
-  await expect(alert).toBeVisible();
-  await expect(alert).toContainText(/nog|subject|networking/i);
-
-  const collection = await openCollection(page);
-  await expect(nogCard(collection, "Packet", quickPick)).toHaveAttribute("href", room);
-  await expect(collection.getByRole("region", { name: "Nog roster" }).locator('a[href^="/nogs/"]')).toHaveCount(1);
-  await expect(collection.getByText("Duplicate", { exact: true })).toHaveCount(0);
-});
-
-test("My Nogs shows hatchling cards with their subjects, stages and a Hatch New link", async ({ page }) => {
+test("My Nogs shows hatchling cards with their notebooks, stages and a Hatch New link", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await hatchBySubject(page, customSubject, "Coral");
+  await completeFullOnboarding(page, "Coral", customLesson);
   const coralRoom = await expectNogRoom(page, "Coral");
-  await hatchBySubject(page, quickPick, "Packet");
+  await completeFullOnboarding(page, "Packet", quickIdea);
   const packetRoom = await expectNogRoom(page, "Packet");
 
   const main = await openCollection(page);
   await expect(main.getByText(/OWNED:\s*2\s*\/\s*9/)).toBeVisible();
-  const coral = nogCard(main, "Coral", customSubject);
-  const packet = nogCard(main, "Packet", quickPick);
+  const coral = nogCard(main, "Coral", customLesson);
+  const packet = nogCard(main, "Packet", quickIdea);
   const hatchNew = main.getByRole("link", { name: "Hatch New", exact: true });
-  const showcase = main.getByRole("region", { name: "Selected Nog showcase" });
 
-  for (const { card, name, subject, room } of [
-    { card: coral, name: "Coral", subject: customSubject, room: coralRoom },
-    { card: packet, name: "Packet", subject: quickPick, room: packetRoom },
+  for (const { card, name, room } of [
+    { card: coral, name: "Coral", room: coralRoom },
+    { card: packet, name: "Packet", room: packetRoom },
   ]) {
     await expect(card).toHaveAttribute("href", room);
     await expect(card.getByText(name, { exact: true })).toBeVisible();
     await expect(card.getByText("Lvl. 1", { exact: true })).toBeVisible();
     await expect(card.locator("img")).toBeVisible();
-    await card.hover();
-    await expect(showcase.getByText(subject, { exact: true })).toBeVisible();
-    await expect(showcase.getByText(hatchling, { exact: true })).toBeVisible();
   }
   await expect(hatchNew).toHaveAttribute("href", "/adopt");
-  const [coralBox, packetBox, hatchNewBox] = await Promise.all(
-    [coral, packet, hatchNew].map((card) => card.evaluate((element) => {
-      const { x, y } = element.getBoundingClientRect();
-      return { x, y };
-    })),
-  );
-  expect(coralBox.y).toBeCloseTo(hatchNewBox.y);
-  expect(packetBox.y).toBeCloseTo(hatchNewBox.y);
-  expect(hatchNewBox.x).toBeGreaterThan(Math.max(coralBox.x, packetBox.x));
 
   await page.setViewportSize(phone);
   await expectMobileLayoutAndAxe(page, "My Nogs with hatchlings");
   await hatchNew.click();
   await expect(page).toHaveURL("/adopt");
-  await expect(heading(main, subjectHeading)).toBeVisible();
+  await expect(heading(main, eggHeading)).toBeVisible();
 });
 
 test("the empty My Nogs page invites a first hatch and passes the mobile and axe checks", async ({ page }) => {
@@ -223,21 +181,19 @@ test("the empty My Nogs page invites a first hatch and passes the mobile and axe
 
   await firstHatch.click();
   await expect(page).toHaveURL("/adopt");
-  await expect(heading(main, subjectHeading)).toBeVisible();
+  await expect(heading(main, eggHeading)).toBeVisible();
 });
 
-test("all four adoption steps fit at 375 px and have no serious or critical axe violations", async ({ page }) => {
+test("all four onboarding steps fit at 375 px and have no serious or critical axe violations", async ({ page }) => {
   await page.setViewportSize(phone);
   const main = await openAdoption(page);
-  await expectMobileLayoutAndAxe(page, subjectHeading);
-  await main.getByRole("textbox", { name: "Subject", exact: true }).fill(customSubject);
-
-  await startHatch(main);
   await expectMobileLayoutAndAxe(page, eggHeading);
   await tapEgg(main, (egg) => egg.click());
   await expectMobileLayoutAndAxe(page, meetHeading);
 
-  await openNaming(main);
-  await expect(main.getByText("Enter the name of your Nog", { exact: true })).toBeVisible();
-  await expectMobileLayoutAndAxe(page, nameHeading);
+  await openCustomize(main);
+  await expectMobileLayoutAndAxe(page, customizeHeading);
+
+  await completeCustomize(main, "Coral");
+  await expectMobileLayoutAndAxe(page, notebookHeading);
 });

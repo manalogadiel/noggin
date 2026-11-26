@@ -374,6 +374,23 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       target.colors = { ...target.colors, ...colors };
       return { ...target, colors: { ...target.colors } };
     },
+    async updateCustomization(
+      ownerId: string,
+      nogId: string,
+      patch: { colors: NogColors; name?: string },
+    ) {
+      const target = nogStore.find(
+        (n) => n.id === nogId && n.ownerId === ownerId,
+      );
+      if (!target) {
+        return null;
+      }
+      target.colors = { ...target.colors, ...patch.colors };
+      if (patch.name !== undefined) {
+        target.name = patch.name;
+      }
+      return { ...target, colors: { ...target.colors } };
+    },
     async setRest(ownerId: string, nogId: string, restUntil: string | null) {
       const target = nogStore.find(
         (n) => n.id === nogId && n.ownerId === ownerId,
