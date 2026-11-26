@@ -38,6 +38,7 @@ export interface UseRecorderResult {
   setFeedback: (feedback: RecorderFeedback | null) => void;
   startRecording: () => Promise<void>;
   stopRecording: () => void;
+  cancelRecording: () => void;
 }
 
 function formatTimer(totalSeconds: number): string {
@@ -92,6 +93,7 @@ export function useRecorder({
   const mountedRef = useRef(true);
   const startingRef = useRef(false);
   const pendingStopRef = useRef(false);
+  const cancelledRef = useRef(false);
   const startedAtRef = useRef<number>(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -103,6 +105,7 @@ export function useRecorder({
   const autoStopTimeoutRef = useRef<number | null>(null);
   const transcribeAbortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const startAttemptIdRef = useRef(0);
 
   const clearTimers = useCallback(() => {
     if (timerIntervalRef.current !== null) {
@@ -389,6 +392,40 @@ export function useRecorder({
     [releaseMediaResources, startBrowserRecognitionFallback],
   );
 
+  const cancelRecording = useCallback(() => {
+    startAttemptIdRef.current += 1;
+    cancelledRef.current = true;
+    pendingStopRef.current = false;
+    startingRef.current = false;
+
+    transcribeAbortRef.current?.abort();
+    transcribeAbortRef.current = null;
+    stopBrowserRecognition();
+
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    chunksRef.current = [];
+    if (recorder && recorder.state !== "inactive") {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.onerror = null;
+      try {
+        recorder.stop();
+      } catch {
+        // Ignore stop errors while cancelling.
+      }
+    }
+
+    releaseMediaResources();
+
+    if (mountedRef.current) {
+      setPhase("idle");
+      setElapsedSeconds(0);
+      setLevels(STATIC_WAVEFORM_LEVELS);
+      setFeedback(null);
+    }
+  }, [releaseMediaResources, stopBrowserRecognition]);
+
   const stopRecording = useCallback(() => {
     if (startingRef.current) {
       pendingStopRef.current = true;
@@ -422,17 +459,23 @@ export function useRecorder({
     transcribeAbortRef.current?.abort();
     transcribeAbortRef.current = null;
 
+    const attemptId = startAttemptIdRef.current + 1;
+    startAttemptIdRef.current = attemptId;
     startingRef.current = true;
     pendingStopRef.current = false;
+    cancelledRef.current = false;
     setFeedback(null);
 
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      if (attemptId !== startAttemptIdRef.current) {
+        return;
+      }
       startingRef.current = false;
       pendingStopRef.current = false;
-      if (mountedRef.current) {
+      if (mountedRef.current && !cancelledRef.current) {
         setPhase("idle");
         setFeedback({
           tone: "error",
@@ -442,9 +485,22 @@ export function useRecorder({
       return;
     }
 
+    if (attemptId !== startAttemptIdRef.current) {
+      for (const track of stream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          // Ignore track stop errors.
+        }
+      }
+      return;
+    }
+
     startingRef.current = false;
 
-    if (!mountedRef.current || pendingStopRef.current) {
+    if (!mountedRef.current || cancelledRef.current || pendingStopRef.current) {
+      const wasCancelled = cancelledRef.current;
+      cancelledRef.current = false;
       pendingStopRef.current = false;
       for (const track of stream.getTracks()) {
         try {
@@ -455,10 +511,12 @@ export function useRecorder({
       }
       if (mountedRef.current) {
         setPhase("idle");
-        setFeedback({
-          tone: "info",
-          text: "Too short — hold a little longer",
-        });
+        if (!wasCancelled) {
+          setFeedback({
+            tone: "info",
+            text: "Too short — hold a little longer",
+          });
+        }
       }
       return;
     }
@@ -580,5 +638,6 @@ export function useRecorder({
     setFeedback,
     startRecording,
     stopRecording,
+    cancelRecording,
   };
 }

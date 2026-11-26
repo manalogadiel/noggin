@@ -376,6 +376,12 @@ export async function teachLesson(
           applied: false,
           cardIds: savedDigest.cardIds,
           savedDigest: savedDigest.digest,
+          ...(savedDigest.replyMessageId !== undefined
+            ? { replyMessageId: savedDigest.replyMessageId }
+            : {}),
+          ...(savedDigest.followUpMessageIds !== undefined
+            ? { followUpMessageIds: savedDigest.followUpMessageIds }
+            : {}),
         },
         reinforcedCardIds: extractReinforcedCardIds(
           savedDigest.digest.operations,
@@ -502,22 +508,30 @@ export async function teachLesson(
   );
 
   if (!applied.applied) {
-    const saved =
-      applied.savedDigest ??
-      (deps.notebook.findSavedDigest
-        ? (
-            await deps.notebook.findSavedDigest(
-              input.nogId,
-              page.idempotencyKey,
-            )
-          )?.digest
-        : undefined);
+    const needsSavedRecord =
+      !applied.savedDigest ||
+      (applied.replyMessageId === undefined &&
+        applied.followUpMessageIds === undefined);
+    const savedRecord =
+      needsSavedRecord && deps.notebook.findSavedDigest
+        ? await deps.notebook.findSavedDigest(input.nogId, page.idempotencyKey)
+        : null;
+    const saved = applied.savedDigest ?? savedRecord?.digest;
+    const replyMessageId =
+      applied.replyMessageId ?? savedRecord?.replyMessageId;
+    const followUpMessageIds =
+      applied.followUpMessageIds ?? savedRecord?.followUpMessageIds;
+    const mergedApplied: ApplyDigestResult = {
+      ...applied,
+      ...(replyMessageId !== undefined ? { replyMessageId } : {}),
+      ...(followUpMessageIds !== undefined ? { followUpMessageIds } : {}),
+    };
     if (saved) {
       return {
         status: "ok",
         page,
         digest: saved,
-        applied,
+        applied: mergedApplied,
         reinforcedCardIds: extractReinforcedCardIds(saved.operations),
         ...(saved.offTopic ? { offTopic: true } : {}),
       };
@@ -531,7 +545,7 @@ export async function teachLesson(
         followUpQuestions: [],
         operations: [],
       },
-      applied,
+      applied: mergedApplied,
       reinforcedCardIds: [],
     };
   }

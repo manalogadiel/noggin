@@ -34,6 +34,7 @@ interface LessonRow {
 }
 
 interface SavedDigestRow {
+  id: string;
   digest_status: string;
   digest: ListenerDigest | null;
   digest_card_ids: string[] | null;
@@ -149,6 +150,68 @@ export function createNotebookRepository(options: {
     if (!data) {
       throw new SupabaseAdapterError("NOT_FOUND", "Nog not found for owner.");
     }
+  }
+
+  async function findDigestVoiceMessageIds(
+    nogId: string,
+    lessonId: string,
+    operation: string,
+    expectedQuestions?: readonly string[],
+  ): Promise<{ replyMessageId?: string; followUpMessageIds?: string[] }> {
+    const [replyRes, questionRes] = await Promise.all([
+      session
+        .from("nog_messages")
+        .select("id")
+        .eq("nog_id", nogId)
+        .eq("lesson_id", lessonId)
+        .eq("role", "nog")
+        .eq("kind", "reply")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .returns<Array<{ id: string }>>(),
+      session
+        .from("nog_messages")
+        .select("id, body")
+        .eq("nog_id", nogId)
+        .eq("lesson_id", lessonId)
+        .eq("role", "nog")
+        .eq("kind", "question")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .returns<Array<{ id: string; body: string }>>(),
+    ]);
+
+    if (replyRes.error) {
+      throw mapPostgrestError(replyRes.error, operation);
+    }
+    if (questionRes.error) {
+      throw mapPostgrestError(questionRes.error, operation);
+    }
+
+    const replyMessageId = replyRes.data?.[0]?.id;
+    const rows = questionRes.data ?? [];
+    let followUpMessageIds: string[];
+    if (expectedQuestions && expectedQuestions.length > 0 && rows.length > 1) {
+      const remaining = [...rows];
+      const ordered: string[] = [];
+      for (const questionBody of expectedQuestions) {
+        const matchIndex = remaining.findIndex((row) => row.body === questionBody);
+        if (matchIndex >= 0) {
+          ordered.push(remaining[matchIndex].id);
+          remaining.splice(matchIndex, 1);
+        }
+      }
+      for (const row of remaining) {
+        ordered.push(row.id);
+      }
+      followUpMessageIds = ordered;
+    } else {
+      followUpMessageIds = rows.map((row) => row.id);
+    }
+    return {
+      ...(replyMessageId ? { replyMessageId } : {}),
+      ...(followUpMessageIds.length > 0 ? { followUpMessageIds } : {}),
+    };
   }
 
   async function findPageByIdempotencyKey(
@@ -275,7 +338,7 @@ export function createNotebookRepository(options: {
     ): Promise<SavedDigestRecord | null> {
       const { data, error } = await session
         .from("lessons")
-        .select("digest_status, digest, digest_card_ids")
+        .select("id, digest_status, digest, digest_card_ids")
         .eq("nog_id", nogId)
         .eq("idempotency_key", idempotencyKey)
         .maybeSingle<SavedDigestRow>();
@@ -287,11 +350,19 @@ export function createNotebookRepository(options: {
         return null;
       }
 
+      const voiceIds = await findDigestVoiceMessageIds(
+        nogId,
+        data.id,
+        "notebook.findSavedDigest",
+        data.digest.followUpQuestions,
+      );
+
       return {
         digest: data.digest,
         cardIds: Array.isArray(data.digest_card_ids)
           ? data.digest_card_ids
           : [],
+        ...voiceIds,
       };
     },
 
@@ -419,9 +490,17 @@ export function createNotebookRepository(options: {
         );
       }
 
+      const voiceIds = await findDigestVoiceMessageIds(
+        input.nogId,
+        input.lessonId,
+        "notebook.applyDigest",
+        (payload.saved_digest ?? input.digest)?.followUpQuestions,
+      );
+
       const result: ApplyDigestResult = {
         applied: Boolean(payload.applied),
         cardIds: Array.isArray(payload.card_ids) ? payload.card_ids : [],
+        ...voiceIds,
       };
       if (payload.saved_digest) {
         result.savedDigest = payload.saved_digest;

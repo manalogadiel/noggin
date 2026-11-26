@@ -50,6 +50,9 @@ vi.mock("@/app/(app)/actions/lesson-actions", () => ({
   reviseLessonAction: vi.fn(),
   answerFollowUpAction: vi.fn(),
 }));
+vi.mock("@/app/(app)/actions/ask-actions", () => ({
+  askNogAction: vi.fn(),
+}));
 vi.mock("@/app/(app)/actions/topic-actions", () => ({
   addTopicAction: vi.fn(),
 }));

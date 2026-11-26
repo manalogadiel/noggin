@@ -8,18 +8,21 @@ import {
   DEFAULT_ASK_MOOD,
   NOT_TAUGHT_ANSWER,
 } from "../../domain/ask";
-import type {
-  AskExchangeRecord,
-  AskHistoryRepository,
-  AskOutput,
-  CardEvidenceLink,
-  CurrentUser,
-  LessonPage,
-  NogAsker,
-  NogRepository,
-  ThoughtCardRecord,
-  TopicRepository,
-  UsageRepository,
+import { matchSmallTalk } from "../../domain/small-talk";
+import {
+  DEFAULT_PROFILE_SETTINGS,
+  type AskExchangeRecord,
+  type AskHistoryRepository,
+  type AskOutput,
+  type CardEvidenceLink,
+  type CurrentUser,
+  type LessonPage,
+  type NogAsker,
+  type NogRepository,
+  type ProfileRepository,
+  type ThoughtCardRecord,
+  type TopicRepository,
+  type UsageRepository,
 } from "../ports";
 import { EntitlementService } from "../services/entitlement";
 
@@ -27,6 +30,7 @@ export interface AskNogDeps {
   currentUser: CurrentUser;
   nogs: Pick<NogRepository, "findOwned">;
   topics?: Pick<TopicRepository, "findById">;
+  profiles?: Pick<ProfileRepository, "getSettings">;
   thoughtCards: {
     search(
       nogId: string,
@@ -66,6 +70,7 @@ export type AskNogResult =
   | {
       status: "ok";
       knows: boolean;
+      smallTalk?: true;
       answer: string;
       mood: string;
       citedCards: CitedCard[];
@@ -138,6 +143,7 @@ export async function askNog(
     typeof input.topicId === "string" && input.topicId.length > 0
       ? input.topicId
       : null;
+  let topicTitle: string | null = null;
   if (topicId !== null) {
     if (!deps.topics) {
       return { status: "not_found" };
@@ -150,6 +156,7 @@ export async function askNog(
     ) {
       return { status: "not_found" };
     }
+    topicTitle = topic.title;
   }
 
   const checked = checkQuestion(input.question);
@@ -157,6 +164,53 @@ export async function askNog(
     return checked;
   }
   const question = checked.question;
+
+  const rawVitality = nog.vitality ?? 100;
+  const vitalityPct =
+    rawVitality <= 1 ? Math.round(rawVitality * 100) : Math.round(rawVitality);
+  const happinessPct = Math.round(nog.happiness ?? 80);
+
+  const smallTalkProbe = matchSmallTalk(question, {
+    nogName: nog.name,
+    grillMode: DEFAULT_PROFILE_SETTINGS.grillMode,
+    vitality: vitalityPct,
+    happiness: happinessPct,
+    topicTitle,
+  });
+
+  if (smallTalkProbe) {
+    const profileSettings = deps.profiles
+      ? await deps.profiles.getSettings(user.id)
+      : null;
+    const grillMode =
+      profileSettings?.grillMode ?? DEFAULT_PROFILE_SETTINGS.grillMode;
+    const matched =
+      grillMode === DEFAULT_PROFILE_SETTINGS.grillMode
+        ? smallTalkProbe
+        : (matchSmallTalk(question, {
+            nogName: nog.name,
+            grillMode,
+            vitality: vitalityPct,
+            happiness: happinessPct,
+            topicTitle,
+          }) ?? smallTalkProbe);
+    const saved = await deps.askHistory.save({
+      ownerId: user.id,
+      nogId: nog.id,
+      question,
+      answer: matched.reply,
+      mood: matched.mood,
+    });
+    return {
+      status: "ok",
+      knows: true,
+      smallTalk: true,
+      answer: matched.reply,
+      mood: matched.mood,
+      citedCards: [],
+      answerMessageId: saved.answerMessageId,
+    };
+  }
 
   const hits = await deps.thoughtCards.search(
     nog.id,

@@ -140,6 +140,9 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
 
   let idCounter = 1;
   const nextId = (prefix: string) => `${prefix}-${idCounter++}`;
+  let messageUuidCounter = 1;
+  const nextMessageUuid = () =>
+    `00000000-0000-4000-8000-${String(messageUuidCounter++).padStart(12, "0")}`;
 
   const currentUser: CurrentUser = {
     async get() {
@@ -436,7 +439,16 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
       );
     },
     async findSavedDigest(nogId: string, idempotencyKey: string) {
-      return appliedDigests.get(`${nogId}:${idempotencyKey}`) ?? null;
+      const saved = appliedDigests.get(`${nogId}:${idempotencyKey}`);
+      if (!saved) {
+        return null;
+      }
+      return {
+        ...saved,
+        ...(saved.followUpMessageIds !== undefined
+          ? { followUpMessageIds: [...saved.followUpMessageIds] }
+          : {}),
+      };
     },
     async saveFollowUpPage(
       input: NewPageInput & { parentLessonId: string; maxFollowUps: number },
@@ -532,6 +544,12 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
           applied: false,
           cardIds: existingDigest.cardIds,
           savedDigest: existingDigest.digest,
+          ...(existingDigest.replyMessageId !== undefined
+            ? { replyMessageId: existingDigest.replyMessageId }
+            : {}),
+          ...(existingDigest.followUpMessageIds !== undefined
+            ? { followUpMessageIds: [...existingDigest.followUpMessageIds] }
+            : {}),
         };
       }
 
@@ -618,15 +636,23 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         }
       }
 
+      let replyMessageId: string | undefined;
+      const followUpMessageIds: string[] = [];
       for (const msg of input.messages) {
+        const id = nextMessageUuid();
         messageStore.push({
-          id: nextId("msg"),
+          id,
           nogId: input.nogId,
           lessonId: input.lessonId,
           role: msg.role,
           kind: msg.kind,
           body: msg.body,
         });
+        if (msg.role === "nog" && msg.kind === "reply") {
+          replyMessageId = id;
+        } else if (msg.role === "nog" && msg.kind === "question") {
+          followUpMessageIds.push(id);
+        }
       }
 
       const savedDigest: ListenerDigest = input.digest ?? {
@@ -641,8 +667,24 @@ export function createInMemoryPorts(options: InMemoryPortsOptions = {}) {
         operations: [...input.operations],
       };
 
-      appliedDigests.set(digestKey, { digest: savedDigest, cardIds });
-      return { applied: true, cardIds, savedDigest };
+      const voiceIds = {
+        ...(replyMessageId !== undefined ? { replyMessageId } : {}),
+        ...(followUpMessageIds.length > 0 ? { followUpMessageIds } : {}),
+      };
+      appliedDigests.set(digestKey, {
+        digest: savedDigest,
+        cardIds,
+        ...voiceIds,
+      });
+      return {
+        applied: true,
+        cardIds,
+        savedDigest,
+        ...(replyMessageId !== undefined ? { replyMessageId } : {}),
+        ...(followUpMessageIds.length > 0
+          ? { followUpMessageIds: [...followUpMessageIds] }
+          : {}),
+      };
     },
     async findOwnedMessage(userId: string, messageId: string) {
       const message = messageStore.find((m) => m.id === messageId);

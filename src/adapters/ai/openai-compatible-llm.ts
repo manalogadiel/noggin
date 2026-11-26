@@ -76,6 +76,8 @@ export interface LlmUsageEvent {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  rateLimitRemainingTokens?: number;
+  rateLimitResetTokensMs?: number;
 }
 
 export interface LlmAdapterOptions {
@@ -175,6 +177,54 @@ function parseRetryAfterMs(headerValue: string | null): number | null {
     return delta > 0 ? delta : null;
   }
   return null;
+}
+
+function parseRateLimitDurationMs(headerValue: string | null): number | undefined {
+  if (!headerValue) {
+    return undefined;
+  }
+  const trimmed = headerValue.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const plainSeconds = Number(trimmed);
+  if (Number.isFinite(plainSeconds) && plainSeconds >= 0) {
+    return Math.round(plainSeconds * 1000);
+  }
+  let totalMs = 0;
+  let matched = false;
+  const partPattern = /(\d+(?:\.\d+)?)(ms|s|m|h)/gi;
+  for (const match of trimmed.matchAll(partPattern)) {
+    const amount = Number(match[1]);
+    const unit = match[2].toLowerCase();
+    if (!Number.isFinite(amount) || amount < 0) {
+      continue;
+    }
+    matched = true;
+    if (unit === "ms") totalMs += amount;
+    else if (unit === "s") totalMs += amount * 1000;
+    else if (unit === "m") totalMs += amount * 60_000;
+    else if (unit === "h") totalMs += amount * 3_600_000;
+  }
+  return matched ? Math.ceil(totalMs) : undefined;
+}
+
+function extractRateLimitHeaders(
+  headers: Headers,
+): Pick<LlmUsageEvent, "rateLimitRemainingTokens" | "rateLimitResetTokensMs"> {
+  const remainingRaw = headers.get("x-ratelimit-remaining-tokens");
+  const resetRaw = headers.get("x-ratelimit-reset-tokens");
+  const remaining =
+    remainingRaw !== null && remainingRaw.trim() !== ""
+      ? Number(remainingRaw.trim())
+      : Number.NaN;
+  const resetMs = parseRateLimitDurationMs(resetRaw);
+  return {
+    ...(Number.isFinite(remaining) && remaining >= 0
+      ? { rateLimitRemainingTokens: Math.floor(remaining) }
+      : {}),
+    ...(resetMs !== undefined ? { rateLimitResetTokensMs: resetMs } : {}),
+  };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -338,6 +388,7 @@ export function createOpenAiCompatibleAdapters(
     }
 
     const latencyMs = Date.now() - startedAt;
+    const rateLimit = extractRateLimitHeaders(response.headers);
     if (!response.ok) {
       const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
       recordUsage({
@@ -349,6 +400,7 @@ export function createOpenAiCompatibleAdapters(
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,
+        ...rateLimit,
       });
       return {
         ok: false,
@@ -372,6 +424,7 @@ export function createOpenAiCompatibleAdapters(
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,
+        ...rateLimit,
       });
       return { ok: true, content: "", endpoint };
     }
@@ -384,6 +437,7 @@ export function createOpenAiCompatibleAdapters(
       latencyMs,
       status: response.status,
       ...usage,
+      ...rateLimit,
     });
 
     return {
