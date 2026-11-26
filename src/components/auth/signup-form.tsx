@@ -37,7 +37,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
   const computedAge = computeAgeFromIso(birthDate);
-  const needsGuardianNotice = computedAge !== null && computedAge >= 16 && computedAge < 18;
+  const isUnderagePreview = computedAge !== null && computedAge < 18;
 
   const nameId = useId();
   const emailId = useId();
@@ -155,11 +155,11 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           className="figma-auth-input"
         />
         <p id={birthdayHelpId} className="mt-1 text-[12px] text-[var(--noggin-ink)]">
-          Noggin is for ages 16 and up. If you&apos;re 16–17, a guardian will need to say OK.
+          Noggin is for university students and adult learners ages 18 and up.
         </p>
-        {needsGuardianNotice && (
-          <p className="mt-1 rounded-xl bg-[var(--noggin-meter-mid-soft)] px-3 py-2 text-[12px] font-medium text-[var(--noggin-meter-mid-ink)]">
-            Age {computedAge} detected: public publishing and public Arena lobbies stay locked until a guardian approves.
+        {isUnderagePreview && (
+          <p className="mt-1 rounded-xl bg-[var(--noggin-danger-soft)] px-3 py-2 text-[12px] font-medium text-[var(--noggin-danger)]">
+            Noggin accounts are restricted to adults ages 18 and up.
           </p>
         )}
       </div>
@@ -172,7 +172,7 @@ export function SignupForm({ maxBirthday }: SignupFormProps) {
           defaultChecked
         />
         <span>
-          I confirm I am eligible to create a Noggin account (<strong>ages 16+</strong> or 16–17 with guardian approval).
+          I confirm I am at least <strong>18 years old</strong> and eligible to create a Noggin account.
         </span>
       </label>
 
