@@ -103,6 +103,7 @@ export function InRoomReplySpeaker({
   const abortRef = useRef<AbortController | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
 
   const stopPlayback = useCallback(() => {
     abortRef.current?.abort();
@@ -124,11 +125,15 @@ export function InRoomReplySpeaker({
         // Ignore browser TTS cancellation issues.
       }
     }
-    setStatus("idle");
+    if (mountedRef.current) {
+      setStatus("idle");
+    }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       stopPlayback();
     };
   }, [stopPlayback, messageId]);
@@ -173,8 +178,10 @@ export function InRoomReplySpeaker({
     if (abortRef.current === controller) {
       abortRef.current = null;
     }
-    if (res.status === "aborted") {
-      setStatus("idle");
+    if (res.status === "aborted" || controller.signal.aborted || !mountedRef.current) {
+      if (mountedRef.current) {
+        setStatus("idle");
+      }
       return;
     }
 

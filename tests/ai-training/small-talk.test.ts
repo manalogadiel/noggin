@@ -308,7 +308,7 @@ describe("askNog answers small talk without spending AI or quota", () => {
   it("defaults to roast mode when profiles are omitted or the owner has no saved settings", async () => {
     const roast = fixture("roast");
     const noSettings = fixture(null);
-    const { profiles: _unused, ...withoutProfiles } = fixture("gentle").deps;
+    const withoutProfiles = { ...fixture("gentle").deps, profiles: undefined };
 
     const expected = await askNog(roast.deps, { nogId: nog.id, question: "how are you" });
     expect(expected).toMatchObject({ status: "ok", smallTalk: true });

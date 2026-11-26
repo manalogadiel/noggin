@@ -105,6 +105,7 @@ export function useRecorder({
   const autoStopTimeoutRef = useRef<number | null>(null);
   const transcribeAbortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const startAttemptIdRef = useRef(0);
 
   const clearTimers = useCallback(() => {
     if (timerIntervalRef.current !== null) {
@@ -392,6 +393,7 @@ export function useRecorder({
   );
 
   const cancelRecording = useCallback(() => {
+    startAttemptIdRef.current += 1;
     cancelledRef.current = true;
     pendingStopRef.current = false;
     startingRef.current = false;
@@ -457,6 +459,8 @@ export function useRecorder({
     transcribeAbortRef.current?.abort();
     transcribeAbortRef.current = null;
 
+    const attemptId = startAttemptIdRef.current + 1;
+    startAttemptIdRef.current = attemptId;
     startingRef.current = true;
     pendingStopRef.current = false;
     cancelledRef.current = false;
@@ -466,6 +470,9 @@ export function useRecorder({
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      if (attemptId !== startAttemptIdRef.current) {
+        return;
+      }
       startingRef.current = false;
       pendingStopRef.current = false;
       if (mountedRef.current && !cancelledRef.current) {
@@ -474,6 +481,17 @@ export function useRecorder({
           tone: "error",
           text: "Mic is blocked — you can type instead",
         });
+      }
+      return;
+    }
+
+    if (attemptId !== startAttemptIdRef.current) {
+      for (const track of stream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          // Ignore track stop errors.
+        }
       }
       return;
     }

@@ -156,6 +156,7 @@ export function createNotebookRepository(options: {
     nogId: string,
     lessonId: string,
     operation: string,
+    expectedQuestions?: readonly string[],
   ): Promise<{ replyMessageId?: string; followUpMessageIds?: string[] }> {
     const [replyRes, questionRes] = await Promise.all([
       session
@@ -170,14 +171,14 @@ export function createNotebookRepository(options: {
         .returns<Array<{ id: string }>>(),
       session
         .from("nog_messages")
-        .select("id")
+        .select("id, body")
         .eq("nog_id", nogId)
         .eq("lesson_id", lessonId)
         .eq("role", "nog")
         .eq("kind", "question")
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
-        .returns<Array<{ id: string }>>(),
+        .returns<Array<{ id: string; body: string }>>(),
     ]);
 
     if (replyRes.error) {
@@ -188,7 +189,25 @@ export function createNotebookRepository(options: {
     }
 
     const replyMessageId = replyRes.data?.[0]?.id;
-    const followUpMessageIds = (questionRes.data ?? []).map((row) => row.id);
+    const rows = questionRes.data ?? [];
+    let followUpMessageIds: string[];
+    if (expectedQuestions && expectedQuestions.length > 0 && rows.length > 1) {
+      const remaining = [...rows];
+      const ordered: string[] = [];
+      for (const questionBody of expectedQuestions) {
+        const matchIndex = remaining.findIndex((row) => row.body === questionBody);
+        if (matchIndex >= 0) {
+          ordered.push(remaining[matchIndex].id);
+          remaining.splice(matchIndex, 1);
+        }
+      }
+      for (const row of remaining) {
+        ordered.push(row.id);
+      }
+      followUpMessageIds = ordered;
+    } else {
+      followUpMessageIds = rows.map((row) => row.id);
+    }
     return {
       ...(replyMessageId ? { replyMessageId } : {}),
       ...(followUpMessageIds.length > 0 ? { followUpMessageIds } : {}),
@@ -335,6 +354,7 @@ export function createNotebookRepository(options: {
         nogId,
         data.id,
         "notebook.findSavedDigest",
+        data.digest.followUpQuestions,
       );
 
       return {
@@ -474,6 +494,7 @@ export function createNotebookRepository(options: {
         input.nogId,
         input.lessonId,
         "notebook.applyDigest",
+        (payload.saved_digest ?? input.digest)?.followUpQuestions,
       );
 
       const result: ApplyDigestResult = {
