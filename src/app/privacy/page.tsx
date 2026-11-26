@@ -69,11 +69,12 @@ export default function PrivacyPage() {
               <p className="mt-2">
                 We rely on trusted service providers to run Noggin: Supabase
                 (database and sign-in, Singapore), Vercel (website hosting),
-                Polar (payment processing and Merchant of Record for Noggin Plus
-                and Coin Packs), Groq (AI that reads your lessons and turns
-                speech into text; it does not train on our data), and Google
-                Gemini (reads the Nog&apos;s answers aloud; it only receives the
-                answer text). Data may be processed outside the Philippines.
+                Dodo Payments (payment processing and Merchant of Record for
+                Noggin Plus and Coin Packs), Groq (AI that reads your lessons
+                and turns speech into text; it does not train on our data), and
+                Google Gemini (reads the Nog&apos;s answers aloud; it only
+                receives the answer text). Data may be processed outside the
+                Philippines.
               </p>
             </section>
 

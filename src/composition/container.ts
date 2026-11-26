@@ -14,6 +14,10 @@ import {
   createSupabaseRepositories,
   type SupabaseRepositories,
 } from "@/adapters/supabase/repositories";
+import {
+  createDodoPaymentGateway,
+  resolveDodoProductIdsFromEnv,
+} from "@/adapters/billing/dodo-payment-gateway";
 import { createHitpayPaymentGateway } from "@/adapters/billing/hitpay-payment-gateway";
 import { createPaymongoPaymentGateway } from "@/adapters/billing/paymongo-payment-gateway";
 import {
@@ -954,6 +958,10 @@ async function buildContainer(): Promise<AppContainer> {
       ? repositories.billing
       : createBillingRepository({ session, service, userId });
 
+  const dodoApiKey = process.env.DODO_PAYMENTS_API_KEY?.trim() ?? "";
+  const dodoEnv = (process.env.DODO_PAYMENTS_ENV ?? "test").trim().toLowerCase();
+  const dodoTestMode =
+    dodoEnv !== "live" && dodoEnv !== "live_mode" && dodoEnv !== "production";
   const polarAccessToken = process.env.POLAR_ACCESS_TOKEN?.trim() ?? "";
   const polarEnv = (process.env.POLAR_ENV ?? "sandbox").trim().toLowerCase();
   const polarSandbox = polarEnv !== "live" && polarEnv !== "production";
@@ -963,22 +971,29 @@ async function buildContainer(): Promise<AppContainer> {
   const paymongoSecret = process.env.PAYMONGO_SECRET_KEY?.trim() ?? "";
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
-  const paymentGateway: PaymentGateway = polarAccessToken
-    ? createPolarPaymentGateway({
-        accessToken: polarAccessToken,
+  const paymentGateway: PaymentGateway = dodoApiKey
+    ? createDodoPaymentGateway({
+        apiKey: dodoApiKey,
         appUrl,
-        productIds: resolvePolarProductIdsFromEnv(process.env),
-        sandbox: polarSandbox,
+        productIds: resolveDodoProductIdsFromEnv(process.env),
+        testMode: dodoTestMode,
       })
-    : hitpayApiKey
-      ? createHitpayPaymentGateway({
-          apiKey: hitpayApiKey,
+    : polarAccessToken
+      ? createPolarPaymentGateway({
+          accessToken: polarAccessToken,
           appUrl,
-          sandbox: hitpaySandbox,
+          productIds: resolvePolarProductIdsFromEnv(process.env),
+          sandbox: polarSandbox,
         })
-      : paymongoSecret
-        ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
-        : createSandboxPaymentGateway();
+      : hitpayApiKey
+        ? createHitpayPaymentGateway({
+            apiKey: hitpayApiKey,
+            appUrl,
+            sandbox: hitpaySandbox,
+          })
+        : paymongoSecret
+          ? createPaymongoPaymentGateway({ secretKey: paymongoSecret, appUrl })
+          : createSandboxPaymentGateway();
 
   return {
     currentUser,
