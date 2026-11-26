@@ -310,9 +310,9 @@ function RiggedNog({
     const [r, g, b] = parseTintRgb(tint);
     material.uniforms.uTint.value.set(r, g, b);
   }, [material, tint]);
-  // Fine mesh: roughly one vertex every 3-6 px of the render so eyes can squash smoothly.
+  // Fine mesh (~1 vertex every 4px) so eyes squash smoothly without heavy mount CPU cost.
   const geometry = useMemo(
-    () => new PlaneGeometry(1, 1, Math.round(220 * Math.max(a, 1)), Math.round(220 / Math.min(a, 1))),
+    () => new PlaneGeometry(1, 1, Math.round(96 * Math.max(a, 1)), Math.round(96 / Math.min(a, 1))),
     [a],
   );
   const anim = useRef(

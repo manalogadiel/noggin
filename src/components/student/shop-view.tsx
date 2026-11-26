@@ -237,6 +237,8 @@ export function ShopView() {
                     <img
                       src={room.src}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="h-24 w-full rounded-[14px] object-cover shadow-[0_4px_10px_rgb(42_66_14_/_0.16)]"
                     />
                     <strong>{room.name}</strong>

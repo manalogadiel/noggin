@@ -16,6 +16,7 @@ export async function startRestAction(
   const result = await container.startRest({ nogId, days });
 
   if (result.status === "ok") {
+    revalidatePath("/home");
     revalidatePath(`/nogs/${nogId}`);
     revalidatePath(`/nogs/${nogId}/rest`);
   }
@@ -32,6 +33,7 @@ export async function wakeNogAction(nogId: string): Promise<RestNogResult> {
   const result = await container.wakeNog({ nogId });
 
   if (result.status === "ok") {
+    revalidatePath("/home");
     revalidatePath(`/nogs/${nogId}`);
     revalidatePath(`/nogs/${nogId}/rest`);
   }

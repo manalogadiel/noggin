@@ -33,31 +33,34 @@ function stageProgressPercent(stage: NogStageSlug, masteredCount: number): numbe
 
 export default async function HomePage() {
   const container = await createContainer();
-  const displayName = await container.getDisplayName();
-  const firstName = extractFirstName(displayName);
   const now = container.clock?.now() ?? new Date();
 
   let nogs: HomeNogSummary[] | null = null;
   let activeRoomData: HomeActiveRoomData | null = null;
   let error = false;
 
+  const [displayName, listResult, settingsResult] = await Promise.all([
+    container.getDisplayName(),
+    container.listNogs().catch(() => null),
+    typeof container.getProfileSettings === "function"
+      ? container.getProfileSettings().catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  const firstName = extractFirstName(displayName);
+
   try {
-    const result = await container.listNogs();
-    if (result.status === "ok") {
-      nogs = result.nogs.map((nog) => ({
+    if (listResult?.status === "ok") {
+      nogs = listResult.nogs.map((nog) => ({
         id: nog.id,
         name: nog.name,
         stage: nog.stage,
       }));
-      const first = result.nogs[0];
+      const first = listResult.nogs[0];
       if (first && typeof container.getNogRoom === "function") {
-        const [roomResult, analysisResult, settingsResult] = await Promise.all([
+        const [roomResult, analysisResult] = await Promise.all([
           container.getNogRoom({ nogId: first.id }).catch(() => null),
           typeof container.getNogAnalysis === "function"
             ? container.getNogAnalysis({ nogId: first.id }).catch(() => null)
-            : Promise.resolve(null),
-          typeof container.getProfileSettings === "function"
-            ? container.getProfileSettings().catch(() => null)
             : Promise.resolve(null),
         ]);
         if (roomResult?.status === "ok") {

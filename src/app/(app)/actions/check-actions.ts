@@ -8,10 +8,12 @@ import type {
 } from "@/core/application/use-cases/run-quick-check";
 
 function revalidateNogCheckPaths(nogId: string) {
+  revalidatePath("/home");
   revalidatePath(`/nogs/${nogId}`);
   revalidatePath(`/nogs/${nogId}/play`);
   revalidatePath(`/nogs/${nogId}/analysis`);
   revalidatePath(`/nogs/${nogId}/notebook`);
+  revalidatePath("/profile", "layout");
 }
 
 export async function runQuickCheckAction(
