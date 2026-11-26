@@ -170,6 +170,27 @@ export async function signInAction(
     return { error: SIGN_IN_ERROR };
   }
 
+  let shouldOnboard = false;
+  if (!parsed.data.next && typeof supabase.from === "function") {
+    try {
+      const nogsQuery = supabase.from("nogs");
+      if (nogsQuery && typeof nogsQuery.select === "function") {
+        const { count, error } = await nogsQuery
+          .select("id", { count: "exact", head: true })
+          .eq("owner_id", signInResult.data.user.id);
+        if (!error && count === 0) {
+          shouldOnboard = true;
+        }
+      }
+    } catch {
+      shouldOnboard = false;
+    }
+  }
+
+  if (shouldOnboard) {
+    redirect(SIGN_UP_REDIRECT);
+  }
+
   redirect(sanitizeNextPath(parsed.data.next));
 }
 

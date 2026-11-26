@@ -28,12 +28,13 @@ export type CustomizeNogResult =
   | { status: "unauthenticated" }
   | { status: "not_found" }
   | { status: "invalid" }
+  | { status: "invalid_name" }
   | { status: "ok"; nog: NogRecord & { colors?: { body?: string | null } } };
 
 interface CustomizeNogUseCaseModule {
   customizeNog: (
     deps: CustomizeDeps,
-    input: { nogId: string; body: string | null },
+    input: { nogId: string; body: string | null; name?: string },
   ) => Promise<CustomizeNogResult>;
 }
 
@@ -251,6 +252,32 @@ describe("customizeNog use case", () => {
     expect(persisted).toMatchObject({
       id: ownerNog.id,
       colors: { body: null },
+    });
+  });
+
+  it("saves an updated Nog name alongside body color and rejects blank names", async () => {
+    const { deps } = createInMemoryPorts({
+      userId: ownerNog.ownerId,
+      nogs: [{ ...ownerNog }],
+    });
+    const { customizeNog } = await loadUseCase();
+
+    await expect(
+      customizeNog(deps, { nogId: ownerNog.id, body: null, name: "   " }),
+    ).resolves.toEqual({ status: "invalid_name" });
+
+    const renamed = await customizeNog(deps, {
+      nogId: ownerNog.id,
+      body: "#d9c8f5",
+      name: "Pingu",
+    });
+    expect(renamed).toMatchObject({
+      status: "ok",
+      nog: {
+        id: ownerNog.id,
+        name: "Pingu",
+        colors: { body: "#d9c8f5" },
+      },
     });
   });
 

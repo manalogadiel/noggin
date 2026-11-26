@@ -17,13 +17,18 @@ vi.mock("@/adapters/supabase/server-client", () => ({
   createServerSupabaseClient,
 }));
 
-import { signUpFormAction } from "@/app/(auth)/actions";
+import { signInAction, signUpFormAction } from "@/app/(auth)/actions";
 
 const signUp = vi.fn();
+const signInWithPassword = vi.fn();
+const from = vi.fn();
 
 beforeEach(() => {
   vi.resetAllMocks();
-  createServerSupabaseClient.mockResolvedValue({ auth: { signUp } });
+  createServerSupabaseClient.mockResolvedValue({
+    auth: { signUp, signInWithPassword },
+    from,
+  });
 });
 
 function buildSignupFormData(overrides: Record<string, string | undefined> = {}) {
@@ -113,5 +118,45 @@ describe("signUpFormAction", () => {
         },
       }),
     );
+  });
+});
+
+describe("signInAction first-time onboarding redirect", () => {
+  it("redirects first-time users with 0 Nogs straight to /adopt when no next path is given", async () => {
+    signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: "new-user-1" }, session: { access_token: "tok" } },
+      error: null,
+    });
+    const eq = vi.fn().mockResolvedValueOnce({ count: 0, error: null });
+    const select = vi.fn().mockReturnValueOnce({ eq });
+    from.mockReturnValueOnce({ select });
+
+    const formData = new FormData();
+    formData.set("email", "new@example.com");
+    formData.set("password", "password123");
+
+    await expect(signInAction(formData)).rejects.toMatchObject({
+      destination: "/adopt",
+    });
+    expect(from).toHaveBeenCalledWith("nogs");
+    expect(eq).toHaveBeenCalledWith("owner_id", "new-user-1");
+  });
+
+  it("redirects returning users with existing Nogs to /nogs", async () => {
+    signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: "returning-user" }, session: { access_token: "tok" } },
+      error: null,
+    });
+    const eq = vi.fn().mockResolvedValueOnce({ count: 2, error: null });
+    const select = vi.fn().mockReturnValueOnce({ eq });
+    from.mockReturnValueOnce({ select });
+
+    const formData = new FormData();
+    formData.set("email", "returning@example.com");
+    formData.set("password", "password123");
+
+    await expect(signInAction(formData)).rejects.toMatchObject({
+      destination: "/nogs",
+    });
   });
 });
