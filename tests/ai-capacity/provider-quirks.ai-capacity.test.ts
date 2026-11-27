@@ -157,4 +157,22 @@ describe("provider quirks", () => {
     expect((await bodyOf(1)).model).toBe(providerEnv.LLM_MODEL);
     expect(await bodyOf(1)).not.toHaveProperty("reasoning_effort");
   });
+
+  it("omits the seed parameter for Google's OpenAI-compatible endpoint while keeping it on standard providers", async () => {
+    vi.stubEnv(
+      "LLM_FALLBACK_BASE_URL",
+      "https://generativelanguage.googleapis.com/v1beta/openai",
+    );
+    vi.stubEnv("LLM_FALLBACK_API_KEY", "google-test-key");
+    vi.stubEnv("LLM_FALLBACK_MODEL", "fallback-flash-model");
+
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 429 }))
+      .mockResolvedValueOnce(completion(validGrade));
+
+    await expect(adapters().grader.grade(gradeInput)).resolves.toEqual(validGrade);
+
+    expect((await bodyOf(0)).seed).toBe(7);
+    expect(await bodyOf(1)).not.toHaveProperty("seed");
+  });
 });

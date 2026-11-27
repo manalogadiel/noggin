@@ -285,6 +285,15 @@ function isReasoningModel(model: string): boolean {
   return /(^|\/)gpt-oss/i.test(model);
 }
 
+// Google's OpenAI-compatible endpoint rejects the `seed` field with 400 INVALID_ARGUMENT.
+function supportsSeedParameter(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname.toLowerCase() !== "generativelanguage.googleapis.com";
+  } catch {
+    return true;
+  }
+}
+
 // Groq returns 400 json_validate_failed when its own JSON-mode generation fails; another model usually succeeds.
 async function isProviderJsonRejection(response: Response): Promise<boolean> {
   if (response.status !== 400) {
@@ -359,7 +368,9 @@ export function createOpenAiCompatibleAdapters(
       response_format: { type: "json_object" },
       temperature: params.temperature,
       max_tokens: params.maxTokens,
-      seed: DETERMINISTIC_SEED,
+      ...(supportsSeedParameter(endpoint.baseUrl)
+        ? { seed: DETERMINISTIC_SEED }
+        : {}),
       // Reasoning models spend most of the token budget thinking; low effort keeps them fast and within free limits.
       ...(isReasoningModel(endpoint.model) ? { reasoning_effort: "low" } : {}),
     });
@@ -447,32 +458,35 @@ export function createOpenAiCompatibleAdapters(
     };
   }
 
-  function resolveRoleEndpoints(role: LlmRole): {
-    primary: OpenAiCompatibleEndpoint;
-    fallback?: OpenAiCompatibleEndpoint;
-  } {
+  function resolveEndpointChain(role: LlmRole): OpenAiCompatibleEndpoint[] {
+    const chain: OpenAiCompatibleEndpoint[] = [];
+    const seen = new Set<string>();
+    const addUnique = (endpoint: OpenAiCompatibleEndpoint | undefined) => {
+      if (!endpoint) return;
+      const key = `${endpoint.baseUrl.trim().replace(/\/+$/, "")}::${endpoint.model}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      chain.push(endpoint);
+    };
+
     const override = config.roleModels?.[role]?.trim();
     if (override && override !== config.primary.model) {
-      return {
-        primary: {
-          ...config.primary,
-          model: override,
-        },
-        fallback: config.primary,
-      };
+      addUnique({
+        ...config.primary,
+        model: override,
+      });
     }
-    return {
-      primary: config.primary,
-      fallback: config.fallback,
-    };
+    addUnique(config.primary);
+    addUnique(config.fallback);
+    return chain;
   }
 
   async function callWithFallback(
     messages: ChatMessage[],
     params: RoleRequestParams,
   ): Promise<TransportSuccess> {
-    const { primary, fallback } = resolveRoleEndpoints(params.role);
-    const first = await postCompletion(primary, messages, params);
+    const chain = resolveEndpointChain(params.role);
+    const first = await postCompletion(chain[0], messages, params);
     if (first.ok) {
       return first;
     }
@@ -489,18 +503,21 @@ export function createOpenAiCompatibleAdapters(
       await sleep(first.retryAfterMs);
     }
 
-    const nextEndpoint =
-      fallback ??
-      (first.retryAfterMs !== null && first.retryAfterMs <= MAX_RETRY_AFTER_MS
-        ? primary
-        : undefined);
-    if (!nextEndpoint) {
-      throw new NogSleepyError();
-    }
+    const candidates =
+      chain.length > 1
+        ? chain.slice(1)
+        : first.retryAfterMs !== null && first.retryAfterMs <= MAX_RETRY_AFTER_MS
+          ? [chain[0]]
+          : [];
 
-    const second = await postCompletion(nextEndpoint, messages, params);
-    if (second.ok) {
-      return second;
+    for (const candidate of candidates) {
+      const attempt = await postCompletion(candidate, messages, params);
+      if (attempt.ok) {
+        return attempt;
+      }
+      if (!attempt.retryable) {
+        throw new NogSleepyError();
+      }
     }
 
     throw new NogSleepyError();
