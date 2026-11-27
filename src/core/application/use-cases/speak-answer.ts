@@ -1,5 +1,6 @@
 import type {
   AttemptRepository,
+  CompanionVoice,
   CurrentUser,
   NotebookRepository,
   SynthesizedAudio,
@@ -26,6 +27,7 @@ export interface SpeakAnswerDeps {
 export interface SpeakAnswerInput {
   source: SpeakSource;
   id: string;
+  voice?: CompanionVoice;
 }
 
 export type SpeakAnswerResult =
@@ -84,7 +86,7 @@ export async function speakAnswer(
     return { status: "not_found" };
   }
 
-  const cacheKey = hashVoiceText(text);
+  const cacheKey = hashVoiceText(input.voice ? `${input.voice}:${text}` : text);
   const cached = await deps.voiceCache.get(cacheKey);
   if (cached) {
     return { status: "ok", cached: true, ...cached };
@@ -98,7 +100,9 @@ export async function speakAnswer(
 
   let synthesized: SynthesizedAudio;
   try {
-    synthesized = await deps.textToSpeech.speak({ text });
+    synthesized = await deps.textToSpeech.speak(
+      input.voice ? { text, voice: input.voice } : { text },
+    );
   } catch {
     return { status: "provider_error" };
   }

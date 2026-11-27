@@ -3,7 +3,11 @@
 import { Loader2, MessageCircleQuestion, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { requestSpeechAudio } from "@/components/voice/voice-client";
-import type { DigestOperation, ThoughtCardRecord } from "@/core/application/ports";
+import type {
+  CompanionVoice,
+  DigestOperation,
+  ThoughtCardRecord,
+} from "@/core/application/ports";
 import type { CitedCard } from "@/core/application/use-cases/ask-nog";
 
 export type SanctuaryNogMood =
@@ -90,20 +94,32 @@ export interface InRoomReplySpeakerProps {
   messageId: string | null;
   fallbackText: string;
   voiceEnabled: boolean;
+  voice?: CompanionVoice;
+  autoPlay?: boolean;
   volume?: number;
+  onSpeakingChange?: (speaking: boolean) => void;
 }
 
 export function InRoomReplySpeaker({
   messageId,
   fallbackText,
   voiceEnabled,
+  voice = "Puck",
+  autoPlay = false,
   volume = 0.9,
+  onSpeakingChange,
 }: InRoomReplySpeakerProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "playing">("idle");
   const abortRef = useRef<AbortController | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
+  const lastAutoPlayedRef = useRef<string | null>(null);
+  const onSpeakingChangeRef = useRef(onSpeakingChange);
+
+  useEffect(() => {
+    onSpeakingChangeRef.current = onSpeakingChange;
+  }, [onSpeakingChange]);
 
   const stopPlayback = useCallback(() => {
     abortRef.current?.abort();
@@ -128,45 +144,52 @@ export function InRoomReplySpeaker({
     if (mountedRef.current) {
       setStatus("idle");
     }
+    onSpeakingChangeRef.current?.(false);
   }, []);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      stopPlayback();
-    };
-  }, [stopPlayback, messageId]);
-
-  if (!voiceEnabled || !messageId) {
-    return null;
-  }
-
-  const speakWithBrowser = () => {
+  const speakWithBrowser = useCallback(() => {
     if (
       typeof window === "undefined" ||
       !("speechSynthesis" in window) ||
       !fallbackText.trim()
     ) {
-      setStatus("idle");
+      if (mountedRef.current) {
+        setStatus("idle");
+      }
+      onSpeakingChangeRef.current?.(false);
       return;
     }
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(fallbackText);
       utterance.volume = Math.max(0, Math.min(1, volume));
-      utterance.onend = () => setStatus("idle");
-      utterance.onerror = () => setStatus("idle");
-      setStatus("playing");
+      utterance.onend = () => {
+        if (mountedRef.current) {
+          setStatus("idle");
+        }
+        onSpeakingChangeRef.current?.(false);
+      };
+      utterance.onerror = () => {
+        if (mountedRef.current) {
+          setStatus("idle");
+        }
+        onSpeakingChangeRef.current?.(false);
+      };
+      if (mountedRef.current) {
+        setStatus("playing");
+      }
+      onSpeakingChangeRef.current?.(true);
       window.speechSynthesis.speak(utterance);
     } catch {
-      setStatus("idle");
+      if (mountedRef.current) {
+        setStatus("idle");
+      }
+      onSpeakingChangeRef.current?.(false);
     }
-  };
+  }, [fallbackText, volume]);
 
-  const handleToggle = async () => {
-    if (status !== "idle") {
-      stopPlayback();
+  const startPlayback = useCallback(async () => {
+    if (!messageId) {
       return;
     }
 
@@ -174,7 +197,9 @@ export function InRoomReplySpeaker({
     abortRef.current = controller;
     setStatus("loading");
 
-    const res = await requestSpeechAudio({ messageId }, controller.signal);
+    const payload =
+      voice && voice !== "Puck" ? { messageId, voice } : { messageId };
+    const res = await requestSpeechAudio(payload, controller.signal);
     if (abortRef.current === controller) {
       abortRef.current = null;
     }
@@ -198,6 +223,7 @@ export function InRoomReplySpeaker({
           speakWithBrowser();
         };
         setStatus("playing");
+        onSpeakingChangeRef.current?.(true);
         await audio.play();
         return;
       } catch {
@@ -206,6 +232,46 @@ export function InRoomReplySpeaker({
     }
 
     speakWithBrowser();
+  }, [messageId, speakWithBrowser, stopPlayback, voice, volume]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopPlayback();
+    };
+  }, [stopPlayback, messageId]);
+
+  useEffect(() => {
+    if (!autoPlay || !voiceEnabled || !messageId) {
+      return;
+    }
+    if (lastAutoPlayedRef.current === messageId) {
+      return;
+    }
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled || !mountedRef.current || lastAutoPlayedRef.current === messageId) {
+        return;
+      }
+      lastAutoPlayedRef.current = messageId;
+      void startPlayback();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [autoPlay, messageId, startPlayback, voiceEnabled]);
+
+  if (!voiceEnabled || !messageId) {
+    return null;
+  }
+
+  const handleToggle = async () => {
+    if (status !== "idle") {
+      stopPlayback();
+      return;
+    }
+    await startPlayback();
   };
 
   return (

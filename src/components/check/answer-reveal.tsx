@@ -4,7 +4,7 @@ import { Check, CheckCircle2, X, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { SpeakButton } from "@/components/voice/speak-button";
-import type { QuickCheckAttempt } from "@/core/application/ports";
+import type { NogStageSlug, QuickCheckAttempt } from "@/core/application/ports";
 import { isConceptCovered } from "@/core/domain/quiz";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,7 @@ function detectReducedMotion(): boolean {
 export interface AnswerRevealProps {
   nogId?: string;
   nogName: string;
+  nogStage?: NogStageSlug;
   nogTint?: string | null;
   topicTitle: string;
   attempt: QuickCheckAttempt;
@@ -33,6 +34,7 @@ export interface AnswerRevealProps {
 
 export function AnswerReveal({
   nogName,
+  nogStage,
   nogTint = null,
   topicTitle,
   attempt,
@@ -305,6 +307,7 @@ export function AnswerReveal({
             <div className="w-[clamp(140px,14.5vw,210px)]">
               <NogStage
                 scene="room"
+                stage={nogStage}
                 tint={nogTint}
                 alt={`${nogName} answering question ${questionNumber}`}
                 poster="/nog/blob-closeup.png"

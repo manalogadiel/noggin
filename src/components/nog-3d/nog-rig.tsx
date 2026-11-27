@@ -1,440 +1,240 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ACESFilmicToneMapping,
+  AnimationMixer,
+  Color,
   CustomBlending,
+  DirectionalLight,
+  Group,
+  HemisphereLight,
+  Mesh,
+  MeshBasicMaterial,
   OneFactor,
   OneMinusSrcAlphaFactor,
   PlaneGeometry,
   ShaderMaterial,
+  SRGBColorSpace,
   type Texture,
   TextureLoader,
   Vector3,
-  Vector4,
 } from "three";
-import type { NogSceneName } from "./nog-stage";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import type { NogStageSlug } from "@/core/application/ports";
+import { type LoadedGlbAsset, loadNormalizedGlb } from "./glb-loader";
+import {
+  ACCESSORY_GLB_MODELS,
+  type GlbAssetEntry,
+  resolveSceneGlb,
+} from "./model-manifest";
+import type { NogReaction, NogRoomTheme, NogSceneName } from "./nog-stage";
+import {
+  createContactShadowTexture,
+  createStudioEnvironment,
+  parseTintRgb,
+  ROOM_LIGHT_PRESETS,
+} from "./studio-lighting";
 
-/**
- * The Figma render itself, bent by a fine mesh (the way Live2D/Spine animate 2D art): eyes slide
- * toward the cursor and squash shut to blink, leaves sway, arms wave, bodies breathe, hop and squish.
- * Coordinates are fractions of the image (u across, v down), measured on the renders.
- */
-
-type UV = [number, number];
-/** rigid: holds a prop (the book), so taps bounce it evenly instead of squashing it out of shape */
-interface BodyRig { base: UV; center: UV; radius: UV; hop?: boolean; float?: boolean; rigid?: boolean; slow?: boolean }
-interface EyeRig { center: UV; radius: UV; body: number }
-interface LimbRig { pivot: UV; center: UV; radius: UV; body: number; amp: number; speed?: number; idle?: boolean }
-interface Rig {
+interface ScenePosterConfig {
   poster: string;
   aspect: number;
-  bodies: BodyRig[];
-  eyes: EyeRig[];
-  leaves: LimbRig[];
-  arms: LimbRig[];
+  float?: boolean;
+  hop?: boolean;
+  slow?: boolean;
 }
 
-export const RIGS: Record<NogSceneName, Rig> = {
-  trio: {
-    poster: "/nog/landing-trio.png",
-    aspect: 1024 / 646,
-    bodies: [
-      { base: [0.585, 0.8], center: [0.585, 0.5], radius: [0.15, 0.31], hop: true },
-      { base: [0.355, 0.84], center: [0.355, 0.6], radius: [0.14, 0.26], hop: true },
-      { base: [0.76, 0.855], center: [0.76, 0.69], radius: [0.125, 0.18], hop: true },
-    ],
-    eyes: [
-      { center: [0.5201, 0.3622], radius: [0.02, 0.0317], body: 0 },
-      { center: [0.6507, 0.3903], radius: [0.019, 0.0317], body: 0 },
-      { center: [0.2947, 0.5069], radius: [0.0181, 0.0302], body: 1 },
-      { center: [0.4099, 0.5116], radius: [0.0176, 0.0302], body: 1 },
-      { center: [0.7223, 0.6585], radius: [0.0166, 0.0271], body: 2 },
-      { center: [0.8225, 0.6211], radius: [0.0142, 0.024], body: 2 },
-    ],
-    leaves: [
-      { pivot: [0.588, 0.225], center: [0.588, 0.13], radius: [0.14, 0.12], body: 0, amp: 0.07 },
-      { pivot: [0.345, 0.365], center: [0.34, 0.29], radius: [0.1, 0.1], body: 1, amp: 0.08 },
-    ],
-    arms: [
-      { pivot: [0.715, 0.5], center: [0.765, 0.42], radius: [0.06, 0.11], body: 0, amp: 0.22 },
-      { pivot: [0.24, 0.6], center: [0.205, 0.55], radius: [0.05, 0.08], body: 1, amp: -0.25 },
-    ],
-  },
-  flying: {
-    poster: "/nog/flying-book.png",
-    aspect: 1,
-    // one Nog fills the image: the body region covers all of it so squash and float stay rigid (the book never bends)
-    bodies: [{ base: [0.45, 0.6], center: [0.45, 0.58], radius: [1.6, 1.6], float: true, rigid: true }],
-    eyes: [
-      { center: [0.2692, 0.4087], radius: [0.0343, 0.0391], body: 0 },
-      { center: [0.4812, 0.463], radius: [0.0435, 0.0435], body: 0 },
-    ],
-    leaves: [{ pivot: [0.41, 0.285], center: [0.45, 0.17], radius: [0.25, 0.14], body: 0, amp: 0.06 }],
-    arms: [
-      { pivot: [0.2, 0.47], center: [0.1, 0.44], radius: [0.11, 0.08], body: 0, amp: 0.16, speed: 2.2, idle: true },
-      // the hand holding the book: the region covers the whole book so it swings without bending
-      { pivot: [0.6, 0.55], center: [0.78, 0.55], radius: [0.25, 0.2], body: 0, amp: -0.09, speed: 2.2, idle: true },
-      { pivot: [0.7, 0.75], center: [0.78, 0.82], radius: [0.12, 0.1], body: 0, amp: 0.1, speed: 1.6, idle: true },
-    ],
-  },
-  thinking: {
-    poster: "/nog/thinking.png",
-    aspect: 1,
-    bodies: [{ base: [0.45, 0.86], center: [0.46, 0.55], radius: [0.26, 0.36] }],
-    eyes: [
-      { center: [0.3998, 0.3846], radius: [0.0303, 0.0259], body: 0 },
-      { center: [0.5206, 0.4418], radius: [0.0335, 0.0331], body: 0 },
-    ],
-    leaves: [{ pivot: [0.522, 0.31], center: [0.52, 0.2], radius: [0.18, 0.12], body: 0, amp: 0.06 }],
-    arms: [
-      { pivot: [0.6, 0.62], center: [0.52, 0.56], radius: [0.08, 0.06], body: 0, amp: 0.05, speed: 3, idle: true },
-      { pivot: [0.27, 0.62], center: [0.235, 0.68], radius: [0.045, 0.07], body: 0, amp: 0.08, speed: 1.2, idle: true },
-    ],
-  },
-  peek: {
-    poster: "/nog/egg-peek.png",
-    aspect: 1192 / 1320,
-    bodies: [{ base: [0.5, 0.62], center: [0.5, 0.42], radius: [0.3, 0.24] }],
-    eyes: [
-      { center: [0.4109, 0.4689], radius: [0.0398, 0.0367], body: 0 },
-      { center: [0.6243, 0.4274], radius: [0.0357, 0.0322], body: 0 },
-    ],
-    leaves: [{ pivot: [0.48, 0.3], center: [0.46, 0.2], radius: [0.2, 0.12], body: 0, amp: 0.06 }],
-    arms: [{ pivot: [0.73, 0.53], center: [0.79, 0.49], radius: [0.065, 0.065], body: 0, amp: -0.32 }],
-  },
-  lean: {
-    poster: "/nog/peek-card.png",
-    aspect: 1,
-    bodies: [{ base: [0.46, 0.83], center: [0.46, 0.55], radius: [0.27, 0.36] }],
-    eyes: [
-      { center: [0.3995, 0.5076], radius: [0.0327, 0.0335], body: 0 },
-      { center: [0.5895, 0.4659], radius: [0.0299, 0.0319], body: 0 },
-    ],
-    leaves: [{ pivot: [0.45, 0.33], center: [0.43, 0.24], radius: [0.2, 0.12], body: 0, amp: 0.06 }],
-    arms: [
-      { pivot: [0.66, 0.53], center: [0.71, 0.5], radius: [0.055, 0.055], body: 0, amp: -0.2 },             // waves hello
-      { pivot: [0.27, 0.62], center: [0.245, 0.68], radius: [0.04, 0.07], body: 0, amp: 0.06, speed: 1.2, idle: true },
-    ],
-  },
-  egg: {
-    poster: "/nog/egg-speckled.png",
-    aspect: 605 / 589,
-    bodies: [{ base: [0.5, 0.86], center: [0.5, 0.48], radius: [0.3, 0.4] }],
-    eyes: [],
-    leaves: [],
-    arms: [],
-  },
-  hatched: {
-    poster: "/nog/hatched-shells.png",
-    aspect: 1583 / 994,
-    bodies: [{ base: [0.48, 0.8], center: [0.48, 0.62], radius: [0.17, 0.22] }],
-    eyes: [
-      { center: [0.4298, 0.5785], radius: [0.0234, 0.0367], body: 0 },
-      { center: [0.5747, 0.5288], radius: [0.0205, 0.0337], body: 0 },
-    ],
-    leaves: [],
-    arms: [],
-  },
-  room: {
-    poster: "/nog/blob-closeup.png",
-    aspect: 1,
-    bodies: [{ base: [0.5, 0.9], center: [0.5, 0.62], radius: [0.42, 0.34] }],
-    eyes: [
-      { center: [0.4342, 0.6711], radius: [0.0323, 0.0323], body: 0 },
-      { center: [0.6292, 0.6244], radius: [0.0271, 0.0287], body: 0 },
-    ],
-    leaves: [],
-    arms: [],
-  },
-  dizzy: {
-    poster: "/nog/hatchling-dizzy.png",
-    aspect: 1,
-    // spiral eyes stay intact: animate the body only without eye handles
-    bodies: [{ base: [0.5, 0.86], center: [0.5, 0.58], radius: [0.45, 0.45], float: true }],
-    eyes: [],
-    leaves: [],
-    arms: [],
-  },
-  sleeping: {
-    poster: "/nog/sleeping-books.png",
-    aspect: 908 / 721,
-    // closed eyes stay intact: one rigid-ish body breathing slowly without eye handles
-    bodies: [{ base: [0.5, 0.8], center: [0.47, 0.52], radius: [0.24, 0.2], rigid: true, slow: true }],
-    eyes: [],
-    leaves: [],
-    arms: [],
-  },
+const SCENE_POSTERS: Record<NogSceneName, ScenePosterConfig> = {
+  trio: { poster: "/nog/landing-trio.png", aspect: 1024 / 646, hop: true },
+  flying: { poster: "/nog/flying-book.png", aspect: 1, float: true },
+  thinking: { poster: "/nog/thinking.png", aspect: 1 },
+  peek: { poster: "/nog/egg-peek.png", aspect: 1192 / 1320 },
+  lean: { poster: "/nog/peek-card.png", aspect: 1 },
+  egg: { poster: "/nog/egg-speckled.png", aspect: 605 / 589 },
+  hatched: { poster: "/nog/hatched-shells.png", aspect: 1583 / 994, hop: true },
+  room: { poster: "/nog/blob-closeup.png", aspect: 1 },
+  dizzy: { poster: "/nog/hatchling-dizzy.png", aspect: 1, float: true },
+  sleeping: { poster: "/nog/sleeping-books.png", aspect: 908 / 721, slow: true },
 };
 
-/** Last pointer position in viewport pixels, shared by every Nog on the page. */
+/** Last pointer position in viewport pixels, shared across scenes. */
 const pointer = { x: Number.NaN, y: Number.NaN };
 
-const MAX = { bodies: 3, eyes: 6, leaves: 3, arms: 4 };
-
-const vertexShader = /* glsl */ `
-uniform float uAspect;
-uniform vec4 uBodyA[${MAX.bodies}]; uniform vec4 uBodyB[${MAX.bodies}]; uniform vec4 uBodyC[${MAX.bodies}];
-uniform vec4 uEyeA[${MAX.eyes}]; uniform vec4 uEyeB[${MAX.eyes}];
-uniform vec4 uLeafA[${MAX.leaves}]; uniform vec4 uLeafB[${MAX.leaves}];
-uniform vec4 uArmA[${MAX.arms}]; uniform vec4 uArmB[${MAX.arms}];
-uniform int uBodies; uniform int uEyes; uniform int uLeaves; uniform int uArms;
+/**
+ * Distortion-free studio card shader: keeps the exact reference artwork untouched
+ * (zero UV pixel-bending or limb/eye warping), while preserving green sprout leaves
+ * when body color tints are applied.
+ */
+const cardVertexShader = /* glsl */ `
 varying vec2 vUv;
-
-float fall(vec2 p, vec2 c, vec2 r) { return 1.0 - smoothstep(0.55, 1.0, length((p - c) / r)); }
-vec2 rotAbout(vec2 p, vec2 o, float a) { float c = cos(a), s = sin(a); vec2 q = p - o; return o + vec2(c * q.x - s * q.y, s * q.x + c * q.y); }
-
-// breathe / squash / tilt / hop each body, weighted by where the point started
-vec2 bodies(vec2 p, vec2 p0) {
-  for (int i = 0; i < ${MAX.bodies}; i++) {
-    if (i >= uBodies) break;
-    vec4 A = uBodyA[i]; vec4 B = uBodyB[i]; vec4 C = uBodyC[i];
-    vec2 t = A.xy + (p - A.xy) * C.xy;
-    t = rotAbout(t, A.xy, B.z);
-    t.y -= B.w;
-    p = mix(p, t, fall(p0, A.zw, B.xy));
-  }
-  return p;
-}
-
 void main() {
   vUv = uv;
-  vec2 p0 = vec2(uv.x * uAspect, 1.0 - uv.y);
-  vec2 p = p0;
-  for (int i = 0; i < ${MAX.arms}; i++) {
-    if (i >= uArms) break;
-    p = mix(p, rotAbout(p, uArmA[i].xy, uArmB[i].z), fall(p0, uArmA[i].zw, uArmB[i].xy));
-  }
-  for (int i = 0; i < ${MAX.leaves}; i++) {
-    if (i >= uLeaves) break;
-    // only the leaves above the stem move; the head under them stays put
-    float w = fall(p0, uLeafA[i].zw, uLeafB[i].xy) * (1.0 - smoothstep(uLeafA[i].y - 0.015, uLeafA[i].y + 0.02, p0.y));
-    p = mix(p, rotAbout(p, uLeafA[i].xy, uLeafB[i].z), w);
-  }
-  p = bodies(p, p0);
-  // eyes last, around where the body moved them: a blink only compresses, so the mesh never folds
-  for (int i = 0; i < ${MAX.eyes}; i++) {
-    if (i >= uEyes) break;
-    vec4 A = uEyeA[i]; vec4 B = uEyeB[i];
-    vec2 c = bodies(A.xy, A.xy) + B.xy;
-    p += B.xy * fall(p0, A.xy, A.zw * 2.6);
-    p.y = mix(p.y, c.y + (p.y - c.y) * B.z, fall(p0, A.xy, A.zw * 1.45));
-  }
-  gl_Position = vec4(p.x / uAspect * 2.0 - 1.0, 1.0 - p.y * 2.0, 0.0, 1.0);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
 
-const fragmentShader = /* glsl */ `
+const cardFragmentShader = /* glsl */ `
 uniform sampler2D uMap;
 uniform vec3 uTint;
 varying vec2 vUv;
 void main() {
   vec4 c = texture2D(uMap, vUv);
   float leaf = step(c.r * 1.12, c.g) * step(c.b * 1.12, c.g);
-  c.rgb = mix(c.rgb * uTint, c.rgb, leaf);
+  float luma = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+  float darkFeature = 1.0 - smoothstep(0.12, 0.24, luma);
+  float mask = (1.0 - leaf) * (1.0 - darkFeature);
+  c.rgb = mix(c.rgb, c.rgb * uTint, mask);
   gl_FragColor = c;
 }
 `;
 
-const vec4s = (n: number) => Array.from({ length: n }, () => new Vector4());
-
-function parseTintRgb(tint?: string | null): [number, number, number] {
-  if (!tint) return [1, 1, 1];
-  const clean = tint.trim().replace(/^#/, "");
-  if (!/^[0-9a-f]{6}$/i.test(clean)) return [1, 1, 1];
-  const num = Number.parseInt(clean, 16);
-  return [
-    ((num >> 16) & 255) / 255,
-    ((num >> 8) & 255) / 255,
-    (num & 255) / 255,
-  ];
-}
-
-function createMaterial(rig: Rig, texture: Texture): ShaderMaterial {
-  const a = rig.aspect;
-  const toP = ([u, v]: UV): [number, number] => [u * a, v];
-  const material = new ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    blending: CustomBlending,
-    blendSrc: OneFactor,
-    blendDst: OneMinusSrcAlphaFactor,
-    uniforms: {
-      uMap: { value: texture },
-      uTint: { value: new Vector3(1, 1, 1) },
-      uAspect: { value: a },
-      uBodyA: { value: vec4s(MAX.bodies) },
-      uBodyB: { value: vec4s(MAX.bodies) },
-      uBodyC: { value: vec4s(MAX.bodies) },
-      uEyeA: { value: vec4s(MAX.eyes) },
-      uEyeB: { value: vec4s(MAX.eyes) },
-      uLeafA: { value: vec4s(MAX.leaves) },
-      uLeafB: { value: vec4s(MAX.leaves) },
-      uArmA: { value: vec4s(MAX.arms) },
-      uArmB: { value: vec4s(MAX.arms) },
-      uBodies: { value: rig.bodies.length },
-      uEyes: { value: rig.eyes.length },
-      uLeaves: { value: rig.leaves.length },
-      uArms: { value: rig.arms.length },
-    },
-  });
-  const u = material.uniforms;
-  rig.eyes.forEach((e, i) => u.uEyeA.value[i].set(...toP(e.center), e.radius[0] * a, e.radius[1]));
-  rig.leaves.forEach((l, i) => u.uLeafA.value[i].set(...toP(l.pivot), ...toP(l.center)));
-  rig.arms.forEach((l, i) => u.uArmA.value[i].set(...toP(l.pivot), ...toP(l.center)));
-  rig.bodies.forEach((b, i) => u.uBodyA.value[i].set(...toP(b.base), ...toP(b.center)));
-  rig.bodies.forEach((_, i) => u.uBodyC.value[i].set(1, 1, 0, 0));
-  rig.eyes.forEach((_, i) => u.uEyeB.value[i].set(0, 0, 1, 0));
-  return material;
-}
-
-function RiggedNog({
-  rig,
+function RigidStudioCard({
+  config,
   texture,
   tint,
+  reaction,
   onReady,
 }: {
-  rig: Rig;
+  config: ScenePosterConfig;
   texture: Texture;
   tint?: string | null;
+  reaction?: NogReaction;
   onReady: () => void;
 }) {
-  const gl = useThree((s) => s.gl);
-  const a = rig.aspect;
-  const material = useMemo(() => createMaterial(rig, texture), [rig, texture]);
-
-  useEffect(() => {
-    const [r, g, b] = parseTintRgb(tint);
-    material.uniforms.uTint.value.set(r, g, b);
-  }, [material, tint]);
-  // Fine mesh (~1 vertex every 4px) so eyes squash smoothly without heavy mount CPU cost.
-  const geometry = useMemo(
-    () => new PlaneGeometry(1, 1, Math.round(96 * Math.max(a, 1)), Math.round(96 / Math.min(a, 1))),
-    [a],
-  );
-  const anim = useRef(
-    rig.bodies.map((_, i) => ({
-      tapAt: -10,
-      tapped: false,
-      nextBlink: 1.2 + i * 1.1,
-      blinkAt: -1,
-      nextHop: 5 + i * 2.7,
-      hopAt: -1,
-      look: [0, 0] as [number, number],
-    })),
-  );
+  const getThree = useThree((s) => s.get);
+  const groupRef = useRef<Group | null>(null);
+  const materialRef = useRef<ShaderMaterial | null>(null);
   const ready = useRef(false);
+  const anim = useRef({
+    tapAt: -10,
+    nextHop: 6.2,
+    hopAt: -1,
+    tiltX: 0,
+    tiltY: 0,
+  });
+  const clockNow = useRef(0);
 
   useEffect(() => {
+    const { camera, size } = getThree();
+    const viewAspect = size.width / Math.max(1, size.height);
+    const camZ = 2.8;
+    camera.position.set(0, 0, camZ);
+    if ("fov" in camera && typeof camera.fov === "number") {
+      camera.fov = 34;
+      camera.updateProjectionMatrix();
+    }
+    camera.lookAt(0, 0, 0);
+
+    const visibleH = 2 * camZ * Math.tan(((34 * Math.PI) / 180) * 0.5);
+    const visibleW = visibleH * viewAspect;
+    const planeW = Math.min(visibleW, visibleH * config.aspect) * 0.96;
+    const planeH = planeW / config.aspect;
+
+    const geo = new PlaneGeometry(planeW, planeH, 1, 1);
+    const [r, g, b] = parseTintRgb(tint);
+    const mat = new ShaderMaterial({
+      vertexShader: cardVertexShader,
+      fragmentShader: cardFragmentShader,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      blending: CustomBlending,
+      blendSrc: OneFactor,
+      blendDst: OneMinusSrcAlphaFactor,
+      uniforms: {
+        uMap: { value: texture },
+        uTint: { value: new Vector3(r, g, b) },
+      },
+    });
+    materialRef.current = mat;
+
+    const mesh = new Mesh(geo, mat);
+    mesh.frustumCulled = false;
+    const mount = groupRef.current;
+    mount?.add(mesh);
+
+    return () => {
+      mount?.remove(mesh);
+      geo.dispose();
+      mat.dispose();
+      materialRef.current = null;
+    };
+    // Tint updates live via uniform without rebuilding the quad
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getThree, config, texture]);
+
+  useEffect(() => {
+    const mat = materialRef.current;
+    if (!mat) return;
+    const [r, g, b] = parseTintRgb(tint);
+    mat.uniforms.uTint.value.set(r, g, b);
+  }, [tint]);
+
+  useEffect(() => {
+    const { gl } = getThree();
     const canvas = gl.domElement;
-    const onDown = (event: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const u = (event.clientX - rect.left) / rect.width;
-      const v = (event.clientY - rect.top) / rect.height;
-      let best = -1;
-      let bestDistance = 1;
-      rig.bodies.forEach((b, i) => {
-        const d = Math.hypot((u - b.center[0]) / b.radius[0], (v - b.center[1]) / b.radius[1]);
-        if (d < bestDistance) {
-          bestDistance = d;
-          best = i;
-        }
-      });
-      if (best >= 0) anim.current[best].tapped = true;
+    const onDown = () => {
+      anim.current.tapAt = clockNow.current;
     };
     canvas.addEventListener("pointerdown", onDown);
-    return () => {
-      canvas.removeEventListener("pointerdown", onDown);
-      material.dispose();
-      geometry.dispose();
-    };
-  }, [gl, rig, material, geometry]);
+    return () => canvas.removeEventListener("pointerdown", onDown);
+  }, [getThree]);
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
-    const u = material.uniforms;
-    let rect: DOMRect | null = null;
+    clockNow.current = t;
+    const group = groupRef.current;
+    if (!group) return;
 
-    rig.bodies.forEach((b, i) => {
-      const s = anim.current[i];
-      if (s.tapped) {
-        s.tapped = false;
-        s.tapAt = t;
-      }
-      const tap = t - s.tapAt;
-      const squash = tap < 0.9 ? -0.09 * Math.exp(-5.5 * tap) * Math.cos(15 * tap) : 0;
-      const breathPeriod = b.slow ? 5.2 : 3.4;
-      const breath = 0.012 * Math.sin((t + i * 1.3) * ((2 * Math.PI) / breathPeriod));
-      let lift = b.float ? Math.sin(t * 0.9) * 0.012 : 0;
-      if (b.hop) {
-        if (s.hopAt < 0 && t > s.nextHop) s.hopAt = t;
-        if (s.hopAt >= 0) {
-          const h = t - s.hopAt;
-          if (h < 0.45) lift = Math.sin((h / 0.45) * Math.PI) * 0.035;
-          else {
-            s.hopAt = -1;
-            s.nextHop = t + 8 + ((i * 3.1) % 4);
-            s.tapAt = t;
-          }
-        }
-      }
-      const stretch = breath + squash;
-      const tilt = b.float ? Math.sin(t * 0.7) * 0.025 : 0;
-      u.uBodyB.value[i].set(b.radius[0] * a, b.radius[1], tilt, lift);
-      if (b.rigid) u.uBodyC.value[i].set(1 + stretch * 0.5, 1 + stretch * 0.5, 0, 0);
-      else u.uBodyC.value[i].set(1 - stretch * 0.6, 1 + stretch, 0, 0);
+    const s = anim.current;
+    const tap = t - s.tapAt;
+    const period = config.slow ? 5.0 : 3.4;
+    const breath = 0.012 * Math.sin(t * ((Math.PI * 2) / period));
+    const tapBounce =
+      tap >= 0 && tap < 0.72 ? -0.055 * Math.exp(-5.8 * tap) * Math.cos(16 * tap) : 0;
+    const reactionPulse = reaction === "giggle" || reaction === "tickle" ? Math.sin(t * 10) * 0.014 : 0;
 
-      // blink: quick squash; double blink now and then; squint after a tap
-      if (s.blinkAt < 0 && t > s.nextBlink) s.blinkAt = t;
-      let lid = 1;
-      if (s.blinkAt >= 0) {
-        const k = t - s.blinkAt;
-        if (k < 0.13) lid = 0.12;
-        else if (k < 0.2) lid = 1;
-        else if (k < 0.31 && i % 2 === 1) lid = 0.12;
+    // Subtle uniform breathing & pet bounce — zero uneven pixel stretching
+    const scaleY = 1 + breath + tapBounce + reactionPulse;
+    const scaleX = 1 - (breath + tapBounce) * 0.35;
+    group.scale.set(scaleX, scaleY, 1);
+
+    let lift = config.float ? Math.sin(t * 1.15) * 0.045 : 0;
+    if (config.hop) {
+      if (s.hopAt < 0 && t > s.nextHop) s.hopAt = t;
+      if (s.hopAt >= 0) {
+        const h = t - s.hopAt;
+        if (h < 0.42) lift += Math.sin((h / 0.42) * Math.PI) * 0.055;
         else {
-          s.blinkAt = -1;
-          s.nextBlink = t + 2.4 + ((i * 7.3 + t) % 2.6);
+          s.hopAt = -1;
+          s.nextHop = t + 8.5;
+          s.tapAt = t;
         }
       }
-      if (tap < 0.55) lid = Math.min(lid, 0.45);
+    }
+    if (tap >= 0 && tap < 0.34) {
+      lift += Math.sin((tap / 0.34) * Math.PI) * 0.038;
+    }
+    group.position.y = lift;
 
-      // eyes look toward the pointer, relative to this Nog on screen
-      let tx = 0;
-      let ty = 0;
-      if (Number.isFinite(pointer.x)) {
-        rect ??= gl.domElement.getBoundingClientRect();
-        const cx = rect.left + b.center[0] * rect.width;
-        const cy = rect.top + b.center[1] * rect.height;
-        tx = Math.max(-1, Math.min(1, (pointer.x - cx) / (window.innerWidth / 2))) * 0.012;
-        ty = Math.max(-1, Math.min(1, (pointer.y - cy) / (window.innerHeight / 2))) * 0.009;
-      }
-      s.look[0] += (tx - s.look[0]) * 0.08;
-      s.look[1] += (ty - s.look[1]) * 0.08;
-      rig.eyes.forEach((e, j) => {
-        if (e.body === i) u.uEyeB.value[j].set(s.look[0], s.look[1], lid, i);
-      });
-    });
+    // Gentle 3D perspective follow toward pointer (rigid card tilt — zero face distortion)
+    let tx = 0;
+    let ty = 0;
+    if (Number.isFinite(pointer.x) && !config.slow) {
+      const { gl } = getThree();
+      const rect = gl.domElement.getBoundingClientRect();
+      const cx = rect.left + rect.width * 0.5;
+      const cy = rect.top + rect.height * 0.5;
+      tx = Math.max(-1, Math.min(1, (pointer.x - cx) / Math.max(240, window.innerWidth * 0.45)));
+      ty = Math.max(-1, Math.min(1, (pointer.y - cy) / Math.max(240, window.innerHeight * 0.45)));
+    }
+    s.tiltX += (tx - s.tiltX) * 0.08;
+    s.tiltY += (ty - s.tiltY) * 0.08;
 
-    rig.leaves.forEach((l, j) => {
-      const tap = t - anim.current[l.body].tapAt;
-      const wiggle = tap < 0.8 ? Math.sin(tap * 26) * 0.12 * (1 - tap / 0.8) : 0;
-      u.uLeafB.value[j].set(l.radius[0] * a, l.radius[1], Math.sin(t * 1.1 + j) * l.amp + wiggle, l.body);
-    });
-
-    rig.arms.forEach((l, j) => {
-      let angle: number;
-      if (l.idle) angle = Math.sin(t * (l.speed ?? 2) + j) * l.amp;
-      else {
-        // wave twice, then rest a few seconds
-        const cycle = (t + j * 1.7) % 6;
-        angle = cycle < 2.4 ? Math.sin((cycle / 1.2) * Math.PI * 2) * l.amp : 0;
-      }
-      u.uArmB.value[j].set(l.radius[0] * a, l.radius[1], angle, l.body);
-    });
+    group.rotation.y = s.tiltX * 0.14;
+    group.rotation.x = s.tiltY * 0.07;
+    group.rotation.z = config.float ? Math.sin(t * 0.85) * 0.028 : -s.tiltX * 0.015;
 
     if (!ready.current) {
       ready.current = true;
@@ -442,53 +242,419 @@ function RiggedNog({
     }
   });
 
-  return <mesh geometry={geometry} material={material} frustumCulled={false} />;
+  return <group ref={groupRef} />;
+}
+
+function GlbStudioScene({
+  entry,
+  asset,
+  equippedAccessories,
+  reaction = "idle",
+  mood = null,
+  speaking = false,
+  roomTheme = "day",
+  interactiveOrbit = false,
+  onReady,
+}: {
+  entry: GlbAssetEntry;
+  asset: LoadedGlbAsset;
+  equippedAccessories?: readonly (string | null)[];
+  reaction?: NogReaction;
+  mood?: string | null;
+  speaking?: boolean;
+  roomTheme?: NogRoomTheme;
+  interactiveOrbit?: boolean;
+  onReady: () => void;
+}) {
+  const getThree = useThree((s) => s.get);
+  const worldRef = useRef<Group | null>(null);
+  const modelWrapRef = useRef<Group | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const mixerRef = useRef<AnimationMixer | null>(null);
+  const lightsRef = useRef<{
+    key: DirectionalLight;
+    fill: DirectionalLight;
+    rim: DirectionalLight;
+    hemi: HemisphereLight;
+  } | null>(null);
+  const tapAtRef = useRef(-10);
+  const clockNowRef = useRef(0);
+  const lookRef = useRef({ x: 0, y: 0 });
+  const exprRef = useRef({ reaction, mood, speaking, tiltZ: 0, nodX: 0 });
+  const ready = useRef(false);
+
+  useEffect(() => {
+    exprRef.current.reaction = reaction;
+    exprRef.current.mood = mood;
+    exprRef.current.speaking = speaking;
+  }, [reaction, mood, speaking]);
+
+  // Studio softbox reflections + 3-point rig + soft floor contact shadow
+  useEffect(() => {
+    const { gl, scene: threeScene, camera } = getThree();
+    const env = createStudioEnvironment(gl);
+    threeScene.environment = env.texture;
+
+    const key = new DirectionalLight(0xffffff, 1.9);
+    key.position.set(-2.6, 4.2, 3.8);
+    const fill = new DirectionalLight(0xe6f0ff, 0.45);
+    fill.position.set(3.2, 1.8, 2.4);
+    const rim = new DirectionalLight(0xfff2dc, 0.58);
+    rim.position.set(0.6, 2.8, -3.4);
+    const hemi = new HemisphereLight(0xf8fbff, 0xc8baaa, 0.92);
+    lightsRef.current = { key, fill, rim, hemi };
+
+    const h = entry.targetHeight ?? 1.25;
+    const shadowTex = createContactShadowTexture();
+    const shadowGeo = new PlaneGeometry(h * 1.28, h * 1.15);
+    const shadowMat = new MeshBasicMaterial({
+      map: shadowTex,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.78,
+    });
+    const shadowMesh = new Mesh(shadowGeo, shadowMat);
+    shadowMesh.rotation.x = -Math.PI / 2;
+    shadowMesh.position.y = (entry.yOffset ?? 0) + 0.004;
+
+    const targetY = entry.cameraTargetY ?? (entry.yOffset ?? 0) + (entry.targetHeight ?? 1.25) * 0.52;
+    const dist = entry.cameraDistance ?? 3.1;
+    camera.position.set(0, targetY + 0.14, dist);
+    if ("fov" in camera && typeof camera.fov === "number") {
+      camera.fov = 33;
+      camera.updateProjectionMatrix();
+    }
+    camera.lookAt(0, targetY, 0);
+
+    const mount = worldRef.current;
+    const modelWrap = new Group();
+    modelWrap.add(asset.root);
+    modelWrapRef.current = modelWrap;
+    mount?.add(key, fill, rim, hemi, shadowMesh, modelWrap);
+
+    if (asset.animations.length > 0) {
+      const mixer = new AnimationMixer(asset.root);
+      mixer.clipAction(asset.animations[0]).play();
+      mixerRef.current = mixer;
+    }
+
+    return () => {
+      mixerRef.current?.stopAllAction();
+      mixerRef.current = null;
+      mount?.remove(key, fill, rim, hemi, shadowMesh, modelWrap);
+      modelWrap.remove(asset.root);
+      modelWrapRef.current = null;
+      lightsRef.current = null;
+      shadowGeo.dispose();
+      shadowMat.dispose();
+      shadowTex.dispose();
+      threeScene.environment = null;
+      env.dispose();
+    };
+  }, [getThree, asset, entry.targetHeight, entry.cameraTargetY, entry.cameraDistance, entry.yOffset]);
+
+  // Room-matched lighting preset updates
+  useEffect(() => {
+    const lights = lightsRef.current;
+    if (!lights) return;
+    const { scene: threeScene } = getThree();
+    const preset = ROOM_LIGHT_PRESETS[roomTheme] ?? ROOM_LIGHT_PRESETS.day;
+    lights.key.color.set(preset.keyColor);
+    lights.key.intensity = preset.keyIntensity;
+    lights.fill.color.set(preset.fillColor);
+    lights.fill.intensity = preset.fillIntensity;
+    lights.rim.color.set(preset.rimColor);
+    lights.rim.intensity = preset.rimIntensity;
+    lights.hemi.color.set(preset.hemiSky);
+    lights.hemi.groundColor.set(preset.hemiGround);
+    lights.hemi.intensity = preset.hemiIntensity;
+    threeScene.environmentIntensity = preset.envIntensity;
+  }, [getThree, roomTheme]);
+
+  // Optional 360° damped turntable drag on Customize
+  useEffect(() => {
+    if (!interactiveOrbit) {
+      controlsRef.current?.dispose();
+      controlsRef.current = null;
+      return;
+    }
+    const { gl, camera } = getThree();
+    const controls = new OrbitControls(camera, gl.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.enablePan = false;
+    controls.enableZoom = false;
+    controls.rotateSpeed = 0.8;
+    controls.minPolarAngle = Math.PI * 0.34;
+    controls.maxPolarAngle = Math.PI * 0.56;
+    const targetY = entry.cameraTargetY ?? (entry.yOffset ?? 0) + (entry.targetHeight ?? 1.25) * 0.52;
+    controls.target.set(0, targetY, 0);
+    controls.update();
+    controlsRef.current = controls;
+    return () => {
+      controls.dispose();
+      controlsRef.current = null;
+    };
+  }, [getThree, interactiveOrbit, entry.targetHeight, entry.cameraTargetY, entry.yOffset]);
+
+  // Mount registered accessory GLBs onto the model's top/eye anchor heights
+  const accSig = (equippedAccessories ?? []).map((x) => x ?? "").join("|");
+  useEffect(() => {
+    const wrap = modelWrapRef.current;
+    if (!wrap) return;
+    let alive = true;
+    const mounted: LoadedGlbAsset[] = [];
+    const accGroup = new Group();
+    wrap.add(accGroup);
+
+    const activeIds = (equippedAccessories ?? []).filter(
+      (id): id is "glasses" | "beanie" | "bow" | "gradcap" =>
+        id === "glasses" || id === "beanie" || id === "bow" || id === "gradcap",
+    );
+
+    void Promise.all(
+      activeIds.map(async (id) => {
+        const spec = ACCESSORY_GLB_MODELS[id];
+        if (!spec) return;
+        const loaded = await loadNormalizedGlb(spec);
+        if (!loaded) return;
+        if (!alive) {
+          loaded.dispose();
+          return;
+        }
+        const h = entry.targetHeight ?? 1.25;
+        const baseY = entry.yOffset ?? 0;
+        const override = entry.accessoryAnchors?.[id];
+        const anchor = override?.anchor ?? spec.anchor;
+        const rotation = override?.rotation ?? spec.rotation;
+        const scaleMult = override?.scaleMultiplier ?? 1;
+        if (anchor) {
+          loaded.root.scale.setScalar(h * scaleMult);
+          loaded.root.position.set(
+            anchor[0] * h,
+            baseY + anchor[1] * h,
+            anchor[2] * h,
+          );
+        } else if (id === "glasses") {
+          loaded.root.position.set(0, baseY + h * 0.48, 0.38);
+        } else if (id === "bow") {
+          loaded.root.position.set(0.24, baseY + h * 0.84, 0.14);
+        } else {
+          loaded.root.position.set(0, baseY + h * 0.86, 0);
+        }
+        if (rotation) {
+          loaded.root.rotation.set(rotation[0], rotation[1], rotation[2]);
+        }
+        accGroup.add(loaded.root);
+        mounted.push(loaded);
+      }),
+    );
+
+    return () => {
+      alive = false;
+      wrap.remove(accGroup);
+      mounted.forEach((m) => m.dispose());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accSig, asset, entry.targetHeight]);
+
+  // Tap-to-bounce without interfering with turntable drags
+  useEffect(() => {
+    const { gl } = getThree();
+    const dom = gl.domElement;
+    let downX = 0;
+    let downY = 0;
+    const onDown = (e: PointerEvent) => {
+      downX = e.clientX;
+      downY = e.clientY;
+    };
+    const onUp = (e: PointerEvent) => {
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) <= 8) {
+        tapAtRef.current = clockNowRef.current;
+      }
+    };
+    dom.addEventListener("pointerdown", onDown);
+    dom.addEventListener("pointerup", onUp);
+    return () => {
+      dom.removeEventListener("pointerdown", onDown);
+      dom.removeEventListener("pointerup", onUp);
+    };
+  }, [getThree]);
+
+  useFrame(({ clock }, delta) => {
+    const t = clock.elapsedTime;
+    clockNowRef.current = t;
+    mixerRef.current?.update(Math.min(delta, 0.05));
+    controlsRef.current?.update();
+
+    const wrap = modelWrapRef.current;
+    if (wrap) {
+      const expr = exprRef.current;
+      const tap = t - tapAtRef.current;
+      const isSleepy = expr.mood === "sleepy";
+      const isUpbeat =
+        expr.mood === "excited" ||
+        expr.mood === "proud" ||
+        expr.reaction === "giggle" ||
+        expr.reaction === "tickle";
+      const isQuizzical = expr.mood === "confused" || expr.mood === "curious";
+      const isStartled = expr.mood === "shocked" || expr.reaction === "annoyed";
+
+      const breath = (isSleepy ? 0.022 : 0.015) * Math.sin(t * (isSleepy ? 1.05 : 1.9));
+      const speakPulse = expr.speaking
+        ? 0.032 * Math.abs(Math.sin(t * 10.5)) + 0.012 * Math.sin(t * 17)
+        : 0;
+      const upbeatBounce = isUpbeat ? 0.024 * Math.abs(Math.sin(t * 5.2)) : 0;
+      const squish = tap >= 0 && tap < 0.8 ? -0.09 * Math.exp(-5.4 * tap) * Math.cos(16 * tap) : 0;
+      const sy = 1 + breath + speakPulse + upbeatBounce + squish;
+      const sxz = 1 / Math.sqrt(Math.max(0.75, sy));
+      wrap.scale.set(sxz, sy, sxz);
+
+      let lift = tap >= 0 && tap < 0.34 ? Math.sin((tap / 0.34) * Math.PI) * 0.06 : 0;
+      if (isUpbeat) lift += Math.abs(Math.sin(t * 5.2)) * 0.032;
+      if (expr.speaking) lift += Math.abs(Math.sin(t * 10.5)) * 0.012;
+      wrap.position.y = lift;
+
+      const targetTiltZ = isQuizzical
+        ? 0.13
+        : isUpbeat
+          ? Math.sin(t * 5.2) * 0.055
+          : isStartled
+            ? Math.sin(t * 22) * 0.045
+            : expr.speaking
+              ? Math.sin(t * 6.5) * 0.028
+              : 0;
+      const targetNodX = isSleepy
+        ? 0.075
+        : expr.speaking
+          ? Math.sin(t * 10.5) * 0.035
+          : 0;
+      expr.tiltZ += (targetTiltZ - expr.tiltZ) * 0.1;
+      expr.nodX += (targetNodX - expr.nodX) * 0.12;
+      wrap.rotation.z = expr.tiltZ;
+
+      if (!interactiveOrbit && Number.isFinite(pointer.x)) {
+        const { gl } = getThree();
+        const rect = gl.domElement.getBoundingClientRect();
+        const cx = rect.left + rect.width * 0.5;
+        const cy = rect.top + rect.height * 0.5;
+        const tx = Math.max(-1, Math.min(1, (pointer.x - cx) / Math.max(220, window.innerWidth * 0.42)));
+        const ty = Math.max(-1, Math.min(1, (pointer.y - cy) / Math.max(220, window.innerHeight * 0.42)));
+        lookRef.current.x += (tx - lookRef.current.x) * 0.08;
+        lookRef.current.y += (ty - lookRef.current.y) * 0.08;
+        wrap.rotation.y = lookRef.current.x * 0.22 + Math.sin(t * 0.8) * 0.025;
+        wrap.rotation.x = lookRef.current.y * 0.07 + expr.nodX;
+      } else if (!interactiveOrbit) {
+        wrap.rotation.x = expr.nodX;
+      }
+    }
+
+    if (!ready.current) {
+      ready.current = true;
+      requestAnimationFrame(onReady);
+    }
+  });
+
+  return <group ref={worldRef} />;
 }
 
 export interface NogRigCanvasProps {
   scene: NogSceneName;
   active: boolean;
+  stage?: NogStageSlug;
   tint?: string | null;
+  equippedAccessories?: readonly (string | null)[];
+  reaction?: NogReaction;
+  mood?: string | null;
+  speaking?: boolean;
+  roomTheme?: NogRoomTheme;
+  interactiveOrbit?: boolean;
   onReady: () => void;
   onFail: () => void;
   className?: string;
 }
 
-export default function NogRigCanvas({ scene, active, tint, onReady, onFail, className }: NogRigCanvasProps) {
-  const rig = RIGS[scene];
+export default function NogRigCanvas({
+  scene,
+  active,
+  stage,
+  tint,
+  equippedAccessories,
+  reaction,
+  mood,
+  speaking,
+  roomTheme,
+  interactiveOrbit,
+  onReady,
+  onFail,
+  className,
+}: NogRigCanvasProps) {
+  const config = SCENE_POSTERS[scene];
+  const glbEntry = resolveSceneGlb(scene, stage);
+  const [glbAsset, setGlbAsset] = useState<LoadedGlbAsset | null>(null);
   const [texture, setTexture] = useState<Texture | null>(null);
+  const tintUniformRef = useRef({ value: new Vector3(1, 1, 1) });
 
   useEffect(() => {
+    const [r, g, b] = parseTintRgb(tint);
+    tintUniformRef.current.value.set(r, g, b);
+  }, [tint]);
+
+  // Load registered GLB model when present; otherwise load the crisp reference studio texture
+  useEffect(() => {
     let alive = true;
-    let loaded: Texture | null = null;
-    new TextureLoader()
-      .loadAsync(rig.poster)
-      .then((map) => {
-        loaded = map;
-        map.anisotropy = 4;
-        // premultiplied upload avoids dark fringes when the edges are filtered
-        map.premultiplyAlpha = true;
-        map.needsUpdate = true;
-        if (alive) setTexture(map);
-        else map.dispose();
-      })
-      .catch(() => alive && onFail());
+    let loadedGlb: LoadedGlbAsset | null = null;
+    let loadedTex: Texture | null = null;
+
+    const loadFallbackTexture = () =>
+      new TextureLoader()
+        .loadAsync(config.poster)
+        .then((map) => {
+          loadedTex = map;
+          map.anisotropy = 4;
+          map.premultiplyAlpha = true;
+          map.needsUpdate = true;
+          if (alive) setTexture(map);
+          else map.dispose();
+        })
+        .catch(() => alive && onFail());
+
+    if (glbEntry) {
+      void loadNormalizedGlb(glbEntry, tintUniformRef.current).then((asset) => {
+        if (!alive) {
+          asset?.dispose();
+          return;
+        }
+        if (asset) {
+          loadedGlb = asset;
+          setGlbAsset(asset);
+        } else {
+          void loadFallbackTexture();
+        }
+      });
+    } else {
+      void loadFallbackTexture();
+    }
+
     const move = (e: PointerEvent) => {
       pointer.x = e.clientX;
       pointer.y = e.clientY;
     };
     window.addEventListener("pointermove", move, { passive: true });
     window.addEventListener("pointerdown", move, { passive: true });
+
     return () => {
       alive = false;
-      loaded?.dispose();
+      loadedGlb?.dispose();
+      loadedTex?.dispose();
+      setGlbAsset(null);
+      setTexture(null);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerdown", move);
     };
-  }, [rig, onFail]);
+  }, [config, glbEntry, onFail]);
 
-  // The poster stays on screen until the image has loaded and the first frame is drawn.
-  if (!texture) return null;
+  if (!glbAsset && !texture) return null;
 
   return (
     <Canvas
@@ -498,17 +664,48 @@ export default function NogRigCanvas({ scene, active, tint, onReady, onFail, cla
         inset: 0,
         width: "100%",
         height: "100%",
-        cursor: "pointer",
+        cursor: glbAsset && interactiveOrbit ? "grab" : "pointer",
       }}
       dpr={[1, 2]}
       frameloop={active ? "always" : "never"}
-      gl={{ alpha: true, antialias: true, premultipliedAlpha: true, powerPreference: "low-power" }}
+      gl={{
+        alpha: true,
+        antialias: true,
+        premultipliedAlpha: true,
+        powerPreference: glbAsset ? "high-performance" : "low-power",
+        toneMapping: glbAsset ? ACESFilmicToneMapping : undefined,
+        toneMappingExposure: 1.0,
+      }}
       onCreated={({ gl }) => {
+        if (glbAsset) {
+          gl.outputColorSpace = SRGBColorSpace;
+          gl.setClearColor(new Color(0x000000), 0);
+        }
         gl.domElement.setAttribute("aria-hidden", "true");
         gl.domElement.addEventListener("webglcontextlost", onFail, { once: true });
       }}
     >
-      <RiggedNog rig={rig} texture={texture} tint={tint} onReady={onReady} />
+      {glbAsset && glbEntry ? (
+        <GlbStudioScene
+          entry={glbEntry}
+          asset={glbAsset}
+          equippedAccessories={equippedAccessories}
+          reaction={reaction}
+          mood={mood}
+          speaking={speaking}
+          roomTheme={roomTheme}
+          interactiveOrbit={interactiveOrbit}
+          onReady={onReady}
+        />
+      ) : texture ? (
+        <RigidStudioCard
+          config={config}
+          texture={texture}
+          tint={tint}
+          reaction={reaction}
+          onReady={onReady}
+        />
+      ) : null}
     </Canvas>
   );
 }

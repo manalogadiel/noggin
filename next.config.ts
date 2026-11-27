@@ -1,4 +1,8 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+
+const workspaceRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   // Playwright opens the dev server on 127.0.0.1; dev-only, ignored by production builds.
@@ -10,6 +14,7 @@ const nextConfig: NextConfig = {
     },
   },
   turbopack: {
+    root: workspaceRoot,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

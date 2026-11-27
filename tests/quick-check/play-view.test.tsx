@@ -16,9 +16,19 @@ import { runQuickCheck, type RunQuickCheckInput } from "@/core/application/use-c
 import { card, dns, nog, originalPage, savedResult, tls } from "../feed-lesson/fixtures";
 import { correctedAnswer, correctedLesson, firstQuestion, improvedCheck, initialCheck, secondQuestion, tcp, type CheckResponse } from "./fixtures";
 
-const { runQuickCheckAction, reviseLessonAction, getNogRoom, getTopicNotebook, listTopics } = vi.hoisted(() => ({
+const {
+  runQuickCheckAction,
+  reviseLessonAction,
+  teachLessonAction,
+  addTopicAction,
+  getNogRoom,
+  getTopicNotebook,
+  listTopics,
+} = vi.hoisted(() => ({
   runQuickCheckAction: vi.fn<(input: RunQuickCheckInput) => Promise<CheckResponse>>(),
   reviseLessonAction: vi.fn<(input: ReviseLessonInput) => Promise<ReviseLessonResult>>(),
+  teachLessonAction: vi.fn(),
+  addTopicAction: vi.fn(),
   getNogRoom: vi.fn<(input: { nogId: string }) => Promise<GetNogRoomResult>>(),
   getTopicNotebook: vi.fn<(input: { nogId: string; topicId: string }) => Promise<GetTopicNotebookResult>>(),
   listTopics: vi.fn<(input: { nogId: string }) => Promise<ListTopicsResult>>(),
@@ -27,10 +37,10 @@ const { runQuickCheckAction, reviseLessonAction, getNogRoom, getTopicNotebook, l
 vi.mock("@/app/(app)/actions/check-actions", () => ({ runQuickCheckAction }));
 vi.mock("@/app/(app)/actions/lesson-actions", () => ({
   reviseLessonAction,
-  teachLessonAction: vi.fn(),
+  teachLessonAction,
   answerFollowUpAction: vi.fn(),
 }));
-vi.mock("@/app/(app)/actions/topic-actions", () => ({ addTopicAction: vi.fn() }));
+vi.mock("@/app/(app)/actions/topic-actions", () => ({ addTopicAction }));
 vi.mock("@/composition/container", () => ({
   createContainer: async () => ({ getNogRoom, getTopicNotebook, listTopics }),
 }));
@@ -380,5 +390,67 @@ describe("Quick Check in Play", () => {
     expect(screen.getByText(correctedAnswer)).toBeVisible();
     expect(screen.queryByRole("link", { name: "Fix in Bath" })).not.toBeInTheDocument();
     expect(runQuickCheckAction.mock.calls).toEqual([[checkInput], [checkInput]]);
+  });
+
+  it("wires question count stepper, format chips, topic generation, and study file upload in setup", async () => {
+    const user = userEvent.setup();
+    teachLessonAction.mockResolvedValueOnce(savedResult(originalPage));
+    addTopicAction.mockResolvedValueOnce({
+      status: "ok",
+      topic: {
+        id: "topic-http",
+        subjectId: tcp.subjectId,
+        slug: "http-caching",
+        title: "HTTP Caching",
+        status: "ready",
+        questionCount: 6,
+      },
+    });
+    await renderPlay();
+
+    // Adjust question count from default 5 to 7 and narrow formats
+    await user.click(screen.getByRole("button", { name: "More questions" }));
+    await user.click(screen.getByRole("button", { name: "More questions" }));
+    expect(screen.getByText("7 Qs")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /list/i }));
+    await user.click(screen.getByRole("button", { name: /short/i }));
+    // Cannot disable the final remaining format chip
+    await user.click(screen.getByRole("button", { name: /choices/i }));
+    expect(screen.getByRole("button", { name: /choices/i })).toHaveAttribute("aria-pressed", "true");
+
+    // Upload a study text file into the selected topic
+    await user.click(screen.getByRole("button", { name: /add by file/i }));
+    const fileInput = screen.getByLabelText(/upload study notes file/i);
+    const notesFile = new File(["TCP establishes a connection with SYN, SYN-ACK, and ACK."], "tcp-notes.txt", {
+      type: "text/plain",
+    });
+    await user.upload(fileInput, notesFile);
+    expect(await screen.findByText(/tcp-notes\.txt/i)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: new RegExp(`teach file to ${nog.name}`, "i") }));
+    expect(await screen.findByText(/taught 1 study note/i)).toBeVisible();
+    expect(teachLessonAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nogId: nog.id,
+        topicId: tcp.id,
+        body: "TCP establishes a connection with SYN, SYN-ACK, and ACK.",
+      }),
+    );
+
+    // Generate a new topic via the inline Generate with AI drawer
+    await user.click(screen.getByRole("button", { name: /generate with ai/i }));
+    await user.type(screen.getByLabelText(/new quiz topic title/i), "HTTP Caching");
+    await user.click(screen.getByRole("button", { name: /^generate$/i }));
+    expect(await screen.findByText(/ready! "http caching" has 6 questions/i)).toBeVisible();
+    expect(addTopicAction).toHaveBeenCalledWith(nog.id, "HTTP Caching");
+
+    // Starting the quiz sends the chosen question count & format list
+    await user.click(startButton());
+    expect(runQuickCheckAction).toHaveBeenCalledWith({
+      nogId: nog.id,
+      topicId: "topic-http",
+      questionCount: 7,
+      formats: ["mc"],
+    });
   });
 });

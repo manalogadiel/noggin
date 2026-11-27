@@ -305,4 +305,35 @@ describe("runQuickCheck 5-question selection and per-selection reuse", () => {
     expect(second.meterAfter).toBe(8);
     expect(second.stage).toBe("sprout");
   });
+
+  it("honors a custom questionCount and clamps out-of-range values safely", async () => {
+    const page = makePage(
+      "page-1",
+      "concept-1 concept-2 concept-3 concept-4 concept-5 concept-6 concept-7 concept-8",
+    );
+    const { deps } = createInMemoryPorts({
+      userId,
+      nogs: [nog],
+      pages: [page],
+      questions: eightQuestions,
+    });
+
+    const three = await runQuickCheck(deps, {
+      nogId,
+      topicId,
+      questionCount: 3,
+    });
+    expect(three.status).toBe("ok");
+    if (three.status !== "ok") throw new Error("Expected 3-question check to succeed");
+    expect(three.attempts).toHaveLength(3);
+
+    const all = await runQuickCheck(deps, {
+      nogId,
+      topicId,
+      questionCount: 8,
+    });
+    expect(all.status).toBe("ok");
+    if (all.status !== "ok") throw new Error("Expected 8-question check to succeed");
+    expect(all.attempts).toHaveLength(8);
+  });
 });

@@ -25,6 +25,8 @@ import {
   useGameUi,
 } from "@/components/game-ui/game-ui-context";
 import { NogAvatar } from "@/components/nog/nog-avatar";
+import { hasAccessoryGlb, resolveSceneGlb } from "@/components/nog-3d/model-manifest";
+import { NogStage } from "@/components/nog-3d/nog-stage";
 import { usePetting } from "@/components/nog/use-petting";
 import { InRoomLiveVoice } from "@/components/room/inroom-live-voice";
 import {
@@ -199,8 +201,9 @@ export function NogRoomView({
   const [questionsPendingNotice, setQuestionsPendingNotice] = useState<string | null>(null);
   const [pendingRetryBody, setPendingRetryBody] = useState<string | null>(null);
 
-  // In-room Live Voice caption state
+  // In-room Live Voice caption + speaking animation state
   const [liveCaption, setLiveCaption] = useState<string | null>(null);
+  const [nogSpeaking, setNogSpeaking] = useState(false);
 
   // In-room Water state
   const [dueQueue, setDueQueue] = useState<ThoughtCardRecord[]>(() => [
@@ -1183,7 +1186,10 @@ export function NogRoomView({
                             messageId={lastReplyMessageId}
                             fallbackText={bubbleText}
                             voiceEnabled={initialSettings.voiceEnabled}
+                            voice={state.audio.ttsVoice}
+                            autoPlay={state.audio.autoSpeakReplies}
                             volume={(state.audio.voice ?? 90) / 100}
+                            onSpeakingChange={setNogSpeaking}
                           />
                         )}
                       </span>
@@ -1197,21 +1203,37 @@ export function NogRoomView({
 
                   {restingDate ? (
                     <div className="sanctuary-pet-btn" aria-label={`${nog.name} is resting`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/game/nog/sleeping-books.png" alt={`${nog.name} sleeping peacefully`} className="nog-bob" />
+                      <NogStage
+                        scene="sleeping"
+                        tint={nog.colors?.body ?? null}
+                        alt={`${nog.name} sleeping peacefully`}
+                        poster="/nog/sleeping-books.png"
+                        width={908}
+                        height={721}
+                        sizes="400px"
+                        className="nog-bob w-full"
+                      />
                       <span className="nog-ground-shadow" aria-hidden="true" />
                     </div>
                   ) : (
                     <NogAvatar
                       variant="sanctuary"
                       name={nog.name}
+                      stage={nog.stage}
                       reaction={isOverloaded ? "annoyed" : reaction}
                       message={null}
                       tapCount={tapCount}
                       onTap={pet}
                       tint={nog.colors?.body ?? null}
+                      equippedAccessories={equippedIds}
+                      mood={activeMood}
+                      speaking={nogSpeaking}
+                      roomTheme={activeRoom.id}
                     >
                       {equippedIds.map((accId) => {
+                        if (resolveSceneGlb("room", nog.stage) && hasAccessoryGlb(accId)) {
+                          return null;
+                        }
                         const img = WORN_ACC_IMG[accId];
                         if (!img) return null;
                         return (
@@ -1387,13 +1409,16 @@ export function NogRoomView({
                 topicTitle={bookTitle}
                 chatMode={chatMode}
                 voiceEnabled={initialSettings.voiceEnabled}
+                voiceName={state.audio.ttsVoice}
                 voiceVolume={(state.audio.voice ?? 90) / 100}
                 sending={feedSending}
                 onChangeMode={handleChatModeChange}
                 onSubmitTranscript={(text) => sendLessonText(text)}
                 onCaptionChange={setLiveCaption}
+                onSpeakingChange={setNogSpeaking}
                 onExitToFeed={(feedbackMessage) => {
                   setLiveCaption(null);
+                  setNogSpeaking(false);
                   if (feedbackMessage) {
                     setNogTeachReply(feedbackMessage);
                   }

@@ -274,12 +274,14 @@ export function NogCustomizeStage({
               >
                 <NogStage
                   scene="room"
+                  stage={stage}
                   alt={previewAlt}
                   poster="/nog/blob-closeup.png"
                   width={1254}
                   height={1254}
                   sizes="(min-width: 1024px) 360px, 300px"
                   tint={selectedColor}
+                  equippedAccessories={equippedSlots}
                   priority
                   className={cn(
                     "cust-nog-img",

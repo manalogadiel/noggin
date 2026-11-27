@@ -255,6 +255,7 @@ describe("POST /api/voice/speak", () => {
     ["both IDs", { messageId, attemptId }],
     ["no ID", {}],
     ["an invalid ID", { messageId: "not-an-id" }],
+    ["an unsupported voice", { messageId, voice: "UnknownVoice" }],
   ])("returns 400 for %s before looking up text or calling the provider", async (_name, body) => {
     expect((await post("speak", speakRequest(body))).status).toBe(400);
     expect(notebook.findOwnedMessage).not.toHaveBeenCalled();
@@ -329,5 +330,28 @@ describe("POST /api/voice/speak", () => {
     await expect(response.json()).resolves.toEqual({ state: "unavailable" });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(voiceCache.put).not.toHaveBeenCalled();
+  });
+
+  it("forwards a validated companion voice override and isolates its cache key from default audio", async () => {
+    fetchMock.mockResolvedValueOnce(geminiReply()).mockResolvedValueOnce(geminiReply());
+
+    const defaultRes = await post("speak", speakRequest({ messageId }));
+    const ledaRes = await post("speak", speakRequest({ messageId, voice: "Leda" }));
+    const ledaRepeat = await post("speak", speakRequest({ messageId, voice: "Leda" }));
+
+    expect(defaultRes.status).toBe(200);
+    expect(ledaRes.status).toBe(200);
+    expect(ledaRepeat.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await expect(providerRequest(0).json()).resolves.toMatchObject({
+      generationConfig: {
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } },
+      },
+    });
+    await expect(providerRequest(1).json()).resolves.toMatchObject({
+      generationConfig: {
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Leda" } } },
+      },
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createContainer } from "@/composition/container";
+import { COMPANION_VOICES } from "@/core/application/ports";
 import type { SpeakAnswerInput } from "@/core/application/use-cases/speak-answer";
 
 export const dynamic = "force-dynamic";
@@ -9,15 +10,19 @@ const MAX_JSON_BODY_BYTES = 4 * 1024;
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const voiceSchema = z.enum(COMPANION_VOICES).optional();
+
 const speakRequestSchema = z.union([
   z
     .object({
       messageId: z.string().regex(UUID_REGEX),
+      voice: voiceSchema,
     })
     .strict(),
   z
     .object({
       attemptId: z.string().regex(UUID_REGEX),
+      voice: voiceSchema,
     })
     .strict(),
 ]);
@@ -115,10 +120,11 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const voiceField = parsed.data.voice ? { voice: parsed.data.voice } : {};
   const input: SpeakAnswerInput =
     "messageId" in parsed.data
-      ? { source: "nog_message", id: parsed.data.messageId }
-      : { source: "check_attempt", id: parsed.data.attemptId };
+      ? { source: "nog_message", id: parsed.data.messageId, ...voiceField }
+      : { source: "check_attempt", id: parsed.data.attemptId, ...voiceField };
 
   try {
     const result = await container.speakAnswer(input);

@@ -14,10 +14,44 @@ const MIME_TO_FILENAME: Record<string, string> = {
   "audio/wav": "audio.wav",
 };
 
+const groqSegmentSchema = z.object({
+  text: z.string().optional(),
+  no_speech_prob: z.number().finite().min(0).max(1).optional(),
+  avg_logprob: z.number().finite().optional(),
+});
+
 const groqTranscriptionResponseSchema = z.object({
   text: z.string(),
   duration: z.number().finite().nonnegative().optional(),
+  segments: z.array(groqSegmentSchema).optional(),
 });
+
+const SILENCE_NO_SPEECH_PROB = 0.72;
+const LOW_CONF_NO_SPEECH_PROB = 0.55;
+const LOW_CONF_AVG_LOGPROB = -1.15;
+
+function isLikelySilenceHallucination(
+  segments: ReadonlyArray<z.infer<typeof groqSegmentSchema>> | undefined,
+): boolean {
+  if (!segments || segments.length === 0) {
+    return false;
+  }
+  const scored = segments.filter((s) => s.no_speech_prob !== undefined);
+  if (scored.length === 0) {
+    return false;
+  }
+  return scored.every((s) => {
+    const noSpeech = s.no_speech_prob ?? 0;
+    if (noSpeech >= SILENCE_NO_SPEECH_PROB) {
+      return true;
+    }
+    return (
+      noSpeech >= LOW_CONF_NO_SPEECH_PROB &&
+      s.avg_logprob !== undefined &&
+      s.avg_logprob < LOW_CONF_AVG_LOGPROB
+    );
+  });
+}
 
 export interface GroqTranscriptionResult {
   text: string;
@@ -131,8 +165,11 @@ export function createGroqWhisperStt(): GroqWhisperStt {
         );
       }
 
+      const cleanedText = isLikelySilenceHallucination(parsed.data.segments)
+        ? ""
+        : parsed.data.text.trim();
       const result: GroqTranscriptionResult = {
-        text: parsed.data.text.trim(),
+        text: cleanedText,
       };
       if (parsed.data.duration !== undefined) {
         result.durationSeconds = parsed.data.duration;

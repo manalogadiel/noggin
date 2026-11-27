@@ -9,7 +9,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import { COMPANION_VOICES, type CompanionVoice } from "@/core/application/ports";
 
+export type TtsVoiceName = CompanionVoice;
 export type RoomBgId = "day" | "minimal" | "greenhouse" | "treehouse" | "night";
 export type SkinPackId = "pastel" | "neon" | "dark" | "sunset";
 export type BookCoverStyle = "sage" | "honey" | "gingham" | "berry" | "denim" | "forest";
@@ -132,7 +134,13 @@ export interface PersistedGameUi {
   notebookMaxPages: Record<string, number>;
   notebookCovers: Record<string, BookCoverStyle>;
   notebookTitles: Record<string, string>;
-  audio: { music: number; sfx: number; voice: number };
+  audio: {
+    music: number;
+    sfx: number;
+    voice: number;
+    ttsVoice: TtsVoiceName;
+    autoSpeakReplies: boolean;
+  };
 }
 
 const DEFAULT_STATE: PersistedGameUi = {
@@ -154,7 +162,7 @@ const DEFAULT_STATE: PersistedGameUi = {
   notebookMaxPages: {},
   notebookCovers: {},
   notebookTitles: {},
-  audio: { music: 70, sfx: 85, voice: 90 },
+  audio: { music: 70, sfx: 85, voice: 90, ttsVoice: "Puck", autoSpeakReplies: false },
 };
 
 const STORAGE_KEY = "noggin.gameUi.v1";
@@ -213,6 +221,12 @@ export function GameUiProvider({ children }: { children: ReactNode }) {
         const raw = window.localStorage.getItem(STORAGE_KEY);
         if (!raw) return;
         const parsed = JSON.parse(raw) as Partial<PersistedGameUi>;
+        const parsedAudio = parsed.audio;
+        const validTtsVoice =
+          parsedAudio?.ttsVoice &&
+          (COMPANION_VOICES as readonly string[]).includes(parsedAudio.ttsVoice)
+            ? parsedAudio.ttsVoice
+            : undefined;
         setState((prev) => ({
           ...prev,
           ...parsed,
@@ -225,7 +239,15 @@ export function GameUiProvider({ children }: { children: ReactNode }) {
             ...prev.ownedAccessories,
             ...(parsed.ownedAccessories ?? {}),
           },
-          audio: { ...prev.audio, ...(parsed.audio ?? {}) },
+          audio: {
+            ...prev.audio,
+            ...(parsedAudio ?? {}),
+            ttsVoice: validTtsVoice ?? prev.audio.ttsVoice,
+            autoSpeakReplies:
+              typeof parsedAudio?.autoSpeakReplies === "boolean"
+                ? parsedAudio.autoSpeakReplies
+                : prev.audio.autoSpeakReplies,
+          },
         }));
       } catch {
         // ignore storage errors

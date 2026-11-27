@@ -424,4 +424,27 @@ describe("ai-capacity per-role model routing and token budgets", () => {
       ).toBe(true);
     }
   });
+
+  it("cascades a role override from role model -> LLM_MODEL -> LLM_FALLBACK_MODEL when both primary buckets return 429", async () => {
+    vi.stubEnv("LLM_GRADER_MODEL", "configured-grader-override");
+
+    const adapters = createLlmAdapters({
+      getPersona: async () => persona,
+      speechMimicry: false,
+    });
+
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 429 }))
+      .mockResolvedValueOnce(new Response(null, { status: 429 }))
+      .mockResolvedValueOnce(completion(validGrade));
+
+    await expect(adapters.grader.grade(gradeInput)).resolves.toEqual(validGrade);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect((await parseCall(0)).body.model).toBe("configured-grader-override");
+    expect((await parseCall(1)).body.model).toBe(providerEnv.LLM_MODEL);
+    const third = await parseCall(2);
+    expect(third.request.url).toBe(fallbackUrl);
+    expect(third.body.model).toBe(providerEnv.LLM_FALLBACK_MODEL);
+  });
 });

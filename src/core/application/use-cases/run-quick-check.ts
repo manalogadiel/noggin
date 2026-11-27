@@ -80,9 +80,13 @@ export interface RunQuickCheckDeps {
   grader: AnswerGrader;
 }
 
+export type QuizQuestionFormat = "mc" | "enum" | "phrase";
+
 export interface RunQuickCheckInput {
   nogId: string;
   topicId: string;
+  questionCount?: number;
+  formats?: ReadonlyArray<QuizQuestionFormat>;
 }
 
 export type RunQuickCheckResult =
@@ -337,10 +341,14 @@ export async function runQuickCheck(
       input.nogId,
       input.topicId,
     );
+    const requestedCount =
+      typeof input.questionCount === "number" && Number.isFinite(input.questionCount)
+        ? Math.max(1, Math.min(50, Math.floor(input.questionCount)))
+        : QUICK_CHECK_SIZE;
     const selectedQuestions = pickCheckQuestions(
       questions,
       previousAttempts,
-      QUICK_CHECK_SIZE,
+      requestedCount,
     );
     const fingerprint = computeNotebookFingerprint(
       allPages,
