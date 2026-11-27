@@ -25,7 +25,11 @@ import {
   useGameUi,
 } from "@/components/game-ui/game-ui-context";
 import { NogAvatar } from "@/components/nog/nog-avatar";
-import { hasAccessoryGlb, resolveSceneGlb } from "@/components/nog-3d/model-manifest";
+import {
+  hasAccessoryGlb,
+  nogSpeciesForId,
+  resolveSceneGlb,
+} from "@/components/nog-3d/model-manifest";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import { usePetting } from "@/components/nog/use-petting";
 import { InRoomLiveVoice } from "@/components/room/inroom-live-voice";
@@ -1170,7 +1174,7 @@ export function NogRoomView({
                 >
                   {!bookPickerOpen && (
                     <div
-                      className={`nog-bubble ${isIdleBubble ? "nog-bubble--idle" : ""}`}
+                      className={`nog-bubble ${isIdleBubble ? "nog-bubble--idle" : ""} ${nog.stage !== "hatchling" ? "nog-bubble--tall" : ""}`.trim()}
                       role="status"
                       aria-live="polite"
                     >
@@ -1220,6 +1224,7 @@ export function NogRoomView({
                       variant="sanctuary"
                       name={nog.name}
                       stage={nog.stage}
+                      species={state.nogSpecies?.[nog.id] ?? nogSpeciesForId(nog.id)}
                       reaction={isOverloaded ? "annoyed" : reaction}
                       message={null}
                       tapCount={tapCount}

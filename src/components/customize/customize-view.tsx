@@ -65,6 +65,7 @@ export function CustomizeView({ nog }: CustomizeViewProps) {
   return (
     <NogCustomizeStage
       mode="edit"
+      nogId={nog.id}
       stage={nog.stage}
       initialName={nog.name}
       initialBodyColor={initialColor}

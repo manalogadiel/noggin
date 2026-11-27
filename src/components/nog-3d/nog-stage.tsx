@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NogStageSlug } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
+import type { NogSpeciesId } from "./model-manifest";
 
 export type NogSceneName =
   | "trio"
@@ -50,9 +51,11 @@ export interface NogStageProps {
   height: number;
   sizes: string;
   stage?: NogStageSlug;
+  species?: NogSpeciesId;
   tint?: string | null;
   equippedAccessories?: readonly (string | null)[];
   reaction?: NogReaction;
+  tapCount?: number;
   mood?: string | null;
   speaking?: boolean;
   roomTheme?: NogRoomTheme;
@@ -70,9 +73,11 @@ export function NogStage({
   height,
   sizes,
   stage,
+  species,
   tint,
   equippedAccessories,
   reaction,
+  tapCount,
   mood,
   speaking,
   roomTheme,
@@ -171,9 +176,11 @@ export function NogStage({
             scene={scene}
             active={visible}
             stage={stage}
+            species={species}
             tint={tint}
             equippedAccessories={equippedAccessories}
             reaction={reaction}
+            tapCount={tapCount}
             mood={mood}
             speaking={speaking}
             roomTheme={roomTheme}

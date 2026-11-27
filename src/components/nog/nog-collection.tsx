@@ -5,6 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { useGameUi } from "@/components/game-ui/game-ui-context";
+import {
+  nogPortraitForSpecies,
+  nogSpeciesForId,
+} from "@/components/nog-3d/model-manifest";
 import { cn } from "@/lib/utils";
 import {
   formatNogStage,
@@ -21,13 +25,13 @@ const viewListeners = new Set<() => void>();
 let fallbackView: CollectionView = "grid";
 
 const LOCKED_SLOTS = [
-  { label: "Slot 3", sash: "LV. 3", img: "/game/nog/hatchling-happy.png" },
-  { label: "Slot 4", sash: "LV. 4", img: "/game/nog/thinking.png" },
-  { label: "Slot 5", sash: "LV. 5", img: "/game/nog/hatchling-giggling.png" },
-  { label: "Slot 6", sash: "LV. 8", img: "/game/nog/flying-book.png" },
-  { label: "Slot 7", sash: "PLUS", img: "/game/nog/hatchling-surprised.png" },
-  { label: "Slot 8", sash: "PLUS", img: "/game/nog/hatchling-sleepy.png" },
-  { label: "Slot 9", sash: "PLUS", img: "/game/nog/egg-peek.png" },
+  { label: "Slot 3", sash: "LV. 3", minLevel: 3, img: "/game/nog/thinking.png" },
+  { label: "Slot 4", sash: "LV. 4", minLevel: 4, img: "/game/nog/nog-blossom.png" },
+  { label: "Slot 5", sash: "LV. 5", minLevel: 5, img: "/game/nog/nog-clover.png" },
+  { label: "Slot 6", sash: "LV. 8", minLevel: 8, img: "/game/nog/nog-mushroom.png" },
+  { label: "Slot 7", sash: "PLUS", minLevel: null, img: "/game/nog/nog-bunny.png" },
+  { label: "Slot 8", sash: "PLUS", minLevel: null, img: "/game/nog/nog-acorn.png" },
+  { label: "Slot 9", sash: "PLUS", minLevel: null, img: "/game/nog/nog-sunflower.png" },
 ] as const;
 
 function getClientViewSnapshot(): CollectionView {
@@ -97,6 +101,13 @@ export function NogCollection({ nogs }: NogCollectionProps) {
 
   const selected = nogs.find((n) => n.id === selectedId) ?? nogs[0];
   const equippedAccCount = state.equippedSlots.filter(Boolean).length;
+  const resolvePortrait = (nog: NogCardSummary): string => {
+    if (nog.stage === "hatchling") {
+      return nogRenderForStage(nog.stage);
+    }
+    const species = state.nogSpecies?.[nog.id] ?? nogSpeciesForId(nog.id);
+    return nogPortraitForSpecies(species);
+  };
   const lockedNeeded = Math.max(0, 9 - nogs.length - 1);
   const visibleLockedSlots = LOCKED_SLOTS.slice(
     Math.max(0, LOCKED_SLOTS.length - lockedNeeded),
@@ -205,7 +216,7 @@ export function NogCollection({ nogs }: NogCollectionProps) {
                     const isSelected = nog.id === selected?.id;
                     const level = nogLevelForStage(nog.stage);
                     const stageLabel = formatNogStage(nog.stage);
-                    const imageSrc = nogRenderForStage(nog.stage);
+                    const imageSrc = resolvePortrait(nog);
                     const isBaby = nog.stage === "hatchling";
                     const isMeadow = idx % 2 === 1;
                     return (
@@ -255,31 +266,60 @@ export function NogCollection({ nogs }: NogCollectionProps) {
                     </Link>
                   </div>
 
-                  {visibleLockedSlots.map((slot) => (
-                    <div key={slot.label} className="cs-card-wrap is-locked-wrap">
-                      <div
-                        aria-label={`${slot.label} (${slot.sash})`}
-                        className="cs-card cs-card--locked"
-                      >
-                        <span className="cs-card__bg">
-                          <span className="cs-card__sash">{slot.sash}</span>
-                          <span className="cs-card__ribbon">{slot.label}</span>
-                        </span>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={slot.img} alt="" className="cs-card__img" />
-                        <span className="cs-card__lock" aria-hidden="true">
-                          <Lock className="h-4 w-4" />
-                        </span>
+                  {visibleLockedSlots.map((slot) => {
+                    const isUnlocked =
+                      slot.minLevel !== null
+                        ? state.level >= slot.minLevel
+                        : state.isPlus;
+
+                    if (isUnlocked) {
+                      return (
+                        <div key={slot.label} className="cs-card-wrap">
+                          <Link
+                            href="/adopt"
+                            aria-label={`${slot.label} unlocked — adopt a Nog`}
+                            className="cs-card cs-card--hatch no-underline"
+                          >
+                            <span className="cs-card__bg">
+                              <span className="cs-card__ribbon">{slot.label}</span>
+                            </span>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src="/game/nog/egg-speckled.png"
+                              alt=""
+                              className="cs-card__img"
+                            />
+                          </Link>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={slot.label} className="cs-card-wrap is-locked-wrap">
+                        <div
+                          aria-label={`${slot.label} (${slot.sash})`}
+                          className="cs-card cs-card--locked"
+                        >
+                          <span className="cs-card__bg">
+                            <span className="cs-card__sash">{slot.sash}</span>
+                            <span className="cs-card__ribbon">{slot.label}</span>
+                          </span>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={slot.img} alt="" className="cs-card__img" />
+                          <span className="cs-card__lock" aria-hidden="true">
+                            <Lock className="h-4 w-4" />
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <ul aria-label="Nogs" className="flex flex-col gap-2.5">
                   {nogs.map((nog) => {
                     const stageLabel = formatNogStage(nog.stage);
                     const level = nogLevelForStage(nog.stage);
-                    const imageSrc = nogRenderForStage(nog.stage);
+                    const imageSrc = resolvePortrait(nog);
 
                     return (
                       <li key={nog.id}>
@@ -371,7 +411,7 @@ export function NogCollection({ nogs }: NogCollectionProps) {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={nogRenderForStage(selected.stage)}
+                      src={resolvePortrait(selected)}
                       alt={`${selected.name} standing on 3D stacked books`}
                       className={cn(
                         "cs-pedestal-wrap__nog",
