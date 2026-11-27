@@ -40,4 +40,12 @@ describe("My Nogs (Figma My Nogs 3 255:253)", () => {
     render(<NogCollection nogs={nogs} />);
     expect(screen.getByRole("radio", { name: /list view/i })).toBeChecked();
   });
+
+  it("unlocks level-gated roster slots once player level reaches them", () => {
+    render(<NogCollection nogs={nogs} />);
+    expect(
+      screen.getByRole("link", { name: /slot 4 unlocked/i }),
+    ).toHaveAttribute("href", "/adopt");
+    expect(screen.getByLabelText("Slot 5 (LV. 5)")).toBeInTheDocument();
+  });
 });

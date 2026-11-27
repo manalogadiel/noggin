@@ -9,6 +9,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { NogSpeciesId } from "@/components/nog-3d/model-manifest";
 import { COMPANION_VOICES, type CompanionVoice } from "@/core/application/ports";
 
 export type TtsVoiceName = CompanionVoice;
@@ -134,6 +135,7 @@ export interface PersistedGameUi {
   notebookMaxPages: Record<string, number>;
   notebookCovers: Record<string, BookCoverStyle>;
   notebookTitles: Record<string, string>;
+  nogSpecies: Record<string, NogSpeciesId>;
   audio: {
     music: number;
     sfx: number;
@@ -162,6 +164,7 @@ const DEFAULT_STATE: PersistedGameUi = {
   notebookMaxPages: {},
   notebookCovers: {},
   notebookTitles: {},
+  nogSpecies: {},
   audio: { music: 70, sfx: 85, voice: 90, ttsVoice: "Puck", autoSpeakReplies: false },
 };
 
@@ -238,6 +241,10 @@ export function GameUiProvider({ children }: { children: ReactNode }) {
           ownedAccessories: {
             ...prev.ownedAccessories,
             ...(parsed.ownedAccessories ?? {}),
+          },
+          nogSpecies: {
+            ...prev.nogSpecies,
+            ...(parsed.nogSpecies ?? {}),
           },
           audio: {
             ...prev.audio,
