@@ -74,7 +74,12 @@ export async function loadNormalizedGlb(
         if (cloned.name === "nog_glossy_eye") {
           cloned.envMapIntensity = 0.42;
         }
-        if (entry.smartTint !== false && tintUniform) {
+        const isFixedAccent =
+          cloned.name.startsWith("nog_accent_") ||
+          cloned.name === "nog_glossy_eye" ||
+          cloned.name === "nog_glossy_smile" ||
+          cloned.name === "nog_sprout_leaf";
+        if (entry.smartTint !== false && !isFixedAccent && tintUniform) {
           attachSmartClayTint(cloned, tintUniform);
         }
         clonedMaterials.push(cloned);

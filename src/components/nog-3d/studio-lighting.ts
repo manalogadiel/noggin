@@ -175,10 +175,10 @@ export function createContactShadowTexture(): CanvasTexture {
   const ctx = canvas.getContext("2d");
   if (ctx) {
     const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 122);
-    grad.addColorStop(0, "rgba(56, 46, 38, 0.32)");
-    grad.addColorStop(0.45, "rgba(56, 46, 38, 0.14)");
-    grad.addColorStop(0.8, "rgba(56, 46, 38, 0.03)");
-    grad.addColorStop(1, "rgba(56, 46, 38, 0)");
+    grad.addColorStop(0, "rgba(36, 28, 20, 0.64)");
+    grad.addColorStop(0.42, "rgba(36, 28, 20, 0.36)");
+    grad.addColorStop(0.75, "rgba(36, 28, 20, 0.10)");
+    grad.addColorStop(1, "rgba(36, 28, 20, 0)");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 256, 256);
   }

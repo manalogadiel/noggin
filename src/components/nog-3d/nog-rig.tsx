@@ -27,6 +27,7 @@ import { type LoadedGlbAsset, loadNormalizedGlb } from "./glb-loader";
 import {
   ACCESSORY_GLB_MODELS,
   type GlbAssetEntry,
+  type NogSpeciesId,
   resolveSceneGlb,
 } from "./model-manifest";
 import type { NogReaction, NogRoomTheme, NogSceneName } from "./nog-stage";
@@ -250,6 +251,7 @@ function GlbStudioScene({
   asset,
   equippedAccessories,
   reaction = "idle",
+  tapCount = 0,
   mood = null,
   speaking = false,
   roomTheme = "day",
@@ -260,6 +262,7 @@ function GlbStudioScene({
   asset: LoadedGlbAsset;
   equippedAccessories?: readonly (string | null)[];
   reaction?: NogReaction;
+  tapCount?: number;
   mood?: string | null;
   speaking?: boolean;
   roomTheme?: NogRoomTheme;
@@ -281,6 +284,17 @@ function GlbStudioScene({
   const clockNowRef = useRef(0);
   const lookRef = useRef({ x: 0, y: 0 });
   const exprRef = useRef({ reaction, mood, speaking, tiltZ: 0, nodX: 0 });
+  const limbsRef = useRef<{
+    armRight: ReturnType<Group["getObjectByName"]>;
+    armLeft: ReturnType<Group["getObjectByName"]>;
+    leaves: ReturnType<Group["getObjectByName"]>;
+    cur: { rx: number; ry: number; rz: number; lx: number; lz: number; sx: number; sz: number };
+  }>({
+    armRight: undefined,
+    armLeft: undefined,
+    leaves: undefined,
+    cur: { rx: 0, ry: 0, rz: 0, lx: 0, lz: 0, sx: 0, sz: 0 },
+  });
   const ready = useRef(false);
 
   useEffect(() => {
@@ -288,6 +302,12 @@ function GlbStudioScene({
     exprRef.current.mood = mood;
     exprRef.current.speaking = speaking;
   }, [reaction, mood, speaking]);
+
+  useEffect(() => {
+    if (tapCount > 0) {
+      tapAtRef.current = clockNowRef.current;
+    }
+  }, [tapCount]);
 
   // Studio softbox reflections + 3-point rig + soft floor contact shadow
   useEffect(() => {
@@ -306,16 +326,16 @@ function GlbStudioScene({
 
     const h = entry.targetHeight ?? 1.25;
     const shadowTex = createContactShadowTexture();
-    const shadowGeo = new PlaneGeometry(h * 1.28, h * 1.15);
+    const shadowGeo = new PlaneGeometry(h * 1.1, h * 1.05);
     const shadowMat = new MeshBasicMaterial({
       map: shadowTex,
       transparent: true,
       depthWrite: false,
-      opacity: 0.78,
+      opacity: 0.95,
     });
     const shadowMesh = new Mesh(shadowGeo, shadowMat);
     shadowMesh.rotation.x = -Math.PI / 2;
-    shadowMesh.position.y = (entry.yOffset ?? 0) + 0.004;
+    shadowMesh.position.set(0, (entry.yOffset ?? 0) + 0.002, 0.02);
 
     const targetY = entry.cameraTargetY ?? (entry.yOffset ?? 0) + (entry.targetHeight ?? 1.25) * 0.52;
     const dist = entry.cameraDistance ?? 3.1;
@@ -327,9 +347,13 @@ function GlbStudioScene({
     camera.lookAt(0, targetY, 0);
 
     const mount = worldRef.current;
+    const limbs = limbsRef.current;
     const modelWrap = new Group();
     modelWrap.add(asset.root);
     modelWrapRef.current = modelWrap;
+    limbs.armRight = asset.root.getObjectByName("arm_right_pivot");
+    limbs.armLeft = asset.root.getObjectByName("arm_left_pivot");
+    limbs.leaves = asset.root.getObjectByName("sprout_leaves_pivot");
     mount?.add(key, fill, rim, hemi, shadowMesh, modelWrap);
 
     if (asset.animations.length > 0) {
@@ -341,6 +365,9 @@ function GlbStudioScene({
     return () => {
       mixerRef.current?.stopAllAction();
       mixerRef.current = null;
+      limbs.armRight = undefined;
+      limbs.armLeft = undefined;
+      limbs.leaves = undefined;
       mount?.remove(key, fill, rim, hemi, shadowMesh, modelWrap);
       modelWrap.remove(asset.root);
       modelWrapRef.current = null;
@@ -412,6 +439,14 @@ function GlbStudioScene({
         id === "glasses" || id === "beanie" || id === "bow" || id === "gradcap",
     );
 
+    const wearingHat = activeIds.includes("beanie") || activeIds.includes("gradcap");
+    const sproutLeaves =
+      asset.root.getObjectByName("sprout_leaves_pivot") ??
+      asset.root.getObjectByName("sprout_leaves");
+    if (sproutLeaves) {
+      sproutLeaves.visible = !wearingHat;
+    }
+
     void Promise.all(
       activeIds.map(async (id) => {
         const spec = ACCESSORY_GLB_MODELS[id];
@@ -452,6 +487,9 @@ function GlbStudioScene({
 
     return () => {
       alive = false;
+      if (sproutLeaves) {
+        sproutLeaves.visible = true;
+      }
       wrap.remove(accGroup);
       mounted.forEach((m) => m.dispose());
     };
@@ -547,6 +585,82 @@ function GlbStudioScene({
       } else if (!interactiveOrbit) {
         wrap.rotation.x = expr.nodX;
       }
+
+      // Live articulated hands & springy sprout leaves (zero allocations per frame)
+      const limbs = limbsRef.current;
+      if (limbs.armRight || limbs.armLeft || limbs.leaves) {
+        const tapWave = tap >= 0 && tap < 0.95 ? Math.exp(-3.2 * tap) * Math.sin(tap * 13) : 0;
+        const tapOpen = tap >= 0 && tap < 0.72 ? Math.sin((tap / 0.72) * Math.PI) : 0;
+
+        // Thoughtful idle chin-tap cadence (gentle rhythmic hmm-taps + breathing)
+        const thinkPulse = Math.pow(Math.max(0, Math.sin(t * 1.45)), 3);
+        let tRx = -0.10 * thinkPulse - 0.03 * Math.sin(t * 2.1);
+        let tRy = 0.04 * Math.sin(t * 0.9);
+        let tRz = -0.05 * thinkPulse;
+        let tLx = 0.03 * Math.sin(t * 1.7 + 0.6);
+        let tLz = -0.05 * Math.sin(t * 1.9) - 0.04;
+        let tSx = 0.025 * Math.sin(t * 2.1);
+        let tSz = 0.035 * Math.sin(t * 1.6);
+
+        if (isSleepy) {
+          tRx = 0.06 + 0.02 * Math.sin(t * 1.0);
+          tRy = 0.10;
+          tRz = -0.02;
+          tLz = 0.02 + 0.02 * Math.sin(t * 1.0);
+          tSz = 0.02 * Math.sin(t * 0.9);
+        } else if (isQuizzical) {
+          tRx = -0.15 - 0.05 * Math.sin(t * 3.2);
+          tRy = 0.02;
+          tRz = -0.09;
+          tSz = -0.08 + 0.03 * Math.sin(t * 2.5);
+        } else if (isStartled) {
+          tRx = -0.22;
+          tRy = 0.32;
+          tRz = -0.26;
+          tLz = -0.34 + 0.08 * Math.sin(t * 20);
+          tSz = 0.12 * Math.sin(t * 20);
+        } else if (expr.speaking) {
+          const talk = Math.sin(t * 7.8);
+          const talkAbs = Math.abs(Math.sin(t * 5.2));
+          tRx = -0.10 - 0.11 * talkAbs;
+          tRy = 0.16 + 0.10 * talk;
+          tRz = -0.14 - 0.09 * talkAbs;
+          tLx = 0.05 * talk;
+          tLz = -0.12 - 0.10 * talkAbs;
+          tSx = 0.05 * talkAbs;
+          tSz = 0.07 * talk;
+        } else if (isUpbeat) {
+          const cheer = Math.abs(Math.sin(t * 5.2));
+          tRx = -0.16 - 0.10 * cheer;
+          tRy = 0.24 + 0.10 * Math.sin(t * 5.2);
+          tRz = -0.20 - 0.10 * cheer;
+          tLz = -0.22 - 0.14 * cheer;
+          tSz = 0.09 * Math.sin(t * 5.2);
+        }
+
+        // Pet / click cheer burst layered on top
+        tRx -= 0.18 * tapOpen + 0.08 * tapWave;
+        tRy += 0.30 * tapOpen;
+        tRz -= 0.24 * tapOpen + 0.08 * tapWave;
+        tLx -= 0.10 * tapOpen;
+        tLz -= 0.30 * tapOpen + 0.10 * tapWave;
+        tSx += 0.08 * tapWave;
+        tSz -= 0.12 * tapWave;
+
+        const c = limbs.cur;
+        const k = 0.16;
+        c.rx += (tRx - c.rx) * k;
+        c.ry += (tRy - c.ry) * k;
+        c.rz += (tRz - c.rz) * k;
+        c.lx += (tLx - c.lx) * k;
+        c.lz += (tLz - c.lz) * k;
+        c.sx += (tSx - c.sx) * k;
+        c.sz += (tSz - c.sz) * k;
+
+        if (limbs.armRight) limbs.armRight.rotation.set(c.rx, c.ry, c.rz);
+        if (limbs.armLeft) limbs.armLeft.rotation.set(c.lx, 0, c.lz);
+        if (limbs.leaves) limbs.leaves.rotation.set(c.sx, 0, c.sz);
+      }
     }
 
     if (!ready.current) {
@@ -562,9 +676,11 @@ export interface NogRigCanvasProps {
   scene: NogSceneName;
   active: boolean;
   stage?: NogStageSlug;
+  species?: NogSpeciesId;
   tint?: string | null;
   equippedAccessories?: readonly (string | null)[];
   reaction?: NogReaction;
+  tapCount?: number;
   mood?: string | null;
   speaking?: boolean;
   roomTheme?: NogRoomTheme;
@@ -578,9 +694,11 @@ export default function NogRigCanvas({
   scene,
   active,
   stage,
+  species,
   tint,
   equippedAccessories,
   reaction,
+  tapCount,
   mood,
   speaking,
   roomTheme,
@@ -590,32 +708,60 @@ export default function NogRigCanvas({
   className,
 }: NogRigCanvasProps) {
   const config = SCENE_POSTERS[scene];
-  const glbEntry = resolveSceneGlb(scene, stage);
-  const [glbAsset, setGlbAsset] = useState<LoadedGlbAsset | null>(null);
+  const glbEntry = resolveSceneGlb(scene, stage, species);
+  const [loadedGlbState, setLoadedGlbState] = useState<{
+    entry: GlbAssetEntry;
+    asset: LoadedGlbAsset;
+  } | null>(null);
   const [texture, setTexture] = useState<Texture | null>(null);
   const tintUniformRef = useRef({ value: new Vector3(1, 1, 1) });
+  const activeGlbRef = useRef<LoadedGlbAsset | null>(null);
+  const activeTexRef = useRef<Texture | null>(null);
+  const unmountedRef = useRef(false);
 
   useEffect(() => {
     const [r, g, b] = parseTintRgb(tint);
     tintUniformRef.current.value.set(r, g, b);
   }, [tint]);
 
-  // Load registered GLB model when present; otherwise load the crisp reference studio texture
+  useEffect(() => {
+    unmountedRef.current = false;
+    const move = (e: PointerEvent) => {
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+    };
+    window.addEventListener("pointermove", move, { passive: true });
+    window.addEventListener("pointerdown", move, { passive: true });
+    return () => {
+      unmountedRef.current = true;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerdown", move);
+      activeGlbRef.current?.dispose();
+      activeGlbRef.current = null;
+      activeTexRef.current?.dispose();
+      activeTexRef.current = null;
+    };
+  }, []);
+
+  // Load registered GLB model when present; swap in-place without unmounting <Canvas>
   useEffect(() => {
     let alive = true;
-    let loadedGlb: LoadedGlbAsset | null = null;
-    let loadedTex: Texture | null = null;
 
     const loadFallbackTexture = () =>
       new TextureLoader()
         .loadAsync(config.poster)
         .then((map) => {
-          loadedTex = map;
           map.anisotropy = 4;
           map.premultiplyAlpha = true;
           map.needsUpdate = true;
-          if (alive) setTexture(map);
-          else map.dispose();
+          if (!alive) {
+            map.dispose();
+            return;
+          }
+          const prevTex = activeTexRef.current;
+          activeTexRef.current = map;
+          setTexture(map);
+          prevTex?.dispose();
         })
         .catch(() => alive && onFail());
 
@@ -626,8 +772,10 @@ export default function NogRigCanvas({
           return;
         }
         if (asset) {
-          loadedGlb = asset;
-          setGlbAsset(asset);
+          const prevGlb = activeGlbRef.current;
+          activeGlbRef.current = asset;
+          setLoadedGlbState({ entry: glbEntry, asset });
+          prevGlb?.dispose();
         } else {
           void loadFallbackTexture();
         }
@@ -636,23 +784,13 @@ export default function NogRigCanvas({
       void loadFallbackTexture();
     }
 
-    const move = (e: PointerEvent) => {
-      pointer.x = e.clientX;
-      pointer.y = e.clientY;
-    };
-    window.addEventListener("pointermove", move, { passive: true });
-    window.addEventListener("pointerdown", move, { passive: true });
-
     return () => {
       alive = false;
-      loadedGlb?.dispose();
-      loadedTex?.dispose();
-      setGlbAsset(null);
-      setTexture(null);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerdown", move);
     };
   }, [config, glbEntry, onFail]);
+
+  const glbAsset = loadedGlbState?.asset ?? null;
+  const activeEntry = loadedGlbState?.entry ?? glbEntry;
 
   if (!glbAsset && !texture) return null;
 
@@ -682,15 +820,22 @@ export default function NogRigCanvas({
           gl.setClearColor(new Color(0x000000), 0);
         }
         gl.domElement.setAttribute("aria-hidden", "true");
-        gl.domElement.addEventListener("webglcontextlost", onFail, { once: true });
+        gl.domElement.addEventListener(
+          "webglcontextlost",
+          () => {
+            if (!unmountedRef.current) onFail();
+          },
+          { once: true },
+        );
       }}
     >
-      {glbAsset && glbEntry ? (
+      {glbAsset && activeEntry ? (
         <GlbStudioScene
-          entry={glbEntry}
+          entry={activeEntry}
           asset={glbAsset}
           equippedAccessories={equippedAccessories}
           reaction={reaction}
+          tapCount={tapCount}
           mood={mood}
           speaking={speaking}
           roomTheme={roomTheme}
