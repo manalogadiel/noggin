@@ -57,8 +57,15 @@ it("replays the first saved digest after parallel calls without duplicating card
   const first = results[winner];
   const saved = [input, competing][winner].digest;
   expect(first.cardIds).toHaveLength(1);
+  expect(first.replyMessageId).toBeTruthy();
+  expect(first.followUpMessageIds).toHaveLength(1);
   expect(results[1 - winner]).toMatchObject({ applied: false, savedDigest: saved });
-  expect(await notebook.findSavedDigest(nog.id, page.idempotencyKey)).toEqual({ digest: saved, cardIds: first.cardIds });
+  expect(await notebook.findSavedDigest(nog.id, page.idempotencyKey)).toEqual({
+    digest: saved,
+    cardIds: first.cardIds,
+    replyMessageId: first.replyMessageId,
+    followUpMessageIds: first.followUpMessageIds,
+  });
 
   requests.reset();
   expect(await notebook.applyDigest([input, competing][1 - winner])).toMatchObject({ applied: false, savedDigest: saved });

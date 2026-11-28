@@ -3,7 +3,9 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { NogStageSlug } from "@/core/application/ports";
 import { cn } from "@/lib/utils";
+import type { NogSpeciesId } from "./model-manifest";
 
 export type NogSceneName =
   | "trio"
@@ -16,6 +18,9 @@ export type NogSceneName =
   | "room"
   | "dizzy"
   | "sleeping";
+
+export type NogReaction = "idle" | "giggle" | "tickle" | "annoyed";
+export type NogRoomTheme = "day" | "minimal" | "greenhouse" | "treehouse" | "night";
 
 // three.js stays out of every other page: this chunk loads only when a Nog nears the viewport.
 const NogCanvas = dynamic(() => import("./nog-rig"), { ssr: false });
@@ -45,7 +50,16 @@ export interface NogStageProps {
   width: number;
   height: number;
   sizes: string;
+  stage?: NogStageSlug;
+  species?: NogSpeciesId;
   tint?: string | null;
+  equippedAccessories?: readonly (string | null)[];
+  reaction?: NogReaction;
+  tapCount?: number;
+  mood?: string | null;
+  speaking?: boolean;
+  roomTheme?: NogRoomTheme;
+  interactiveOrbit?: boolean;
   priority?: boolean;
   decorative?: boolean;
   className?: string;
@@ -58,7 +72,16 @@ export function NogStage({
   width,
   height,
   sizes,
+  stage,
+  species,
   tint,
+  equippedAccessories,
+  reaction,
+  tapCount,
+  mood,
+  speaking,
+  roomTheme,
+  interactiveOrbit,
   priority,
   decorative = false,
   className,
@@ -152,7 +175,16 @@ export function NogStage({
           <NogCanvas
             scene={scene}
             active={visible}
+            stage={stage}
+            species={species}
             tint={tint}
+            equippedAccessories={equippedAccessories}
+            reaction={reaction}
+            tapCount={tapCount}
+            mood={mood}
+            speaking={speaking}
+            roomTheme={roomTheme}
+            interactiveOrbit={interactiveOrbit}
             onReady={onReady}
             onFail={onFail}
             className="h-full w-full"

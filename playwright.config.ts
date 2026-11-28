@@ -8,6 +8,7 @@ const port = new URL(baseURL).port || "3200";
 function loadWebServerEnv(): Record<string, string> {
   const webServerEnv: Record<string, string> = {
     LLM_PROVIDER: "fake",
+    DEV_AUTO_LOGIN: "0",
   };
 
   if (!existsSync(".env.test")) {

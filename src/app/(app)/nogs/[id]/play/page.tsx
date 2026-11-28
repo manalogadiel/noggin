@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { teachLessonAction } from "@/app/(app)/actions/lesson-actions";
+import { addTopicAction } from "@/app/(app)/actions/topic-actions";
 import { PlayView } from "@/components/check/play-view";
 import { createContainer } from "@/composition/container";
 
@@ -71,6 +73,8 @@ export default async function NogPlayPage({
       nog={roomResult.nog}
       topics={topics}
       initialTopicId={initialTopicId}
+      onAddTopic={addTopicAction}
+      onTeachFile={teachLessonAction}
     />
   );
 }

@@ -8,10 +8,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
+import { askNogAction } from "@/app/(app)/actions/ask-actions";
 import {
+  answerFollowUpAction,
   reviseLessonAction,
   teachLessonAction,
 } from "@/app/(app)/actions/lesson-actions";
@@ -24,21 +25,40 @@ import {
   useGameUi,
 } from "@/components/game-ui/game-ui-context";
 import { NogAvatar } from "@/components/nog/nog-avatar";
+import {
+  hasAccessoryGlb,
+  nogSpeciesForId,
+  resolveSceneGlb,
+} from "@/components/nog-3d/model-manifest";
+import { NogStage } from "@/components/nog-3d/nog-stage";
 import { usePetting } from "@/components/nog/use-petting";
+import { InRoomLiveVoice } from "@/components/room/inroom-live-voice";
+import {
+  type InRoomChatMode,
+  InRoomModeToggle,
+  InRoomReplySpeaker,
+  InRoomTeachFeedback,
+  MOOD_LABELS,
+  normalizeNogMood,
+  type SanctuaryNogMood,
+} from "@/components/room/inroom-teach-feedback";
 import type { SaveProfileSettingsHandler } from "@/components/settings/settings-sheet";
 import { IntentLink } from "@/components/shell/intent-link";
 import type {
+  DigestOperation,
   NogRecord,
   NogStageSlug,
   ProfileSettings,
   ThoughtCardRecord,
   TopicSummary,
 } from "@/core/application/ports";
+import type { CitedCard } from "@/core/application/use-cases/ask-nog";
 import {
   countWords,
   DEFAULT_LESSON_WORD_LIMIT,
   splitLesson,
 } from "@/core/domain/lesson";
+import { matchSmallTalk } from "@/core/domain/small-talk";
 import type { VitalsResult } from "@/core/domain/vitals";
 import { formatRoomRestDate, isNogResting } from "@/lib/rest-schedule";
 
@@ -93,26 +113,6 @@ const COVER_SWATCHES: ReadonlyArray<{
   { id: "forest", label: "Forest", color: "var(--noggin-forest)" },
 ];
 
-type BrowserSpeechRec = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-function getSpeechRecognitionCtor(): (new () => BrowserSpeechRec) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: new () => BrowserSpeechRec;
-    webkitSpeechRecognition?: new () => BrowserSpeechRec;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
 let inRoomKeySeq = 0;
 function nextKey(prefix: string): string {
   inRoomKeySeq += 1;
@@ -131,6 +131,7 @@ export function NogRoomView({
   nog,
   vitals,
   progress,
+  initialSettings,
   onPet,
   onWake,
   topics: initialTopics = [],
@@ -183,18 +184,30 @@ export function NogRoomView({
   const [newBookTitle, setNewBookTitle] = useState("");
   const [creatingBook, setCreatingBook] = useState(false);
 
-  // In-room Feed composer state
+  // In-room Feed / Ask composer state
+  const [chatMode, setChatMode] = useState<InRoomChatMode>("teach");
   const [feedDraft, setFeedDraft] = useState("");
   const [feedSending, setFeedSending] = useState(false);
   const [lastUserEcho, setLastUserEcho] = useState<string | null>(null);
   const [nogTeachReply, setNogTeachReply] = useState<string | null>(null);
+  const [activeMood, setActiveMood] = useState<SanctuaryNogMood | null>(null);
   const [teachDoneLocal, setTeachDoneLocal] = useState(false);
+  const [activeThread, setActiveThread] = useState<{
+    rootLessonId: string;
+    followUpQuestions: string[];
+    followUpsUsed: number;
+  } | null>(null);
+  const [lastDigestOps, setLastDigestOps] = useState<DigestOperation[]>([]);
+  const [lastOffTopic, setLastOffTopic] = useState(false);
+  const [lastReplyMessageId, setLastReplyMessageId] = useState<string | null>(null);
+  const [lastCitedCards, setLastCitedCards] = useState<CitedCard[]>([]);
+  const [lastAskUntaught, setLastAskUntaught] = useState(false);
+  const [questionsPendingNotice, setQuestionsPendingNotice] = useState<string | null>(null);
+  const [pendingRetryBody, setPendingRetryBody] = useState<string | null>(null);
 
-  // In-room Live Voice state
-  const [liveMuted, setLiveMuted] = useState(false);
+  // In-room Live Voice caption + speaking animation state
   const [liveCaption, setLiveCaption] = useState<string | null>(null);
-  const [liveTranscript, setLiveTranscript] = useState("");
-  const speechRecRef = useRef<BrowserSpeechRec | null>(null);
+  const [nogSpeaking, setNogSpeaking] = useState(false);
 
   // In-room Water state
   const [dueQueue, setDueQueue] = useState<ThoughtCardRecord[]>(() => [
@@ -241,11 +254,15 @@ export function NogRoomView({
   const level = STAGE_LEVEL[nog.stage] ?? 1;
   const stageName = STAGE_LABEL[nog.stage] ?? "Sprout";
   const clampedProgress = clampPct(progress);
-  const happyPct = clampPct(vitals.happiness);
+  const happyPct = clampPct(
+    vitals.happiness <= 1 ? vitals.happiness * 100 : vitals.happiness,
+  );
   const clarityPct = clampPct(
     vitals.clarity <= 1 ? vitals.clarity * 100 : vitals.clarity,
   );
-  const vitalityPct = clampPct(vitals.vitality);
+  const vitalityPct = clampPct(
+    vitals.vitality <= 1 ? vitals.vitality * 100 : vitals.vitality,
+  );
 
   const roomBaseHref = `/nogs/${nog.id}`;
   const effectiveNow = now ?? fallbackNow;
@@ -262,34 +279,24 @@ export function NogRoomView({
   const currentBathCard =
     bathCandidates[bathIndex % Math.max(1, bathCandidates.length)] ?? null;
 
-  const stopLiveVoice = useCallback(() => {
-    try {
-      speechRecRef.current?.stop();
-    } catch {
-      // ignore recognition stop errors
-    }
-    speechRecRef.current = null;
-  }, []);
-
   const handleExitTeach = useCallback(() => {
     setBookPickerOpen(false);
+    setLiveCaption(null);
     setTeachMode((prev) => {
       if (prev === "live") {
-        stopLiveVoice();
         return "feed";
       }
       return null;
     });
-  }, [stopLiveVoice]);
+  }, []);
 
-  const handleOpenTeach = useCallback(
-    (mode: SanctuaryTeachMode) => {
-      setBookPickerOpen(false);
-      if (mode !== "live") stopLiveVoice();
-      setTeachMode(mode);
-    },
-    [stopLiveVoice],
-  );
+  const handleOpenTeach = useCallback((mode: SanctuaryTeachMode) => {
+    setBookPickerOpen(false);
+    if (mode !== "live") {
+      setLiveCaption(null);
+    }
+    setTeachMode(mode);
+  }, []);
 
   const teachTopbarTitle = useMemo(() => {
     if (!teachMode) return undefined;
@@ -328,65 +335,6 @@ export function NogRoomView({
     setSanctuary,
   ]);
 
-  // Manage browser speech recognition when entering/exiting Live Voice
-  useEffect(() => {
-    if (teachMode !== "live" || liveMuted) {
-      stopLiveVoice();
-      return;
-    }
-
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) {
-      return;
-    }
-
-    const rec = new Ctor();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = "en-US";
-    rec.onresult = (event) => {
-      let full = "";
-      for (let i = 0; i < event.results.length; i += 1) {
-        full += `${event.results[i][0].transcript} `;
-      }
-      const trimmed = full.trim();
-      setLiveTranscript(trimmed);
-      setLiveCaption(trimmed || `Listening... explain ${bookTitle} to me!`);
-    };
-    rec.onerror = () => {
-      setLiveCaption("Mic paused — tap Unmute or type in Feed chat.");
-    };
-    rec.onend = () => {
-      speechRecRef.current = null;
-    };
-    try {
-      rec.start();
-      speechRecRef.current = rec;
-    } catch {
-      void Promise.resolve().then(() => {
-        setLiveCaption("Couldn't start mic — check browser microphone permission.");
-      });
-    }
-
-    return () => {
-      stopLiveVoice();
-    };
-  }, [teachMode, liveMuted, bookTitle, nog.name, stopLiveVoice]);
-
-  async function speakReply(text: string) {
-    if (typeof window === "undefined" || !text.trim()) return;
-    try {
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.volume = Math.max(0, Math.min(1, (state.audio.voice ?? 90) / 100));
-        window.speechSynthesis.speak(utt);
-      }
-    } catch {
-      // ignore TTS failures
-    }
-  }
-
   async function ensureActiveTopicId(): Promise<string | null> {
     if (activeTopic) return activeTopic.id;
     const fallbackTitle = bookTitle || nog.subjectName || `${nog.name} Notes`;
@@ -399,66 +347,311 @@ export function NogRoomView({
     return null;
   }
 
-  async function sendLessonText(rawText: string, speakOut = false) {
+  const resetTeachThread = useCallback(() => {
+    setActiveThread(null);
+    setFixingCard(null);
+    setQuestionsPendingNotice(null);
+    setPendingRetryBody(null);
+  }, []);
+
+  const handleChatModeChange = useCallback(
+    (nextMode: InRoomChatMode) => {
+      setChatMode(nextMode);
+      resetTeachThread();
+      setLastDigestOps([]);
+      setLastOffTopic(false);
+      setLastCitedCards([]);
+      setLastAskUntaught(false);
+      setLastReplyMessageId(null);
+    },
+    [resetTeachThread],
+  );
+
+  const handleClarifyConflict = useCallback(
+    (cardId: string, label: string) => {
+      const card =
+        initialThoughtCards.find((c) => c.id === cardId) ??
+        ({
+          id: cardId,
+          nogId: nog.id,
+          topicId: activeTopic?.id ?? "",
+          label,
+          paraphrase: label,
+          status: "confused",
+        } as ThoughtCardRecord);
+      setChatMode("teach");
+      setActiveThread(null);
+      setFixingCard(card);
+      setNogTeachReply(`Help me clarify "${label}" in your own words!`);
+    },
+    [activeTopic?.id, initialThoughtCards, nog.id],
+  );
+
+  const handleSwitchTopic = useCallback(
+    (nextTopicId: string) => {
+      setActiveTopicId(nextTopicId);
+      resetTeachThread();
+      setLastDigestOps([]);
+      setLastOffTopic(false);
+      setLastCitedCards([]);
+      setLastAskUntaught(false);
+      setLastReplyMessageId(null);
+    },
+    [resetTeachThread],
+  );
+
+  type InRoomReplyOutcome = {
+    reply: string;
+    mood: SanctuaryNogMood;
+    replyMessageId: string | null;
+    followUpMessageIds: string[];
+    followUpText: string | null;
+  };
+
+  async function sendAskText(rawText: string): Promise<InRoomReplyOutcome | null> {
+    const question = rawText.trim();
+    if (!question || feedSending) return null;
+
+    setFeedSending(true);
+    setLastUserEcho(question);
+    setNogTeachReply("Let me check my notes…");
+    setLastCitedCards([]);
+    setLastAskUntaught(false);
+    setLastReplyMessageId(null);
+
+    try {
+      const result = await askNogAction({
+        nogId: nog.id,
+        question,
+        topicId: activeTopic?.id ?? null,
+      });
+
+      if (result.status === "unauthenticated") {
+        router.push(`/login?next=${encodeURIComponent(roomBaseHref)}`);
+        return null;
+      }
+
+      if (result.status === "ok") {
+        const mood = normalizeNogMood(result.mood);
+        setNogTeachReply(result.answer);
+        setActiveMood(mood);
+        setLastReplyMessageId(result.answerMessageId);
+        setLastCitedCards(result.knows ? result.citedCards : []);
+        setLastAskUntaught(!result.knows);
+        setFeedDraft("");
+        return {
+          reply: result.answer,
+          mood,
+          replyMessageId: result.answerMessageId,
+          followUpMessageIds: [],
+          followUpText: null,
+        };
+      }
+
+      if (result.status === "too_long") {
+        setNogTeachReply("Keep your question short and sweet (under 60 words)!");
+      } else if (result.status === "tired_for_today") {
+        setNogTeachReply("I'm full for today! Let's study more tomorrow.");
+      } else if (result.status === "brain_fog") {
+        setNogTeachReply("My brain got a little foggy — ask me again in a moment!");
+      } else {
+        setNogTeachReply("Hmm, I didn't quite catch that question. Try asking again!");
+      }
+      return null;
+    } catch {
+      setNogTeachReply("Brain fog! Couldn't check my notebook right now.");
+      return null;
+    } finally {
+      setFeedSending(false);
+    }
+  }
+
+  async function sendLessonText(
+    rawText: string,
+    allowPendingHeal = true,
+  ): Promise<InRoomReplyOutcome | null> {
+    if (chatMode === "ask") {
+      return sendAskText(rawText);
+    }
+
     const body = rawText.trim();
-    if (!body || feedSending) return;
+    if (!body || feedSending) return null;
     if (countWords(body) > DEFAULT_LESSON_WORD_LIMIT) {
       setNogTeachReply(
         `Whoa! Keep each chunk under ${DEFAULT_LESSON_WORD_LIMIT} words — tap Auto-Split!`,
       );
-      return;
+      return null;
+    }
+
+    if (!activeThread && !fixingCard) {
+      const casual = matchSmallTalk(body, {
+        nogName: nog.name,
+        grillMode: initialSettings.grillMode,
+        vitality: vitalityPct,
+        happiness: happyPct,
+        topicTitle: bookTitle,
+      });
+      if (casual) {
+        const mood = normalizeNogMood(casual.mood);
+        setLastUserEcho(body);
+        setNogTeachReply(casual.reply);
+        setActiveMood(mood);
+        setLastDigestOps([]);
+        setLastOffTopic(false);
+        setLastReplyMessageId(null);
+        setQuestionsPendingNotice(null);
+        setPendingRetryBody(null);
+        setFeedDraft("");
+        return {
+          reply: casual.reply,
+          mood,
+          replyMessageId: null,
+          followUpMessageIds: [],
+          followUpText: null,
+        };
+      }
     }
 
     setFeedSending(true);
     setLastUserEcho(body);
     setNogTeachReply("Mmm… chewing on that…");
+    setQuestionsPendingNotice(null);
+    setPendingRetryBody(null);
 
     try {
-      const targetTopicId = await ensureActiveTopicId();
+      let targetTopicId = await ensureActiveTopicId();
       if (!targetTopicId) {
         setNogTeachReply("Pick or create a notebook first so I know where to save this!");
-        setFeedSending(false);
-        return;
+        return null;
       }
 
-      const result =
-        fixingCard?.sourceLessonId
-          ? await reviseLessonAction({
-              nogId: nog.id,
-              topicId: fixingCard.topicId || targetTopicId,
-              lessonId: fixingCard.sourceLessonId,
-              body,
-              idempotencyKey: nextKey("inroom-revise"),
-            })
-          : await teachLessonAction({
-              nogId: nog.id,
-              topicId: targetTopicId,
-              body,
-              idempotencyKey: nextKey("inroom-teach"),
-            });
+      const submitCurrent = async (topicId: string) => {
+        if (fixingCard?.sourceLessonId) {
+          return reviseLessonAction({
+            nogId: nog.id,
+            topicId: fixingCard.topicId || topicId,
+            lessonId: fixingCard.sourceLessonId,
+            body,
+            idempotencyKey: nextKey("inroom-revise"),
+          });
+        }
+        if (activeThread) {
+          return answerFollowUpAction({
+            nogId: nog.id,
+            topicId,
+            lessonId: activeThread.rootLessonId,
+            body,
+            idempotencyKey: nextKey("inroom-followup"),
+          });
+        }
+        return teachLessonAction({
+          nogId: nog.id,
+          topicId,
+          body,
+          idempotencyKey: nextKey("inroom-teach"),
+        });
+      };
+
+      let result = await submitCurrent(targetTopicId);
+
+      if (result.status === "questions_pending" && allowPendingHeal) {
+        const titleToHeal = activeTopic?.title ?? bookTitle;
+        const heal = await addTopicAction(nog.id, titleToHeal);
+        if (heal.status === "ok" || heal.status === "already_exists") {
+          setExtraTopics((prev) => [
+            ...prev.filter((item) => item.id !== heal.topic.id),
+            heal.topic,
+          ]);
+          targetTopicId = heal.topic.id;
+          setActiveTopicId(heal.topic.id);
+          result = await submitCurrent(targetTopicId);
+        } else if (heal.status === "tired_for_today") {
+          setNogTeachReply("I'm full for today! Let's study more tomorrow.");
+          return null;
+        } else {
+          const notice = `Questions for ${titleToHeal} are still getting ready.`;
+          setQuestionsPendingNotice(notice);
+          setPendingRetryBody(body);
+          setNogTeachReply(notice);
+          return null;
+        }
+      }
 
       if (result.status === "unauthenticated") {
         router.push(`/login?next=${encodeURIComponent(roomBaseHref)}`);
-        return;
+        return null;
       }
 
       if (result.status === "ok") {
-        const followUp = result.digest.followUpQuestions?.[0];
-        const replyLine = followUp
-          ? `${result.digest.reply} ${followUp}`
+        const followUps = result.digest.followUpQuestions ?? [];
+        const firstFollowUp = followUps[0] ?? null;
+        const replyLine = firstFollowUp
+          ? `${result.digest.reply} ${firstFollowUp}`
           : result.digest.reply;
+        const mood = normalizeNogMood(result.digest.mood);
+        const replyMessageId = result.applied.replyMessageId ?? null;
+        const followUpMessageIds = result.applied.followUpMessageIds ?? [];
+
         setNogTeachReply(replyLine);
+        setActiveMood(mood);
+        setLastDigestOps(result.digest.operations ?? []);
+        setLastOffTopic(Boolean(result.digest.offTopic));
+        setLastReplyMessageId(replyMessageId);
         setFeedDraft("");
-        setLiveTranscript("");
         setFixingCard(null);
         setTeachDoneLocal(true);
+
+        if (followUps.length > 0) {
+          setActiveThread((prev) =>
+            prev
+              ? {
+                  rootLessonId: prev.rootLessonId,
+                  followUpQuestions: followUps,
+                  followUpsUsed: prev.followUpsUsed + 1,
+                }
+              : {
+                  rootLessonId: result.page.id,
+                  followUpQuestions: followUps,
+                  followUpsUsed: 0,
+                },
+          );
+        } else {
+          setActiveThread(null);
+        }
+
         awardRewards(10, 15);
         showToast("Saved to Notebook! +15 EXP · +10 coins");
-        if (speakOut) {
-          void speakReply(replyLine);
-        }
         router.refresh();
-        return;
+        return {
+          reply: result.digest.reply,
+          mood,
+          replyMessageId,
+          followUpMessageIds,
+          followUpText: firstFollowUp,
+        };
+      }
+
+      if (result.status === "already_taught") {
+        setNogTeachReply("You already taught me this one!");
+        setLastDigestOps([]);
+        setLastOffTopic(false);
+        setLastReplyMessageId(null);
+        setFeedDraft("");
+        return null;
+      }
+
+      if (result.status === "follow_up_limit") {
+        setActiveThread(null);
+        setNogTeachReply("That wraps up this thread! Start a fresh note whenever you're ready.");
+        return null;
+      }
+
+      if (result.status === "questions_pending") {
+        const notice = `Questions for ${bookTitle} are still getting ready.`;
+        setQuestionsPendingNotice(notice);
+        setPendingRetryBody(body);
+        setNogTeachReply(notice);
+        return null;
       }
 
       if (result.status === "overload") {
@@ -470,8 +663,10 @@ export function NogRoomView({
       } else {
         setNogTeachReply("Hmm, I couldn't catch that. Try sending it again!");
       }
+      return null;
     } catch {
       setNogTeachReply("Brain fog! Couldn't save that right now — try again.");
+      return null;
     } finally {
       setFeedSending(false);
     }
@@ -479,7 +674,7 @@ export function NogRoomView({
 
   function handleFeedSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void sendLessonText(feedDraft, false);
+    void sendLessonText(feedDraft);
   }
 
   function handleAutoSplit() {
@@ -596,10 +791,13 @@ export function NogRoomView({
   const equippedIds = state.equippedSlots.filter((x): x is string => Boolean(x));
   const bubbleText = (() => {
     if (teachMode === "live") {
-      if (liveMuted) return "Mic muted — tap Unmute whenever you're ready!";
-      return liveCaption ?? `Listening... explain ${bookTitle} to me!`;
+      return liveCaption ?? `Listening… explain ${bookTitle} to me!`;
     }
     if (teachMode === "feed") {
+      if (chatMode === "ask") {
+        if (nogTeachReply) return nogTeachReply;
+        return `Ask me anything about ${bookTitle}, or just say hi!`;
+      }
       if (isOverloaded) {
         return "Whoa! My tiny brain is spinning! Keep each lesson under 120 words.";
       }
@@ -970,14 +1168,35 @@ export function NogRoomView({
                   </>
                 )}
 
-                <div className="gamestage-pet-wrap">
+                <div
+                  className="gamestage-pet-wrap"
+                  data-mood={activeMood ?? "happy"}
+                >
                   {!bookPickerOpen && (
                     <div
-                      className={`nog-bubble ${isIdleBubble ? "nog-bubble--idle" : ""}`}
+                      className={`nog-bubble ${isIdleBubble ? "nog-bubble--idle" : ""} ${nog.stage !== "hatchling" ? "nog-bubble--tall" : ""}`.trim()}
                       role="status"
                       aria-live="polite"
                     >
-                      {bubbleText}
+                      <span className="nog-bubble-inner">
+                        {teachMode && activeMood && (
+                          <span className="nog-bubble-mood">
+                            {MOOD_LABELS[activeMood]}
+                          </span>
+                        )}
+                        <span>{bubbleText}</span>
+                        {teachMode === "feed" && lastReplyMessageId && (
+                          <InRoomReplySpeaker
+                            messageId={lastReplyMessageId}
+                            fallbackText={bubbleText}
+                            voiceEnabled={initialSettings.voiceEnabled}
+                            voice={state.audio.ttsVoice}
+                            autoPlay={state.audio.autoSpeakReplies}
+                            volume={(state.audio.voice ?? 90) / 100}
+                            onSpeakingChange={setNogSpeaking}
+                          />
+                        )}
+                      </span>
                     </div>
                   )}
                   {tapCount > 0 && (
@@ -988,21 +1207,38 @@ export function NogRoomView({
 
                   {restingDate ? (
                     <div className="sanctuary-pet-btn" aria-label={`${nog.name} is resting`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/game/nog/sleeping-books.png" alt={`${nog.name} sleeping peacefully`} className="nog-bob" />
+                      <NogStage
+                        scene="sleeping"
+                        tint={nog.colors?.body ?? null}
+                        alt={`${nog.name} sleeping peacefully`}
+                        poster="/nog/sleeping-books.png"
+                        width={908}
+                        height={721}
+                        sizes="400px"
+                        className="nog-bob w-full"
+                      />
                       <span className="nog-ground-shadow" aria-hidden="true" />
                     </div>
                   ) : (
                     <NogAvatar
                       variant="sanctuary"
                       name={nog.name}
+                      stage={nog.stage}
+                      species={state.nogSpecies?.[nog.id] ?? nogSpeciesForId(nog.id)}
                       reaction={isOverloaded ? "annoyed" : reaction}
                       message={null}
                       tapCount={tapCount}
                       onTap={pet}
                       tint={nog.colors?.body ?? null}
+                      equippedAccessories={equippedIds}
+                      mood={activeMood}
+                      speaking={nogSpeaking}
+                      roomTheme={activeRoom.id}
                     >
                       {equippedIds.map((accId) => {
+                        if (resolveSceneGlb("room", nog.stage) && hasAccessoryGlb(accId)) {
+                          return null;
+                        }
                         const img = WORN_ACC_IMG[accId];
                         if (!img) return null;
                         return (
@@ -1063,7 +1299,29 @@ export function NogRoomView({
             {!bookPickerOpen && teachMode === "feed" && (
               <div className="feed-inroom-wrap">
                 {lastUserEcho && <div className="feed-user-echo">{lastUserEcho}</div>}
-                {isOverloaded && (
+                <InRoomTeachFeedback
+                  chatMode={chatMode}
+                  topicTitle={bookTitle}
+                  thoughtCards={initialThoughtCards}
+                  followUpQuestions={activeThread?.followUpQuestions ?? []}
+                  operations={lastDigestOps}
+                  offTopic={lastOffTopic}
+                  questionsPendingNotice={questionsPendingNotice}
+                  citedCards={lastCitedCards}
+                  askUntaught={lastAskUntaught}
+                  onResetThread={resetTeachThread}
+                  onClarifyConflict={handleClarifyConflict}
+                  onRetryPending={() => {
+                    if (pendingRetryBody) {
+                      void sendLessonText(pendingRetryBody, true);
+                    }
+                  }}
+                  onSwitchToTeach={() => {
+                    handleChatModeChange("teach");
+                    setNogTeachReply(`Teach me about ${bookTitle} in your own words!`);
+                  }}
+                />
+                {chatMode === "teach" && isOverloaded && (
                   <div className="flex items-center justify-between gap-3 rounded-[18px] bg-[var(--noggin-danger-soft)] px-4 py-2 text-xs font-bold text-[var(--noggin-danger)]">
                     <span>Over 120 words — split into smaller chunks.</span>
                     <button
@@ -1075,27 +1333,44 @@ export function NogRoomView({
                     </button>
                   </div>
                 )}
+                <div className="inroom-chat-controls">
+                  <InRoomModeToggle
+                    mode={chatMode}
+                    onChange={handleChatModeChange}
+                    disabled={feedSending}
+                  />
+                </div>
                 <form className="ai-chat-row" onSubmit={handleFeedSubmit}>
                   <div className="ai-chat-pill">
-                    <span
-                      className="ai-chat-cap tnum"
-                      title="Brain capacity"
-                      style={
-                        isOverloaded
-                          ? { background: "var(--noggin-danger-soft)", color: "var(--noggin-danger)" }
-                          : undefined
-                      }
-                    >
-                      {wordCount}/{DEFAULT_LESSON_WORD_LIMIT}
-                    </span>
+                    {chatMode === "teach" && (
+                      <span
+                        className="ai-chat-cap tnum"
+                        title="Brain capacity"
+                        style={
+                          isOverloaded
+                            ? { background: "var(--noggin-danger-soft)", color: "var(--noggin-danger)" }
+                            : undefined
+                        }
+                      >
+                        {wordCount}/{DEFAULT_LESSON_WORD_LIMIT}
+                      </span>
+                    )}
                     <input
                       type="text"
                       className="ai-chat-input"
-                      aria-label={`Teach ${nog.name} about ${bookTitle}`}
+                      aria-label={
+                        chatMode === "ask"
+                          ? `Ask ${nog.name} about ${bookTitle}`
+                          : `Teach ${nog.name} about ${bookTitle}`
+                      }
                       placeholder={
-                        fixingCard
-                          ? `Clarify "${fixingCard.label}" for ${nog.name}...`
-                          : `Teach ${nog.name} about ${bookTitle}...`
+                        chatMode === "ask"
+                          ? `Ask ${nog.name} about ${bookTitle} or say hi...`
+                          : activeThread
+                            ? `Answer ${nog.name}'s follow-up...`
+                            : fixingCard
+                              ? `Clarify "${fixingCard.label}" for ${nog.name}...`
+                              : `Teach ${nog.name} about ${bookTitle}...`
                       }
                       value={feedDraft}
                       disabled={feedSending}
@@ -1104,9 +1379,13 @@ export function NogRoomView({
                     />
                     <button
                       type="submit"
-                      disabled={feedSending || isOverloaded || wordCount === 0}
+                      disabled={
+                        feedSending ||
+                        (chatMode === "teach" && isOverloaded) ||
+                        wordCount === 0
+                      }
                       className="ai-chat-send disabled:opacity-50"
-                      aria-label="Send lesson"
+                      aria-label={chatMode === "ask" ? "Ask Nog" : "Send lesson"}
                     >
                       <Send className="h-[18px] w-[18px]" strokeWidth={2.6} aria-hidden="true" />
                     </button>
@@ -1115,7 +1394,7 @@ export function NogRoomView({
                   <button
                     type="button"
                     onClick={() => {
-                      setLiveMuted(false);
+                      setLiveCaption(null);
                       setTeachMode("live");
                     }}
                     className="ai-live-mic-btn"
@@ -1130,44 +1409,27 @@ export function NogRoomView({
 
             {/* IN-ROOM LIVE VOICE HUD */}
             {!bookPickerOpen && teachMode === "live" && (
-              <div className="live-voice-hud">
-                <div className={`live-orb-wrap ${liveMuted ? "is-muted" : ""}`}>
-                  <span className="live-orb-ring" aria-hidden="true" />
-                  <div className="live-wave-bars" aria-hidden="true">
-                    <i /><i /><i /><i /><i />
-                  </div>
-                </div>
-                <div className="live-voice-actions">
-                  <button
-                    type="button"
-                    onClick={() => setLiveMuted((v) => !v)}
-                    className="gbtn gbtn--white gbtn--sm"
-                  >
-                    {liveMuted ? "Unmute" : "Mute"}
-                  </button>
-                  {liveTranscript.trim().length > 0 && (
-                    <button
-                      type="button"
-                      disabled={feedSending}
-                      onClick={() => void sendLessonText(liveTranscript, true)}
-                      className="gbtn gbtn--leaf gbtn--sm"
-                    >
-                      {feedSending ? "Saving…" : "Teach This"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      stopLiveVoice();
-                      setTeachMode("feed");
-                    }}
-                    className="live-end-btn"
-                    aria-label="End Live Voice"
-                  >
-                    End Live
-                  </button>
-                </div>
-              </div>
+              <InRoomLiveVoice
+                nogName={nog.name}
+                topicTitle={bookTitle}
+                chatMode={chatMode}
+                voiceEnabled={initialSettings.voiceEnabled}
+                voiceName={state.audio.ttsVoice}
+                voiceVolume={(state.audio.voice ?? 90) / 100}
+                sending={feedSending}
+                onChangeMode={handleChatModeChange}
+                onSubmitTranscript={(text) => sendLessonText(text)}
+                onCaptionChange={setLiveCaption}
+                onSpeakingChange={setNogSpeaking}
+                onExitToFeed={(feedbackMessage) => {
+                  setLiveCaption(null);
+                  setNogSpeaking(false);
+                  if (feedbackMessage) {
+                    setNogTeachReply(feedbackMessage);
+                  }
+                  setTeachMode("feed");
+                }}
+              />
             )}
 
             {/* IN-ROOM WATER: Compact Floating Recall Card */}
@@ -1459,7 +1721,7 @@ export function NogRoomView({
                         setEditingBookId(t.id);
                         return;
                       }
-                      setActiveTopicId(t.id);
+                      handleSwitchTopic(t.id);
                       setBookPickerOpen(false);
                       showToast(`Switched notebook to ${tTitle}`);
                     }}

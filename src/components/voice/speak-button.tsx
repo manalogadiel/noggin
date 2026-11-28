@@ -2,8 +2,9 @@
 
 import { Square, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useGameUi } from "@/components/game-ui/game-ui-context";
 import { cn } from "@/lib/utils";
-import { requestSpeechAudio } from "./voice-client";
+import { requestSpeechAudio, type SpeakAudioPayload } from "./voice-client";
 
 export interface SpeakButtonProps {
   attemptId?: string;
@@ -20,6 +21,7 @@ export function SpeakButton({
   text,
   nogName,
 }: SpeakButtonProps) {
+  const { state: gameState } = useGameUi();
   const [state, setState] = useState<SpeakState>("idle");
   const [unavailable, setUnavailable] = useState(false);
 
@@ -146,10 +148,15 @@ export function SpeakButton({
     setUnavailable(false);
     setState("loading");
 
-    const payload = attemptId
-      ? { attemptId }
+    const voiceOverride =
+      gameState.audio.ttsVoice && gameState.audio.ttsVoice !== "Puck"
+        ? { voice: gameState.audio.ttsVoice }
+        : {};
+
+    const payload: SpeakAudioPayload | null = attemptId
+      ? { attemptId, ...voiceOverride }
       : messageId
-        ? { messageId }
+        ? { messageId, ...voiceOverride }
         : null;
 
     if (!payload) {

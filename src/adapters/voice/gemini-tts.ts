@@ -7,6 +7,7 @@ import type {
 } from "@/core/application/ports";
 
 const GEMINI_API_ORIGIN = "https://generativelanguage.googleapis.com";
+const DEFAULT_TTS_VOICE = "Puck";
 const DEFAULT_PCM_SAMPLE_RATE = 24_000;
 const PCM_CHANNELS = 1;
 const PCM_BITS_PER_SAMPLE = 16;
@@ -134,9 +135,14 @@ export function wrapPcmAsWav(
   return out;
 }
 
+export function resolveGeminiTtsVoice(): string {
+  return trimNonEmpty(process.env.TTS_VOICE) ?? DEFAULT_TTS_VOICE;
+}
+
 export function createGeminiTts(): TextToSpeech {
   const apiKey = trimNonEmpty(process.env.GEMINI_API_KEY);
   const model = trimNonEmpty(process.env.TTS_MODEL);
+  const voiceName = resolveGeminiTtsVoice();
 
   if (!apiKey && !model) {
     throw new GeminiTtsConfigError(
@@ -158,6 +164,7 @@ export function createGeminiTts(): TextToSpeech {
 
   return {
     async speak(input: SpeakInput): Promise<SynthesizedAudio> {
+      const selectedVoice = trimNonEmpty(input.voice) ?? voiceName;
       let response: Response;
       try {
         response = await fetch(endpointUrl, {
@@ -170,6 +177,13 @@ export function createGeminiTts(): TextToSpeech {
             contents: [{ parts: [{ text: input.text }] }],
             generationConfig: {
               responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: selectedVoice,
+                  },
+                },
+              },
             },
           }),
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

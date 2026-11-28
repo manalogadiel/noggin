@@ -61,9 +61,18 @@ export function TopicThoughtCards({
                   {card.label}
                 </span>
 
-                <span className={cn("hw-stamp", meta.stampClass)}>
-                  {meta.label}
-                </span>
+                <div className="inline-flex flex-wrap items-center gap-1.5">
+                  {typeof card.evidenceCount === "number" &&
+                    card.evidenceCount > 1 && (
+                      <span className="hw-stamp hw-stamp--taught tnum">
+                        Taught {card.evidenceCount}×
+                      </span>
+                    )}
+
+                  <span className={cn("hw-stamp", meta.stampClass)}>
+                    {meta.label}
+                  </span>
+                </div>
               </div>
 
               <ul className="hw-list">

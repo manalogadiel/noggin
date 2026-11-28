@@ -11,12 +11,31 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
 import { Book3dSvg } from "@/components/game-ui/book-3d-svg";
 import { type BookCoverStyle } from "@/components/game-ui/game-ui-context";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import type { NogRecord, TopicSummary } from "@/core/application/ports";
+import type { QuizQuestionFormat } from "@/core/application/use-cases/run-quick-check";
+import {
+  countWords,
+  DEFAULT_LESSON_WORD_LIMIT,
+  splitLesson,
+} from "@/core/domain/lesson";
+import { QUICK_CHECK_SIZE } from "@/core/domain/quiz";
 import { cn } from "@/lib/utils";
+
+const MAX_UPLOAD_BYTES = 50 * 1024;
+
+export interface StartQuizOptions {
+  questionCount: number;
+  formats: QuizQuestionFormat[];
+}
+
+export interface SetupActionStatus {
+  ok: boolean;
+  message: string;
+}
 
 export type CheckFeedbackKind =
   | "not_taught"
@@ -38,15 +57,21 @@ export interface TopicSelectStepProps {
   isThinking: boolean;
   feedback: CheckFeedback | null;
   onSelectTopic: (topicId: string) => void;
-  onStart: () => void;
+  onStart: (options?: StartQuizOptions) => void;
   onRetry: () => void;
+  onGenerateTopic?: (title: string) => Promise<SetupActionStatus>;
+  onUploadNotes?: (topicId: string, text: string) => Promise<SetupActionStatus>;
 }
 
-const FORMAT_MODES = [
+const FORMAT_MODES: ReadonlyArray<{
+  id: QuizQuestionFormat;
+  label: string;
+  icon: typeof Check;
+}> = [
   { id: "mc", label: "Choices", icon: Check },
   { id: "enum", label: "List", icon: ListChecks },
   { id: "phrase", label: "Short", icon: MessageSquareText },
-] as const;
+];
 
 const BOOK_COVER_ROTATION: ReadonlyArray<BookCoverStyle> = [
   "sage",
@@ -65,22 +90,138 @@ export function TopicSelectStep({
   onSelectTopic,
   onStart,
   onRetry,
+  onGenerateTopic,
+  onUploadNotes,
 }: TopicSelectStepProps) {
-  const [questionCount, setQuestionCount] = useState(10);
-  const [aiGenOn, setAiGenOn] = useState(true);
+  const [questionCount, setQuestionCount] = useState(QUICK_CHECK_SIZE);
+  const [aiGenOn, setAiGenOn] = useState(false);
   const [fileUploadOn, setFileUploadOn] = useState(false);
-  const [formats, setFormats] = useState<Record<string, boolean>>({
+  const [formats, setFormats] = useState<Record<QuizQuestionFormat, boolean>>({
     mc: true,
     enum: true,
     phrase: true,
   });
+  const [topicDraft, setTopicDraft] = useState("");
+  const [genBusy, setGenBusy] = useState(false);
+  const [genStatus, setGenStatus] = useState<SetupActionStatus | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{
+    name: string;
+    text: string;
+    words: number;
+    chunks: number;
+  } | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<SetupActionStatus | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const roomHref = `/nogs/${nog.id}`;
   const feedBaseHref = `${roomHref}?teach=feed`;
   const hasReadyTopic = topics.some((topic) => topic.status === "ready");
+  const pendingTopics = topics.filter((topic) => topic.status !== "ready");
   const canStart = Boolean(selectedTopicId) && hasReadyTopic && !isThinking;
   const selectedTopic =
     topics.find((topic) => topic.id === selectedTopicId) ?? null;
+
+  const activeFormats = FORMAT_MODES.map((m) => m.id).filter((id) => formats[id]);
+
+  const handleToggleFormat = (id: QuizQuestionFormat) => {
+    setFormats((prev) => {
+      const enabledCount = Object.values(prev).filter(Boolean).length;
+      if (prev[id] && enabledCount <= 1) {
+        return prev;
+      }
+      return { ...prev, [id]: !prev[id] };
+    });
+  };
+
+  const handleGenerateSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!onGenerateTopic || genBusy || !topicDraft.trim()) {
+      return;
+    }
+    setGenBusy(true);
+    setGenStatus(null);
+    const status = await onGenerateTopic(topicDraft.trim());
+    setGenStatus(status);
+    if (status.ok) {
+      setTopicDraft("");
+    }
+    setGenBusy(false);
+  };
+
+  const handleRetryPendingTopic = async (title: string) => {
+    if (!onGenerateTopic || genBusy) {
+      return;
+    }
+    setGenBusy(true);
+    setGenStatus(null);
+    const status = await onGenerateTopic(title);
+    setGenStatus(status);
+    setGenBusy(false);
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setUploadStatus(null);
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setSelectedFile(null);
+      setUploadStatus({
+        ok: false,
+        message: "Please choose a text file under 50 KB.",
+      });
+      return;
+    }
+    try {
+      const raw = await file.text();
+      const trimmed = raw.trim();
+      const words = countWords(trimmed);
+      if (words === 0) {
+        setSelectedFile(null);
+        setUploadStatus({
+          ok: false,
+          message: "That file has no readable study notes.",
+        });
+        return;
+      }
+      const chunks = Math.min(
+        5,
+        splitLesson(trimmed, DEFAULT_LESSON_WORD_LIMIT).filter((c) => c.trim().length > 0).length,
+      );
+      setSelectedFile({
+        name: file.name,
+        text: trimmed,
+        words,
+        chunks,
+      });
+    } catch {
+      setSelectedFile(null);
+      setUploadStatus({
+        ok: false,
+        message: "Couldn't read that file. Try a .txt or .md note file.",
+      });
+    }
+  };
+
+  const handleTeachSelectedFile = async () => {
+    if (!onUploadNotes || !selectedTopicId || !selectedFile || uploadBusy) {
+      return;
+    }
+    setUploadBusy(true);
+    setUploadStatus(null);
+    const status = await onUploadNotes(selectedTopicId, selectedFile.text);
+    setUploadStatus(status);
+    if (status.ok) {
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+    setUploadBusy(false);
+  };
 
   if (isThinking) {
     return (
@@ -164,6 +305,7 @@ export function TopicSelectStep({
               <div className="w-[clamp(140px,14.5vw,210px)]">
                 <NogStage
                   scene="room"
+                  stage={nog.stage}
                   tint={nog.colors?.body ?? null}
                   alt={`${nog.name} thinking through the quiz questions`}
                   poster="/nog/blob-closeup.png"
@@ -310,9 +452,7 @@ export function TopicSelectStep({
                     key={mode.id}
                     type="button"
                     aria-pressed={on}
-                    onClick={() =>
-                      setFormats((prev) => ({ ...prev, [mode.id]: !prev[mode.id] }))
-                    }
+                    onClick={() => handleToggleFormat(mode.id)}
                     className={cn(
                       "qs-fmt-chip",
                       fmtChipClass[mode.id],
@@ -335,7 +475,10 @@ export function TopicSelectStep({
               <button
                 type="button"
                 aria-pressed={aiGenOn}
-                onClick={() => setAiGenOn((v) => !v)}
+                onClick={() => {
+                  setAiGenOn((v) => !v);
+                  setFileUploadOn(false);
+                }}
                 className={cn("qs-src-cta qs-src-cta--ai", aiGenOn && "is-on")}
               >
                 <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -344,13 +487,131 @@ export function TopicSelectStep({
               <button
                 type="button"
                 aria-pressed={fileUploadOn}
-                onClick={() => setFileUploadOn((v) => !v)}
+                onClick={() => {
+                  setFileUploadOn((v) => !v);
+                  setAiGenOn(false);
+                }}
                 className={cn("qs-src-cta qs-src-cta--file", fileUploadOn && "is-on")}
               >
                 <FileUp className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>Add by File</span>
               </button>
             </div>
+
+            {aiGenOn && (
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-[var(--noggin-white)]/92 p-4 shadow-[0_6px_16px_var(--noggin-shadow)]">
+                <form
+                  onSubmit={(e) => void handleGenerateSubmit(e)}
+                  className="flex flex-wrap items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    maxLength={60}
+                    value={topicDraft}
+                    disabled={genBusy}
+                    onChange={(e) => setTopicDraft(e.target.value)}
+                    placeholder="New topic to generate quiz questions..."
+                    aria-label="New quiz topic title"
+                    className="g-input h-10 min-w-[180px] flex-1 rounded-full px-4 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={genBusy || !topicDraft.trim() || !onGenerateTopic}
+                    className="gbtn gbtn--leaf gbtn--sm shrink-0 disabled:opacity-55"
+                  >
+                    {genBusy ? "Generating…" : "Generate"}
+                  </button>
+                </form>
+
+                {pendingTopics.length > 0 && onGenerateTopic && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--noggin-forest)]">
+                    <span>Finish pending:</span>
+                    {pendingTopics.map((topic) => (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        disabled={genBusy}
+                        onClick={() => void handleRetryPendingTopic(topic.title)}
+                        className="rounded-full bg-[var(--noggin-mint)] px-3 py-1 font-bold text-[var(--noggin-forest)] transition-colors hover:bg-[var(--noggin-mint-light)]"
+                      >
+                        Retry {topic.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {genStatus && (
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className={cn(
+                      "m-0 text-xs font-semibold",
+                      genStatus.ok
+                        ? "text-[var(--noggin-forest)]"
+                        : "text-[var(--noggin-danger)]",
+                    )}
+                  >
+                    {genStatus.message}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {fileUploadOn && (
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-[var(--noggin-white)]/92 p-4 shadow-[0_6px_16px_var(--noggin-shadow)]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="gbtn gbtn--white gbtn--sm cursor-pointer">
+                    <FileUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>Choose study file (.txt, .md)</span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".txt,.md,.csv,.json,text/plain,text/markdown"
+                      aria-label="Upload study notes file"
+                      onChange={(e) => void handleFileChange(e)}
+                      className="sr-only"
+                    />
+                  </label>
+                  {selectedFile && (
+                    <span className="text-xs font-semibold text-[var(--noggin-forest)]">
+                      {selectedFile.name} · {selectedFile.words} words ({selectedFile.chunks}{" "}
+                      {selectedFile.chunks === 1 ? "note" : "notes"})
+                    </span>
+                  )}
+                </div>
+
+                {selectedFile && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs text-[var(--noggin-ink)]">
+                      Target notebook: <strong>{selectedTopic?.title ?? "Select a topic"}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={uploadBusy || !selectedTopicId || !onUploadNotes}
+                      onClick={() => void handleTeachSelectedFile()}
+                      className="gbtn gbtn--leaf gbtn--sm disabled:opacity-55"
+                    >
+                      {uploadBusy ? "Teaching…" : `Teach file to ${nog.name}`}
+                    </button>
+                  </div>
+                )}
+
+                {uploadStatus && (
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className={cn(
+                      "m-0 text-xs font-semibold",
+                      uploadStatus.ok
+                        ? "text-[var(--noggin-forest)]"
+                        : "text-[var(--noggin-danger)]",
+                    )}
+                  >
+                    {uploadStatus.message}
+                  </p>
+                )}
+              </div>
+            )}
 
             {feedback && (
               <FeedbackBanner
@@ -365,7 +626,12 @@ export function TopicSelectStep({
               <button
                 type="button"
                 disabled={!canStart}
-                onClick={onStart}
+                onClick={() =>
+                  onStart({
+                    questionCount,
+                    formats: activeFormats,
+                  })
+                }
                 className="qs-start-cta disabled:cursor-not-allowed disabled:opacity-55"
               >
                 <Play className="h-5 w-5 shrink-0 fill-current" aria-hidden="true" />
@@ -390,6 +656,8 @@ export function TopicSelectStep({
             <div className="w-[clamp(140px,14.5vw,210px)]">
               <NogStage
                 scene={feedback?.kind === "sleepy" ? "dizzy" : "room"}
+                stage={nog.stage}
+                tint={nog.colors?.body ?? null}
                 alt={`${nog.name} ready for a practice quiz`}
                 poster={
                   feedback?.kind === "sleepy"

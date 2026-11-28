@@ -50,6 +50,9 @@ vi.mock("@/app/(app)/actions/lesson-actions", () => ({
   reviseLessonAction: vi.fn(),
   answerFollowUpAction: vi.fn(),
 }));
+vi.mock("@/app/(app)/actions/ask-actions", () => ({
+  askNogAction: vi.fn(),
+}));
 vi.mock("@/app/(app)/actions/topic-actions", () => ({
   addTopicAction: vi.fn(),
 }));
@@ -263,6 +266,20 @@ describe("Nog Room view", () => {
     tapAt(button, 4999);
     expect(button).toHaveAttribute("data-reaction", "annoyed");
     expect(screen.getByText(/^(?!feed$).*\bfeed\b/i)).toBeVisible();
+  });
+
+  it("keeps the 3D NogStage mounted across repeated pet taps instead of remounting to the 2D poster", async () => {
+    await renderRoom();
+    const tapAt = useTapClock();
+    const button = petButton();
+    const stageBefore = button.querySelector("[data-nog-3d]");
+    expect(stageBefore).not.toBeNull();
+
+    for (const elapsedMs of [0, 200, 400, 600, 800]) {
+      tapAt(button, elapsedMs);
+    }
+
+    expect(button.querySelector("[data-nog-3d]")).toBe(stageBefore);
   });
 
   it("keeps spaced taps outside the tickle and annoyed windows", async () => {

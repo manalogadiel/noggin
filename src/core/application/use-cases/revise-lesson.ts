@@ -120,6 +120,12 @@ export async function reviseLesson(
           applied: false,
           cardIds: savedDigest.cardIds,
           savedDigest: savedDigest.digest,
+          ...(savedDigest.replyMessageId !== undefined
+            ? { replyMessageId: savedDigest.replyMessageId }
+            : {}),
+          ...(savedDigest.followUpMessageIds !== undefined
+            ? { followUpMessageIds: savedDigest.followUpMessageIds }
+            : {}),
         },
       };
     }
@@ -199,22 +205,30 @@ export async function reviseLesson(
   );
 
   if (!applied.applied) {
-    const saved =
-      applied.savedDigest ??
-      (deps.notebook.findSavedDigest
-        ? (
-            await deps.notebook.findSavedDigest(
-              input.nogId,
-              page.idempotencyKey,
-            )
-          )?.digest
-        : undefined);
+    const needsSavedRecord =
+      !applied.savedDigest ||
+      (applied.replyMessageId === undefined &&
+        applied.followUpMessageIds === undefined);
+    const savedRecord =
+      needsSavedRecord && deps.notebook.findSavedDigest
+        ? await deps.notebook.findSavedDigest(input.nogId, page.idempotencyKey)
+        : null;
+    const saved = applied.savedDigest ?? savedRecord?.digest;
+    const replyMessageId =
+      applied.replyMessageId ?? savedRecord?.replyMessageId;
+    const followUpMessageIds =
+      applied.followUpMessageIds ?? savedRecord?.followUpMessageIds;
+    const mergedApplied: ApplyDigestResult = {
+      ...applied,
+      ...(replyMessageId !== undefined ? { replyMessageId } : {}),
+      ...(followUpMessageIds !== undefined ? { followUpMessageIds } : {}),
+    };
     if (saved) {
       return {
         status: "ok",
         page,
         digest: saved,
-        applied,
+        applied: mergedApplied,
       };
     }
     return {
@@ -226,7 +240,7 @@ export async function reviseLesson(
         followUpQuestions: [],
         operations: [],
       },
-      applied,
+      applied: mergedApplied,
     };
   }
 

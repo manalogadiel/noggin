@@ -9,6 +9,12 @@ import {
   type SkinPackId,
   useGameUi,
 } from "@/components/game-ui/game-ui-context";
+import {
+  NOG_SPECIES_LIST,
+  type NogSpeciesId,
+  nogPortraitForSpecies,
+  nogSpeciesForId,
+} from "@/components/nog-3d/model-manifest";
 import { NogStage } from "@/components/nog-3d/nog-stage";
 import type { NogStageSlug } from "@/core/application/ports";
 import { MAX_NOG_NAME_LENGTH } from "@/core/application/use-cases/hatch-nog";
@@ -23,6 +29,7 @@ export interface NogCustomizeSubmitPayload {
 
 export interface NogCustomizeStageProps {
   mode: "onboarding" | "edit";
+  nogId?: string;
   stage?: NogStageSlug;
   initialName: string;
   initialBodyColor: string | null;
@@ -51,6 +58,7 @@ function isPresetColor(hex: string | null): boolean {
 
 export function NogCustomizeStage({
   mode,
+  nogId,
   stage = "hatchling",
   initialName,
   initialBodyColor,
@@ -79,6 +87,11 @@ export function NogCustomizeStage({
   const [equippedSlots, setEquippedSlots] = useState<(string | null)[]>(
     () => initialEquippedSlots ?? state.equippedSlots,
   );
+  const [localSpecies, setLocalSpecies] = useState<NogSpeciesId | null>(null);
+  const selectedSpecies: NogSpeciesId =
+    localSpecies ??
+    (nogId ? state.nogSpecies?.[nogId] : undefined) ??
+    nogSpeciesForId(nogId);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const activeError = localError ?? errorMessage;
@@ -274,12 +287,19 @@ export function NogCustomizeStage({
               >
                 <NogStage
                   scene="room"
+                  stage={stage}
+                  species={selectedSpecies}
                   alt={previewAlt}
-                  poster="/nog/blob-closeup.png"
+                  poster={
+                    stage === "hatchling"
+                      ? "/nog/blob-closeup.png"
+                      : nogPortraitForSpecies(selectedSpecies)
+                  }
                   width={1254}
                   height={1254}
                   sizes="(min-width: 1024px) 360px, 300px"
                   tint={selectedColor}
+                  equippedAccessories={equippedSlots}
                   priority
                   className={cn(
                     "cust-nog-img",
@@ -445,6 +465,53 @@ export function NogCustomizeStage({
                 </label>
               </div>
             </section>
+
+            {stage !== "hatchling" && (
+              <section className="cust-section">
+                <header className="cust-section__head">
+                  <h2 className="cust-heading">Nog Style</h2>
+                </header>
+                <div
+                  role="radiogroup"
+                  aria-label="Nog style"
+                  className="cust-species-row"
+                >
+                  {NOG_SPECIES_LIST.map((species) => {
+                    const isActive = selectedSpecies === species.id;
+                    return (
+                      <button
+                        key={species.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        aria-label={`${species.label} style`}
+                        onClick={() => {
+                          setLocalSpecies(species.id);
+                          if (nogId) {
+                            updateState((prev) => ({
+                              ...prev,
+                              nogSpecies: {
+                                ...(prev.nogSpecies ?? {}),
+                                [nogId]: species.id,
+                              },
+                            }));
+                          }
+                        }}
+                        className={cn("cust-species-btn", isActive && "is-selected")}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={species.portrait}
+                          alt=""
+                          className="cust-species-btn__img"
+                        />
+                        <span className="cust-species-btn__label">{species.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             <section className="cust-section">
               <header className="cust-section__head">

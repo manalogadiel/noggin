@@ -1237,6 +1237,7 @@ async function buildContainer(): Promise<AppContainer> {
           currentUser,
           nogs: repositories.nogs,
           topics: repositories.topics,
+          profiles: profilesRepo,
           thoughtCards: repositories.thoughtCards,
           notebook: repositories.notebook,
           usage: repositories.usage,
@@ -1299,9 +1300,13 @@ async function buildContainer(): Promise<AppContainer> {
       ),
     speakAnswer: (input) => {
       const ttsModel = process.env.TTS_MODEL?.trim() ?? "";
+      const ttsVoiceOverride =
+        input.voice?.trim() || process.env.TTS_VOICE?.trim() || "";
+      const ttsCacheModel =
+        ttsModel && ttsVoiceOverride ? `${ttsModel}:${ttsVoiceOverride}` : ttsModel;
       const storageCache = createSupabaseVoiceCache({
         service,
-        model: ttsModel,
+        model: ttsCacheModel,
       });
       let resolvedText: string | null = null;
 
@@ -1333,21 +1338,21 @@ async function buildContainer(): Promise<AppContainer> {
 
       const modelScopedVoiceCache: VoiceCacheRepository = {
         get(fallbackKey) {
-          if (!ttsModel) {
+          if (!ttsCacheModel) {
             return Promise.resolve(null);
           }
           const cacheHash = computeVoiceCacheHash(
-            ttsModel,
+            ttsCacheModel,
             resolvedText ?? fallbackKey,
           );
           return storageCache.get(cacheHash);
         },
         put(fallbackKey, audio) {
-          if (!ttsModel) {
-            return Promise.resolve();
+          if (!ttsCacheModel) {
+            return Promise.resolve(null).then(() => undefined);
           }
           const cacheHash = computeVoiceCacheHash(
-            ttsModel,
+            ttsCacheModel,
             resolvedText ?? fallbackKey,
           );
           return storageCache.put(cacheHash, audio);

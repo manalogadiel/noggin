@@ -76,6 +76,8 @@ export interface LlmUsageEvent {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  rateLimitRemainingTokens?: number;
+  rateLimitResetTokensMs?: number;
 }
 
 export interface LlmAdapterOptions {
@@ -177,6 +179,54 @@ function parseRetryAfterMs(headerValue: string | null): number | null {
   return null;
 }
 
+function parseRateLimitDurationMs(headerValue: string | null): number | undefined {
+  if (!headerValue) {
+    return undefined;
+  }
+  const trimmed = headerValue.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const plainSeconds = Number(trimmed);
+  if (Number.isFinite(plainSeconds) && plainSeconds >= 0) {
+    return Math.round(plainSeconds * 1000);
+  }
+  let totalMs = 0;
+  let matched = false;
+  const partPattern = /(\d+(?:\.\d+)?)(ms|s|m|h)/gi;
+  for (const match of trimmed.matchAll(partPattern)) {
+    const amount = Number(match[1]);
+    const unit = match[2].toLowerCase();
+    if (!Number.isFinite(amount) || amount < 0) {
+      continue;
+    }
+    matched = true;
+    if (unit === "ms") totalMs += amount;
+    else if (unit === "s") totalMs += amount * 1000;
+    else if (unit === "m") totalMs += amount * 60_000;
+    else if (unit === "h") totalMs += amount * 3_600_000;
+  }
+  return matched ? Math.ceil(totalMs) : undefined;
+}
+
+function extractRateLimitHeaders(
+  headers: Headers,
+): Pick<LlmUsageEvent, "rateLimitRemainingTokens" | "rateLimitResetTokensMs"> {
+  const remainingRaw = headers.get("x-ratelimit-remaining-tokens");
+  const resetRaw = headers.get("x-ratelimit-reset-tokens");
+  const remaining =
+    remainingRaw !== null && remainingRaw.trim() !== ""
+      ? Number(remainingRaw.trim())
+      : Number.NaN;
+  const resetMs = parseRateLimitDurationMs(resetRaw);
+  return {
+    ...(Number.isFinite(remaining) && remaining >= 0
+      ? { rateLimitRemainingTokens: Math.floor(remaining) }
+      : {}),
+    ...(resetMs !== undefined ? { rateLimitResetTokensMs: resetMs } : {}),
+  };
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -233,6 +283,15 @@ function isRetryableStatus(status: number): boolean {
 
 function isReasoningModel(model: string): boolean {
   return /(^|\/)gpt-oss/i.test(model);
+}
+
+// Google's OpenAI-compatible endpoint rejects the `seed` field with 400 INVALID_ARGUMENT.
+function supportsSeedParameter(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname.toLowerCase() !== "generativelanguage.googleapis.com";
+  } catch {
+    return true;
+  }
 }
 
 // Groq returns 400 json_validate_failed when its own JSON-mode generation fails; another model usually succeeds.
@@ -309,7 +368,9 @@ export function createOpenAiCompatibleAdapters(
       response_format: { type: "json_object" },
       temperature: params.temperature,
       max_tokens: params.maxTokens,
-      seed: DETERMINISTIC_SEED,
+      ...(supportsSeedParameter(endpoint.baseUrl)
+        ? { seed: DETERMINISTIC_SEED }
+        : {}),
       // Reasoning models spend most of the token budget thinking; low effort keeps them fast and within free limits.
       ...(isReasoningModel(endpoint.model) ? { reasoning_effort: "low" } : {}),
     });
@@ -338,6 +399,7 @@ export function createOpenAiCompatibleAdapters(
     }
 
     const latencyMs = Date.now() - startedAt;
+    const rateLimit = extractRateLimitHeaders(response.headers);
     if (!response.ok) {
       const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
       recordUsage({
@@ -349,6 +411,7 @@ export function createOpenAiCompatibleAdapters(
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,
+        ...rateLimit,
       });
       return {
         ok: false,
@@ -372,6 +435,7 @@ export function createOpenAiCompatibleAdapters(
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,
+        ...rateLimit,
       });
       return { ok: true, content: "", endpoint };
     }
@@ -384,6 +448,7 @@ export function createOpenAiCompatibleAdapters(
       latencyMs,
       status: response.status,
       ...usage,
+      ...rateLimit,
     });
 
     return {
@@ -393,32 +458,35 @@ export function createOpenAiCompatibleAdapters(
     };
   }
 
-  function resolveRoleEndpoints(role: LlmRole): {
-    primary: OpenAiCompatibleEndpoint;
-    fallback?: OpenAiCompatibleEndpoint;
-  } {
+  function resolveEndpointChain(role: LlmRole): OpenAiCompatibleEndpoint[] {
+    const chain: OpenAiCompatibleEndpoint[] = [];
+    const seen = new Set<string>();
+    const addUnique = (endpoint: OpenAiCompatibleEndpoint | undefined) => {
+      if (!endpoint) return;
+      const key = `${endpoint.baseUrl.trim().replace(/\/+$/, "")}::${endpoint.model}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      chain.push(endpoint);
+    };
+
     const override = config.roleModels?.[role]?.trim();
     if (override && override !== config.primary.model) {
-      return {
-        primary: {
-          ...config.primary,
-          model: override,
-        },
-        fallback: config.primary,
-      };
+      addUnique({
+        ...config.primary,
+        model: override,
+      });
     }
-    return {
-      primary: config.primary,
-      fallback: config.fallback,
-    };
+    addUnique(config.primary);
+    addUnique(config.fallback);
+    return chain;
   }
 
   async function callWithFallback(
     messages: ChatMessage[],
     params: RoleRequestParams,
   ): Promise<TransportSuccess> {
-    const { primary, fallback } = resolveRoleEndpoints(params.role);
-    const first = await postCompletion(primary, messages, params);
+    const chain = resolveEndpointChain(params.role);
+    const first = await postCompletion(chain[0], messages, params);
     if (first.ok) {
       return first;
     }
@@ -435,18 +503,21 @@ export function createOpenAiCompatibleAdapters(
       await sleep(first.retryAfterMs);
     }
 
-    const nextEndpoint =
-      fallback ??
-      (first.retryAfterMs !== null && first.retryAfterMs <= MAX_RETRY_AFTER_MS
-        ? primary
-        : undefined);
-    if (!nextEndpoint) {
-      throw new NogSleepyError();
-    }
+    const candidates =
+      chain.length > 1
+        ? chain.slice(1)
+        : first.retryAfterMs !== null && first.retryAfterMs <= MAX_RETRY_AFTER_MS
+          ? [chain[0]]
+          : [];
 
-    const second = await postCompletion(nextEndpoint, messages, params);
-    if (second.ok) {
-      return second;
+    for (const candidate of candidates) {
+      const attempt = await postCompletion(candidate, messages, params);
+      if (attempt.ok) {
+        return attempt;
+      }
+      if (!attempt.retryable) {
+        throw new NogSleepyError();
+      }
     }
 
     throw new NogSleepyError();

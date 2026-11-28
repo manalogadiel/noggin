@@ -13,6 +13,8 @@ import { STATIC_WAVEFORM_LEVELS, WAVEFORM_BAR_COUNT } from "./waveform";
 const MAX_RECORDING_SECONDS = 60;
 const MAX_RECORDING_MS = MAX_RECORDING_SECONDS * 1000;
 const MIN_RECORDING_MS = 500;
+const MIN_VAD_RECORDING_MS = 900;
+const VAD_SPEECH_RMS_THRESHOLD = 0.09;
 const TIMER_POLL_MS = 250;
 
 export type RecorderPhase = "idle" | "recording" | "transcribing" | "listening";
@@ -26,6 +28,8 @@ export interface UseRecorderOptions {
   onTranscript: (text: string) => void;
   reducedMotion: boolean;
   hint?: string;
+  /** Optional hands-free pause duration (ms) after detected speech to stop & send automatically. */
+  autoStopOnSilenceMs?: number;
 }
 
 export interface UseRecorderResult {
@@ -38,6 +42,7 @@ export interface UseRecorderResult {
   setFeedback: (feedback: RecorderFeedback | null) => void;
   startRecording: () => Promise<void>;
   stopRecording: () => void;
+  cancelRecording: () => void;
 }
 
 function formatTimer(totalSeconds: number): string {
@@ -69,6 +74,7 @@ export function useRecorder({
   onTranscript,
   reducedMotion,
   hint,
+  autoStopOnSilenceMs,
 }: UseRecorderOptions): UseRecorderResult {
   const [phase, setPhase] = useState<RecorderPhase>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -79,6 +85,7 @@ export function useRecorder({
   const onTranscriptRef = useRef(onTranscript);
   const reducedMotionRef = useRef(reducedMotion);
   const hintRef = useRef(hint);
+  const autoStopOnSilenceMsRef = useRef(autoStopOnSilenceMs);
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
@@ -88,11 +95,17 @@ export function useRecorder({
   useEffect(() => {
     hintRef.current = hint;
   }, [hint]);
+  useEffect(() => {
+    autoStopOnSilenceMsRef.current = autoStopOnSilenceMs;
+  }, [autoStopOnSilenceMs]);
 
   const mountedRef = useRef(true);
   const startingRef = useRef(false);
   const pendingStopRef = useRef(false);
+  const cancelledRef = useRef(false);
   const startedAtRef = useRef<number>(0);
+  const heardSpeechRef = useRef(false);
+  const lastSpeechAtRef = useRef<number>(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -103,6 +116,7 @@ export function useRecorder({
   const autoStopTimeoutRef = useRef<number | null>(null);
   const transcribeAbortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const startAttemptIdRef = useRef(0);
 
   const clearTimers = useCallback(() => {
     if (timerIntervalRef.current !== null) {
@@ -389,6 +403,40 @@ export function useRecorder({
     [releaseMediaResources, startBrowserRecognitionFallback],
   );
 
+  const cancelRecording = useCallback(() => {
+    startAttemptIdRef.current += 1;
+    cancelledRef.current = true;
+    pendingStopRef.current = false;
+    startingRef.current = false;
+
+    transcribeAbortRef.current?.abort();
+    transcribeAbortRef.current = null;
+    stopBrowserRecognition();
+
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    chunksRef.current = [];
+    if (recorder && recorder.state !== "inactive") {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.onerror = null;
+      try {
+        recorder.stop();
+      } catch {
+        // Ignore stop errors while cancelling.
+      }
+    }
+
+    releaseMediaResources();
+
+    if (mountedRef.current) {
+      setPhase("idle");
+      setElapsedSeconds(0);
+      setLevels(STATIC_WAVEFORM_LEVELS);
+      setFeedback(null);
+    }
+  }, [releaseMediaResources, stopBrowserRecognition]);
+
   const stopRecording = useCallback(() => {
     if (startingRef.current) {
       pendingStopRef.current = true;
@@ -422,17 +470,23 @@ export function useRecorder({
     transcribeAbortRef.current?.abort();
     transcribeAbortRef.current = null;
 
+    const attemptId = startAttemptIdRef.current + 1;
+    startAttemptIdRef.current = attemptId;
     startingRef.current = true;
     pendingStopRef.current = false;
+    cancelledRef.current = false;
     setFeedback(null);
 
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      if (attemptId !== startAttemptIdRef.current) {
+        return;
+      }
       startingRef.current = false;
       pendingStopRef.current = false;
-      if (mountedRef.current) {
+      if (mountedRef.current && !cancelledRef.current) {
         setPhase("idle");
         setFeedback({
           tone: "error",
@@ -442,9 +496,22 @@ export function useRecorder({
       return;
     }
 
+    if (attemptId !== startAttemptIdRef.current) {
+      for (const track of stream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          // Ignore track stop errors.
+        }
+      }
+      return;
+    }
+
     startingRef.current = false;
 
-    if (!mountedRef.current || pendingStopRef.current) {
+    if (!mountedRef.current || cancelledRef.current || pendingStopRef.current) {
+      const wasCancelled = cancelledRef.current;
+      cancelledRef.current = false;
       pendingStopRef.current = false;
       for (const track of stream.getTracks()) {
         try {
@@ -455,10 +522,12 @@ export function useRecorder({
       }
       if (mountedRef.current) {
         setPhase("idle");
-        setFeedback({
-          tone: "info",
-          text: "Too short — hold a little longer",
-        });
+        if (!wasCancelled) {
+          setFeedback({
+            tone: "info",
+            text: "Too short — hold a little longer",
+          });
+        }
       }
       return;
     }
@@ -529,6 +598,8 @@ export function useRecorder({
     };
 
     startedAtRef.current = Date.now();
+    heardSpeechRef.current = false;
+    lastSpeechAtRef.current = startedAtRef.current;
     setElapsedSeconds(0);
     setPhase("recording");
     setAnnouncement("Recording started");
@@ -549,13 +620,39 @@ export function useRecorder({
     }
 
     timerIntervalRef.current = window.setInterval(() => {
+      const now = Date.now();
+      const elapsedMs = now - startedAtRef.current;
       const seconds = Math.min(
         MAX_RECORDING_SECONDS,
-        Math.floor((Date.now() - startedAtRef.current) / 1000),
+        Math.floor(elapsedMs / 1000),
       );
       setElapsedSeconds(seconds);
-      if (!reducedMotionRef.current && analyserRef.current) {
-        setLevels(sampleLevelsFromAnalyser(analyserRef.current));
+      const analyser = analyserRef.current;
+      if (analyser) {
+        const sampled = sampleLevelsFromAnalyser(analyser);
+        if (!reducedMotionRef.current) {
+          setLevels(sampled);
+        }
+        const silenceLimit = autoStopOnSilenceMsRef.current;
+        if (silenceLimit && silenceLimit > 0) {
+          const bins = new Uint8Array(analyser.frequencyBinCount || 32);
+          analyser.getByteFrequencyData(bins);
+          let sum = 0;
+          for (let i = 0; i < bins.length; i += 1) {
+            sum += bins[i] ?? 0;
+          }
+          const avgNorm = bins.length > 0 ? sum / (bins.length * 255) : 0;
+          if (avgNorm >= VAD_SPEECH_RMS_THRESHOLD) {
+            heardSpeechRef.current = true;
+            lastSpeechAtRef.current = now;
+          } else if (
+            heardSpeechRef.current &&
+            elapsedMs >= MIN_VAD_RECORDING_MS &&
+            now - lastSpeechAtRef.current >= silenceLimit
+          ) {
+            stopRecording();
+          }
+        }
       }
     }, TIMER_POLL_MS);
 
@@ -580,5 +677,6 @@ export function useRecorder({
     setFeedback,
     startRecording,
     stopRecording,
+    cancelRecording,
   };
 }

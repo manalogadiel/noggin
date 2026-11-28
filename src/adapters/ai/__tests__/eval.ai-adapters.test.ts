@@ -14,13 +14,17 @@ import { fileURLToPath } from "node:url";
 import { format } from "node:util";
 import { expect, it, vi } from "vitest";
 import packageJson from "../../../../package.json";
-import { completion, digest, fetchMock, persona, providerEnv, requestAt } from "./fixtures";
+import { completion, fetchMock, persona, providerEnv, requestAt } from "./fixtures";
 import { createFakeLlmAdapters } from "../fake-llm";
 import type { LlmAdapters } from "../fallback-llm";
 
 type WriterInput = { subjectName: string; topicTitle: string };
 
-type GoldenCase = { id: string; required?: boolean } & (
+type GoldenCase = {
+  id: string;
+  required?: boolean;
+  persona?: Partial<typeof persona>;
+} & (
   | {
     port: "listener";
     input: ListenInput;
@@ -34,6 +38,7 @@ type GoldenCase = { id: string; required?: boolean } & (
       allQuotesGrounded?: boolean;
       replyPatterns?: string[];
       replyNotMatch?: string[];
+      followUpPatterns?: string[];
       output?: ListenerDigest;
     };
   }
@@ -45,7 +50,13 @@ type GoldenCase = { id: string; required?: boolean } & (
   | {
     port: "answerer";
     input: AnswerInput;
-    expected: { answers: { questionId: string; nogAnswerPattern: string }[] };
+    expected: {
+      answers: {
+        questionId: string;
+        nogAnswerPattern: string;
+        nogAnswerNotMatch?: string[];
+      }[];
+    };
   }
   | { port: "asker"; input: AskInput }
   | { port: "question-writer"; input: WriterInput }
@@ -59,40 +70,24 @@ const golden: { cases: GoldenCase[] } = JSON.parse(
 const runnerModules = import.meta.glob("../../../../scripts/eval.ts");
 
 async function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: boolean) {
+  const casePersona = { ...persona, ...(testCase.persona ?? {}) };
   switch (testCase.port) {
     case "listener": {
-      const { operation, operationStatuses, minCreateOps, replyPatterns, output } = testCase.expected;
-      const quote = testCase.input.page.body;
-      const createCount = Math.max(1, minCreateOps ?? 1);
-      const baseOp = digest.operations[0];
-      const baseLabel = "label" in baseOp && baseOp.label ? baseOp.label : "SYN";
-      return output ?? {
-        ...digest,
-        reply: replyPatterns ? "Gets ko na, SYN muna!" : digest.reply,
-        ...(testCase.expected.offTopic === undefined ? {} : { offTopic: testCase.expected.offTopic }),
-        operations: operation?.type === "conflict" || operation?.type === "reinforce" || operation?.type === "update"
-          ? [{ quote, ...operation }]
-          : Array.from({ length: createCount }, (_, index) => ({
-            ...baseOp,
-            label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
-            quote,
-            status: operationStatuses?.[0] ?? "understood",
-          })),
-      };
+      if (testCase.expected.output) return testCase.expected.output;
+      const adapters = createFakeLlmAdapters({ getPersona: async () => casePersona, speechMimicry: false });
+      return adapters.listener.listen(testCase.input);
     }
     case "asker": {
-      const adapters = createFakeLlmAdapters({ getPersona: async () => persona, speechMimicry: false });
+      const adapters = createFakeLlmAdapters({ getPersona: async () => casePersona, speechMimicry: false });
       const { asker } = adapters as LlmAdapters & { asker?: NogAsker };
       if (!asker) throw new Error("The fake LLM needs an asker for its golden cases");
       return asker.ask(testCase.input);
     }
-    case "answerer":
-      return {
-        answers: testCase.input.questions.map(({ id }) => ({
-          questionId: id,
-          nogAnswer: "You haven't taught me that yet!",
-        })),
-      };
+    case "answerer": {
+      const adapters = createFakeLlmAdapters({ getPersona: async () => casePersona, speechMimicry: false });
+      const { answers } = await adapters.brain.answer(testCase.input);
+      return { answers };
+    }
     case "grader": {
       const { output, sameVerdictAs } = testCase.expected;
       if (!sameVerdictAs || !changeInjectionVerdict) return output;
@@ -104,7 +99,7 @@ async function scriptedResult(testCase: GoldenCase, changeInjectionVerdict: bool
     case "question-writer": {
       const adapters: LlmAdapters & {
         questionWriter?: { generate(input: WriterInput): Promise<GeneratedQuestionDraft[]> };
-      } = createFakeLlmAdapters({ getPersona: async () => persona, speechMimicry: false });
+      } = createFakeLlmAdapters({ getPersona: async () => casePersona, speechMimicry: false });
       if (!adapters.questionWriter) throw new Error("The fake LLM needs a question writer for its golden cases");
       const questions = await adapters.questionWriter.generate(testCase.input);
       return { questions: questions.map(({ prompt, referenceAnswer, sourceExcerpt, keyConcepts }) => ({
@@ -132,6 +127,8 @@ it.each([false, true])("runs every golden case and reports the injection verdict
   expect(injected.expected.output.grades[0].concepts[0].inPages).toBe(false);
   const askerModel = changed ? "configured-eval-asker" : undefined;
   vi.stubEnv("LLM_ASKER_MODEL", askerModel);
+  vi.stubEnv("LLM_GRADER_MODEL", undefined);
+  vi.stubEnv("LLM_QUESTION_WRITER_MODEL", undefined);
 
   const liveCases = golden.cases.filter((testCase) =>
     testCase.port !== "listener" || !testCase.providerResponse,

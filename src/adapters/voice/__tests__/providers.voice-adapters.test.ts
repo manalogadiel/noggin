@@ -146,3 +146,55 @@ it("keeps lesson audio, transcripts and spoken text out of provider diagnostics"
   }
   expect(fetchMock).toHaveBeenCalledTimes(4);
 });
+
+it("filters Whisper silence hallucinations when all verbose_json segments report high no_speech_prob", async () => {
+  fetchMock.mockResolvedValueOnce(
+    Response.json({
+      text: " Thank you.",
+      duration: 0.6,
+      segments: [{ text: " Thank you.", no_speech_prob: 0.91, avg_logprob: -0.4 }],
+    }),
+  );
+  const stt = await groqStt();
+
+  await expect(stt.transcribe(clip)).resolves.toMatchObject({
+    text: "",
+    durationSeconds: 0.6,
+  });
+});
+
+it("passes the Puck prebuilt companion voice by default and honors TTS_VOICE overrides", async () => {
+  fetchMock.mockResolvedValueOnce(geminiReply()).mockResolvedValueOnce(geminiReply());
+
+  const defaultTts = await geminiTts();
+  await defaultTts.speak({ text: answer });
+  await expect(providerRequest(0).json()).resolves.toMatchObject({
+    generationConfig: {
+      responseModalities: ["AUDIO"],
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } },
+      },
+    },
+  });
+
+  vi.stubEnv("TTS_VOICE", "Leda");
+  const customTts = await geminiTts();
+  await customTts.speak({ text: answer });
+  await expect(providerRequest(1).json()).resolves.toMatchObject({
+    generationConfig: {
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Leda" } },
+      },
+    },
+  });
+
+  fetchMock.mockResolvedValueOnce(geminiReply());
+  await customTts.speak({ text: answer, voice: "Aoede" });
+  await expect(providerRequest(2).json()).resolves.toMatchObject({
+    generationConfig: {
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
+      },
+    },
+  });
+});
